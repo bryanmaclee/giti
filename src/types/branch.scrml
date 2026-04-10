@@ -1,0 +1,23 @@
+<program>
+
+// giti-spec-v1.md §6.1 — Branch state type
+// Tracks named lines of work and their lifecycle.
+
+< Branch>
+  id: number
+  name: string
+  owner: string
+  created_at: string
+  last_save: string
+  status: .Active | .Merged | .Stale | .Deleted
+  diverge_count: number
+  linked_to: [string]
+
+  .Active -> .Merged: when landing_completes
+  .Active -> .Stale: when diverge_count > threshold && no_saves_in_7_days
+  .Merged -> .Deleted: when auto_cleanup
+  .Stale -> .Active: when author_saves
+  .Stale -> .Deleted: when author_deletes || auto_cleanup
+</ Branch>
+
+</program>

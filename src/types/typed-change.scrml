@@ -1,0 +1,29 @@
+<program>
+
+// giti-spec-v1.md §5.3 — TypedChange state type (v2)
+// The differentiator: compiler-computed AST diff + impact analysis.
+// No other forge can implement this — they don't own the compiler.
+
+< TypedChange>
+  id: number
+  title: string
+  body: string
+  author: string
+  status: .Draft | .Open | .Approved | .Merged | .Closed
+
+  // Compiler-computed (read-only, derived from AST diff)
+  added_types: [string]
+  removed_types: [string]
+  modified_types: [string]
+  breaking_changes: [string]
+  affected_files: [string]
+  breaking_acknowledged: boolean
+
+  .Draft -> .Open: when author_submits
+  .Open -> .Approved: when reviewer_approves && (breaking_changes is [] || breaking_acknowledged)
+  .Open -> .Closed: when author_closes
+  .Approved -> .Merged: when checks_pass
+  .Closed -> .Open: when author_reopens
+</ TypedChange>
+
+</program>

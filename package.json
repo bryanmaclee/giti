@@ -1,0 +1,13 @@
+{
+  "name": "giti",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "giti": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "bun test",
+    "dev": "bun run src/cli.js"
+  }
+}

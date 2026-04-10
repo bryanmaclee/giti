@@ -1,0 +1,34 @@
+<program>
+
+// giti-spec-v1.md §5.1 — Landing state type
+// The primary unit of shipping code. Solo: auto-lands on green.
+// Team: requires review approval.
+
+< Landing>
+  id: number
+  author: string
+  message: string
+  branch: string
+  target: string
+  compiler_result: .Pass | .Fail | .Pending
+  test_result: .Pass | .Fail | .Pending
+  review: .NotRequired | .Pending | .Approved | .ChangesRequested
+  status: .Running | .Blocked | .Landed | .Abandoned
+
+  .Running -> .Landed:
+    when compiler_result is .Pass
+    && test_result is .Pass
+    && (review is .NotRequired || review is .Approved)
+
+  .Running -> .Blocked:
+    when compiler_result is .Fail || test_result is .Fail
+
+  .Running -> .Blocked:
+    when review is .ChangesRequested
+
+  .Blocked -> .Abandoned: when author_cancels
+  .Blocked -> .Running: when author_pushes_fix
+  .Landed -> .Abandoned: when author_reverts && within_24_hours
+</ Landing>
+
+</program>

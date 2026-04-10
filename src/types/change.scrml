@@ -1,0 +1,40 @@
+<program>
+
+// giti-spec-v1.md §5.2 — Change state type (v1.1)
+// Individual reviewable unit. Part of a Stack. Independent review + land.
+
+< Change>
+  id: number
+  title: string
+  body: string
+  author: string
+  status: .Draft | .Open | .Approved | .Merged | .Closed
+  parent_change: number | not
+  stack_id: number | not
+  branch: string
+  target: string
+
+  .Draft -> .Open: when author_submits
+  .Open -> .Approved: when reviewer_approves
+  .Open -> .Closed: when author_closes
+  .Approved -> .Merged: when (parent_change is not || parent_merged) && checks_pass
+  .Closed -> .Open: when author_reopens
+</ Change>
+
+// giti-spec-v1.md §5.2 — Stack state type (v1.1)
+// Ordered series of Changes reviewed independently, landed together.
+
+< Stack>
+  id: number
+  title: string
+  author: string
+  changes: [number]
+  status: .InProgress | .ReadyToLand | .Landed | .Abandoned
+
+  .InProgress -> .ReadyToLand: when all changes are .Approved
+  .ReadyToLand -> .Landed: when author_lands
+  .ReadyToLand -> .InProgress: when any_change_moves_to .Open
+  .InProgress -> .Abandoned: when author_abandons
+</ Stack>
+
+</program>

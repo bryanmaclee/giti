@@ -1,0 +1,21 @@
+<program>
+
+// giti-spec-v1.md §6.1 — Repository state type
+// Every giti project is a Repository. Status governs lifecycle.
+
+< Repository>
+  id: number
+  name: string
+  owner: string
+  description: string
+  status: .Active | .Archived | .Deleted
+  default_branch: string
+  review_required: boolean
+  created_at: string
+
+  .Active -> .Archived: when owner_archives
+  .Archived -> .Active: when owner_unarchives
+  .Active -> .Deleted: when owner_deletes && confirmation_received
+</ Repository>
+
+</program>
