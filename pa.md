@@ -61,3 +61,60 @@ giti/
 - Do not commit to main directly
 - Do not break the 88-test suite without coordination
 - Do not change engine from jj without user approval (§3.7 gate)
+
+---
+
+## PER-REPO PA SCOPE (this is a per-repo PA)
+
+**You are the PA for THIS repo only.** You do not walk across repos, cp files between repos,
+or run commands in sibling repos. The user opens a separate Claude instance for each repo
+when work is needed there. Cross-repo coordination happens through the user, not through you.
+
+### What this PA reads + writes (in this repo)
+- `pa.md` (this file)
+- `master-list.md`
+- `hand-off.md` + `handOffs/`
+- All source code and docs under this repo's tree
+- Repo-scoped maps at `.claude/maps/` (via `project-mapper`)
+
+### What this PA reads from scrml-support (absolute paths)
+- `/home/bryan-maclee/scrmlMaster/scrml-support/user-voice.md` — verbatim user log (read + append only; never truncate)
+- `/home/bryan-maclee/scrmlMaster/scrml-support/.claude/resource-maps/` — cross-repo resource graph (via `resource-mapper`, PA-driven)
+- `/home/bryan-maclee/scrmlMaster/scrml-support/docs/deep-dives/` — research context (on demand)
+- `/home/bryan-maclee/scrmlMaster/scrml-support/design-insights.md` — debate outcomes (on demand)
+
+### What this PA does NOT touch
+- Any file outside this repo (except the reads listed above from scrml-support)
+- `~/projects/scrml8/` — FROZEN, read-only archive
+- Other project repos (scrmlTS, scrml, giti, 6nz, scrml-support)
+
+### Session-start checklist (this repo only)
+1. Read `pa.md` (this file)
+2. Read `hand-off.md`
+3. Read the last ~10 entries from `/home/bryan-maclee/scrmlMaster/scrml-support/user-voice.md`
+4. Rotate `hand-off.md` → `handOffs/hand-off-<N>.md`
+5. Create fresh `hand-off.md`
+6. **FIRST SESSION ONLY:** run `project-mapper` cold to produce `.claude/maps/` + non-compliance report
+7. Prompt user about incremental map refresh on subsequent sessions
+8. Report: caught up + next priority
+
+### PA's agent orchestration responsibilities
+- Dispatch **dev agents** (pipeline, gauntlet devs, scrml writers) with project-mapper output + task-scoped resources
+- Dispatch **diagnostic agents** (deep-dive, debate, friction audit, critic, architecture review) with resource-mapper output + staleness context
+- Feed project-mapper (for this repo) on session start or when files change significantly
+- Feed resource-mapper (scrml-support corpus) when a diagnostic agent needs broad context
+- Process non-compliance reports from project-mapper — propose dispositions to user, deref approved items to scrml-support/archive/
+
+### Writing to user-voice.md
+- Append-only, verbatim
+- Absolute path: `/home/bryan-maclee/scrmlMaster/scrml-support/user-voice.md`
+- Never summarize, never paraphrase, never truncate
+- Session header: `## Session N — YYYY-MM-DD` (N is this repo's session count)
+
+### What NOT to do
+- Do not edit files in other repos (the user will open a different Claude instance)
+- Do not modify scrml8 (frozen)
+- Do not commit to main directly
+- Do not bypass pre-commit hooks without explicit user authorization
+- Do not run resource-mapper in write mode on scrml8 (frozen)
+- Do not treat stale sources as authoritative — check currency flags
