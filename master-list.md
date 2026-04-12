@@ -72,14 +72,27 @@
 ## E. Open work
 
 ### M4.1 — Hosted Forge (target: beta tester access)
-- [ ][ ] **Bun HTTP API** — giti commands as REST endpoints
-- [ ][ ] **Web UI — history + status** — timeline view, diff viewer, file browser
+- [x][x] **Bun HTTP API (read-only)** — `/api/health`, `/api/version`, `/api/status`, `/api/history` (S3)
+- [x][x] **Bun HTTP API (local-dev writes)** — `/api/save`, `/api/switch`, `/api/merge`, `/api/undo` gated on `--local-dev`, bound 127.0.0.1 (S3)
+- [x][x] **Compiler gate in `land`** — resolves `$SCRMLTS_PATH` or `../scrmlTS`, globs `.scrml`, skips when none (S3)
+- [ ][ ] **Web UI — status dashboard** — written in scrml (see policy below)
+- [ ][ ] **Web UI — history timeline**
+- [ ][ ] **Web UI — diff viewer + file browser**
 - [ ][ ] **Web UI — landing dashboard** — compiler gate results, test results, landing queue
-- [ ][ ] **Auth + multi-repo** — user accounts, repo creation, access control
-- [ ][ ] **Deploy** — Fly.io or VPS
-- [ ][ ] **Compiler gate in `land`** — wire scrmlTS compiler into landing validation
+- [ ][ ] **Compile-on-serve pipeline** — Bun.serve compiles `ui/*.scrml` → dist, serves at `/`
+- [ ][ ] **Auth + multi-repo** — user accounts, repo creation, access control (blocks non-local hosting)
+- [ ][ ] **Deploy** — Fly.io or VPS (blocked on auth)
 - [ ][ ] **GAP-1–11 implementations** — content-loss detection, protected contexts, `giti check`, granular undo
 - [ ][ ] **Engine independence gate** — when scrml compiler does AST-level conflict resolution, revisit jj
+
+### UI policy (S3)
+- Web UI is **scrml-only** — no vanilla HTML/JS fallback
+- Compiler bugs blocking the UI → P0 on scrmlTS (cross-repo escalation via user)
+- See pa.md "compiler bug escalation path"
+
+### giti-blocking compiler bugs (none yet)
+_When the UI work hits a compiler issue, log it here: file, expected, actual, compiler version._
+
 
 ### Cleanup (post-split)
 - [ ][ ] Non-compliance audit

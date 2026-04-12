@@ -9,7 +9,56 @@
  * Error refs: GIT-004 (compiler fail), GIT-005 (test fail), GIT-006 (conflicts)
  */
 
+import { existsSync } from "node:fs";
+import { resolve, join } from "node:path";
+
 import { getEngine } from "../engine/index.js";
+
+/**
+ * Resolve the scrmlTS compiler CLI entry point.
+ *
+ * Lookup order:
+ *   1. $SCRMLTS_PATH env var (points at scrmlTS root)
+ *   2. sibling checkout at <giti repo>/../scrmlTS
+ *
+ * Returns { ok: true, path } or { ok: false, error }.
+ * `path` is the absolute path to the compiler CLI.
+ */
+export function resolveCompilerPath({ cwd = process.cwd(), env = process.env, fs = { existsSync } } = {}) {
+  const candidates = [];
+  if (env.SCRMLTS_PATH) candidates.push(resolve(env.SCRMLTS_PATH));
+  candidates.push(resolve(cwd, "..", "scrmlTS"));
+
+  for (const root of candidates) {
+    const cli = join(root, "compiler", "src", "cli.js");
+    if (fs.existsSync(cli)) {
+      return { ok: true, path: cli, root };
+    }
+  }
+
+  return {
+    ok: false,
+    error:
+      "Could not find the scrmlTS compiler.\n" +
+      "Set $SCRMLTS_PATH to your scrmlTS checkout, or place scrmlTS next to giti:\n" +
+      "  scrmlMaster/\n" +
+      "    giti/\n" +
+      "    scrmlTS/",
+  };
+}
+
+/**
+ * Find .scrml files under cwd using Bun.Glob.
+ * Returns an array of repo-relative paths (sorted for determinism).
+ */
+export async function findScrmlFiles({ cwd = process.cwd(), glob = new Bun.Glob("**/*.scrml") } = {}) {
+  const files = [];
+  for await (const f of glob.scan({ cwd, onlyFiles: true })) {
+    files.push(f);
+  }
+  files.sort();
+  return files;
+}
 
 /**
  * Injectable runners for compiler and tests — allows test mocking.
@@ -67,7 +116,12 @@ export async function land(args) {
     process.stderr.write("Your work is still here — nothing was lost.\n");
     process.exit(1);
   }
-  process.stdout.write("  Compiler: pass\n");
+  if (compilerResult.data?.skipped) {
+    process.stdout.write("  Compiler: skipped (no .scrml files)\n");
+  } else {
+    const n = compilerResult.data?.fileCount;
+    process.stdout.write(`  Compiler: pass${n ? ` (${n} file${n === 1 ? "" : "s"})` : ""}\n`);
+  }
 
   // Step 2: Run tests
   const testResult = await _runTests();
@@ -97,21 +151,40 @@ export async function land(args) {
 
 /**
  * Run the scrml compiler on all .scrml files in the project.
- * Returns { ok: true } or { ok: false, error: string }.
+ *
+ * Behavior:
+ *   - Resolves the scrmlTS compiler via resolveCompilerPath()
+ *   - Globs .scrml files under cwd
+ *   - Skips the compiler gate (pass) if there are no .scrml files
+ *   - Invokes `bun run <compiler-cli> compile <files...>` and reports stderr on failure
+ *
+ * Returns { ok: true, data: { skipped?: true, fileCount } } or { ok: false, error }.
  */
 async function runCompilerDefault() {
+  const compiler = resolveCompilerPath();
+  if (!compiler.ok) {
+    return { ok: false, error: compiler.error };
+  }
+
+  const files = await findScrmlFiles();
+  if (files.length === 0) {
+    return { ok: true, data: { skipped: true, fileCount: 0 } };
+  }
+
   try {
-    const proc = Bun.spawn(["bun", "run", "compiler/src/index.ts", "**/*.scrml"], {
+    const proc = Bun.spawn(["bun", "run", compiler.path, "compile", ...files], {
       cwd: process.cwd(),
       stdout: "pipe",
       stderr: "pipe",
     });
     const stderr = await new Response(proc.stderr).text();
+    const stdout = await new Response(proc.stdout).text();
     const exitCode = await proc.exited;
     if (exitCode !== 0) {
-      return { ok: false, error: stderr.trim() };
+      const msg = (stderr.trim() || stdout.trim()) || `compiler exited with code ${exitCode}`;
+      return { ok: false, error: msg };
     }
-    return { ok: true };
+    return { ok: true, data: { fileCount: files.length } };
   } catch (e) {
     return { ok: false, error: e.message };
   }

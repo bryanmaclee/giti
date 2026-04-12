@@ -59,8 +59,27 @@ giti/
 
 - Do not import stale docs
 - Do not commit to main directly
-- Do not break the 88-test suite without coordination
+- Do not break the test suite without coordination
 - Do not change engine from jj without user approval (§3.7 gate)
+
+## giti UI is written in scrml — compiler bug escalation path
+
+**Policy (S3, 2026-04-11):** The giti Web UI is built in scrml. No vanilla-HTML
+or Svelte/Vue fallback. scrmlTS compiler bugs that block giti UI progress are
+**P0 on the scrmlTS side** — giti is a first-class driver of scrmlTS's roadmap.
+
+When the giti PA hits a compiler bug:
+
+1. Write a minimal repro `.scrml` file under `ui/repros/<issue-slug>.scrml`
+2. Record the bug in `master-list.md` under "giti-blocking compiler bugs" with
+   file path, expected vs actual, compiler version
+3. Report to the user — **do not work around the bug in JS**. Stop the UI work
+   on that screen; move to a different screen if possible
+4. User opens a scrmlTS Claude instance and promotes it to P0 there
+5. When the fix lands, user signals, giti PA resumes on that screen
+
+This PA does **not** cross-edit scrmlTS (per-repo PA rule). Only the user moves
+work between repos.
 
 ---
 
@@ -86,7 +105,7 @@ when work is needed there. Cross-repo coordination happens through the user, not
 ### What this PA does NOT touch
 - Any file outside this repo (except the reads listed above from scrml-support)
 - `~/projects/scrml8/` — FROZEN, read-only archive
-- Other project repos (scrmlTS, scrml, giti, 6nz, scrml-support)
+- Other project repos (scrmlTS, scrml-support, 6nz) — **except** writing message files into their `handOffs/incoming/` (see Cross-repo messaging below)
 
 ### Session-start checklist (this repo only)
 1. Read `pa.md` (this file)
@@ -112,9 +131,73 @@ when work is needed there. Cross-repo coordination happens through the user, not
 - Session header: `## Session N — YYYY-MM-DD` (N is this repo's session count)
 
 ### What NOT to do
-- Do not edit files in other repos (the user will open a different Claude instance)
+- Do not edit files in other repos (the user will open a different Claude instance). The single exception is dropping message files into `<sibling>/handOffs/incoming/` — see Cross-repo messaging below.
 - Do not modify scrml8 (frozen)
 - Do not commit to main directly
 - Do not bypass pre-commit hooks without explicit user authorization
 - Do not run resource-mapper in write mode on scrml8 (frozen)
 - Do not treat stale sources as authoritative — check currency flags
+
+---
+
+## Cross-repo messaging (dropbox)
+
+**You are the PA for giti.** Your own inbox is `handOffs/incoming/` in this repo.
+
+The four ecosystem projects (scrmlTS, scrml-support, giti, 6nz) communicate asynchronously through file-based dropboxes. Each repo owns `handOffs/incoming/` — unread messages sit there; once this PA reads and acts on them, they move to `handOffs/incoming/read/`.
+
+**This is the ONE sanctioned exception** to "do not write into sibling repos." PAs may write message files into a sibling's `handOffs/incoming/` — nothing else in the sibling repo is touched. In particular, the compiler-bug escalation path above still routes through the user — the dropbox is for async coordination, not a replacement for the P0 handoff.
+
+### Inbox (this PA reads)
+- `/home/bryan/scrmlMaster/giti/handOffs/incoming/` — unread
+- `/home/bryan/scrmlMaster/giti/handOffs/incoming/read/` — archive
+
+### Outbox targets (this PA may write into)
+- scrmlTS:       `/home/bryan/scrmlMaster/scrmlTS/handOffs/incoming/`
+- scrml:         `/home/bryan/scrmlMaster/scrml/handOffs/incoming/`
+- scrml-support: `/home/bryan/scrmlMaster/scrml-support/handOffs/incoming/`
+- 6nz:           `/home/bryan/scrmlMaster/6NZ/handOffs/incoming/`
+- master:        `/home/bryan/scrmlMaster/handOffs/incoming/`
+
+### Message file format
+
+Filename: `YYYY-MM-DD-HHMM-<from>-to-<to>-<slug>.md`
+Example: `2026-04-11-1432-giti-to-scrmlTS-compiler-bug-repro.md`
+
+```markdown
+---
+from: giti
+to: scrmlTS
+date: 2026-04-11
+subject: <one-line subject>
+needs: reply | action | fyi
+status: unread
+---
+
+<body — what happened, what the recipient should know or do, file paths / repros / links>
+```
+
+### Session-start: check incoming
+
+Add to the session-start checklist (after reading `hand-off.md`):
+- List `handOffs/incoming/*.md` (ignore the `read/` subdir)
+- If any exist, surface them to the user at session start alongside "caught up / next priority"
+- After the user acknowledges or acts on a message, move it to `handOffs/incoming/read/` (preserve filename)
+
+### Sending a message
+
+When this PA needs to tell another project something (compiler bug repro filed, feature ready to test, spec question, unblocked status):
+1. Confirm with the user what to send and to whom
+2. Write the message file directly into the target's `handOffs/incoming/` (absolute path above)
+3. Log the send in this repo's `hand-off.md` so there's a local trail
+
+### Push coordination via master
+
+When this repo is at a push point (especially if you sent messages to other repos):
+1. Send a `needs: push` message to master (`/home/bryan/scrmlMaster/handOffs/incoming/`)
+2. List which repos are affected (this repo + any repos you dropped messages into)
+3. The master PA will verify all affected repos are clean and push them together
+
+### Scope of the exception
+- **Allowed:** creating new `.md` files inside `<sibling>/handOffs/incoming/`
+- **NOT allowed:** reading, editing, or deleting anything else in a sibling repo. Messages are a one-way write; the sibling's PA reads them in its own session.

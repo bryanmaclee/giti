@@ -1,0 +1,192 @@
+/**
+ * giti HTTP API — read-only by default, opt-in local-dev writes.
+ *
+ * M4.1 Hosted Forge foundation. Wraps the engine in a Bun.serve handler
+ * so the Web UI (and eventually remote clients) can read repo state.
+ *
+ * Write endpoints (save/switch/merge/undo) are gated on `localDev: true`
+ * AND the server always binds 127.0.0.1 until real auth ships. Anything
+ * else is unsafe — there is no authentication yet.
+ *
+ * Spec ref: giti-spec-v1.md §M4.1
+ */
+
+import { existsSync, statSync } from "node:fs";
+import { join, resolve, normalize } from "node:path";
+
+import { getEngine } from "../engine/index.js";
+import { parseStatus } from "../commands/status.js";
+import { compileUi, DEFAULT_DIST_DIR } from "./compile-ui.js";
+
+export const VERSION = "0.1.0";
+
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".js":   "application/javascript; charset=utf-8",
+  ".css":  "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg":  "image/svg+xml",
+  ".png":  "image/png",
+  ".ico":  "image/x-icon",
+};
+
+function mimeFor(path) {
+  const dot = path.lastIndexOf(".");
+  return dot >= 0 ? (MIME[path.slice(dot)] || "application/octet-stream") : "application/octet-stream";
+}
+
+/**
+ * Resolve a request path against the UI dist directory. Returns the
+ * absolute file path if it exists under distDir, null otherwise.
+ * Protects against path traversal.
+ */
+function resolveStatic(pathname, distDir) {
+  // "/" → status.html (the landing page)
+  let rel = pathname === "/" ? "/status.html" : pathname;
+  // strip leading slash so join doesn't absolute-override
+  rel = rel.replace(/^\/+/, "");
+  const abs = normalize(join(distDir, rel));
+  if (!abs.startsWith(distDir)) return null; // traversal guard
+  if (!existsSync(abs)) return null;
+  const stat = statSync(abs);
+  if (!stat.isFile()) return null;
+  return abs;
+}
+
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+async function readJson(req) {
+  try {
+    return { ok: true, body: await req.json() };
+  } catch (e) {
+    return { ok: false, error: "invalid JSON body" };
+  }
+}
+
+/**
+ * Build the fetch handler.
+ *
+ * @param {object} opts
+ * @param {object} [opts.engine]    injectable engine (defaults to getEngine())
+ * @param {boolean} [opts.localDev] unlock write endpoints (save/switch/merge/undo)
+ * @param {string}  [opts.distDir]  absolute path to compiled scrml UI (static serving)
+ */
+export function createHandler({ engine, localDev = false, distDir = null } = {}) {
+  const eng = engine || getEngine();
+
+  async function handleGet(pathname, url) {
+    if (pathname === "/health") return json({ ok: true, localDev });
+    if (pathname === "/version") return json({ version: VERSION });
+
+    if (pathname === "/status") {
+      const result = await eng.status();
+      if (!result.ok) return json({ error: result.error }, 500);
+      return json(parseStatus(result.data.raw || ""));
+    }
+
+    if (pathname === "/history") {
+      const limitParam = url.searchParams.get("limit");
+      const limit = limitParam ? parseInt(limitParam, 10) : 20;
+      const result = await eng.history(limit);
+      if (!result.ok) return json({ error: result.error }, 500);
+      return json(result.data);
+    }
+
+    return json({ error: "not found" }, 404);
+  }
+
+  async function handleWrite(pathname, req) {
+    if (!localDev) {
+      return json(
+        { error: "write endpoints require local-dev mode (no auth yet)" },
+        403,
+      );
+    }
+
+    let body = {};
+    if (pathname !== "/undo") {
+      const parsed = await readJson(req);
+      if (!parsed.ok) return json({ error: parsed.error }, 400);
+      body = parsed.body ?? {};
+    }
+
+    let result;
+    if (pathname === "/save") {
+      result = await eng.save(body.message || "save");
+    } else if (pathname === "/switch") {
+      if (!body.name) return json({ error: "name is required" }, 400);
+      result = await eng.switchTo(body.name);
+    } else if (pathname === "/merge") {
+      if (!body.name) return json({ error: "name is required" }, 400);
+      result = await eng.merge(body.name);
+    } else if (pathname === "/undo") {
+      result = await eng.undo();
+    } else {
+      return json({ error: "not found" }, 404);
+    }
+
+    if (!result.ok) return json({ error: result.error }, 500);
+    return json(result.data ?? { ok: true });
+  }
+
+  const WRITE_PATHS = new Set(["/save", "/switch", "/merge", "/undo"]);
+
+  return async function handler(req) {
+    const url = new URL(req.url);
+    const { pathname } = url;
+
+    if (pathname.startsWith("/api/")) {
+      const apiPath = pathname.slice(4); // "/api/status" -> "/status"
+
+      if (req.method === "GET") {
+        return handleGet(apiPath, url);
+      }
+
+      if (req.method === "POST") {
+        if (!WRITE_PATHS.has(apiPath)) return json({ error: "not found" }, 404);
+        return handleWrite(apiPath, req);
+      }
+
+      return json({ error: "method not allowed" }, 405);
+    }
+
+    // Static UI (compiled scrml). GET only.
+    if (distDir && req.method === "GET") {
+      const file = resolveStatic(pathname, distDir);
+      if (file) {
+        return new Response(Bun.file(file), {
+          headers: { "content-type": mimeFor(file) },
+        });
+      }
+    }
+
+    return json({ error: "not found" }, 404);
+  };
+}
+
+/**
+ * Start the HTTP server.
+ *
+ * Always binds 127.0.0.1 — there is no auth yet, so exposing the server
+ * on another interface would let any local-network peer read or (in
+ * localDev mode) mutate the repo.
+ *
+ * Compile-on-start: if `ui/` exists, shells out to the scrmlTS compiler
+ * and emits into `dist/ui/`. Compile failures throw — by policy, scrmlTS
+ * compiler bugs blocking giti are P0 on the scrmlTS side (pa.md), so we
+ * fail loud instead of silently degrading.
+ */
+export async function startServer({ port = 3737, engine, localDev = false } = {}) {
+  const compile = await compileUi();
+  if (!compile.ok) {
+    throw new Error(`UI compile failed:\n${compile.error}`);
+  }
+
+  const fetch = createHandler({ engine, localDev, distDir: compile.distDir });
+  return Bun.serve({ port, hostname: "127.0.0.1", fetch });
+}

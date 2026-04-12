@@ -1,0 +1,221 @@
+// giti — status dashboard (iteration 2: real data)
+//
+// Uses scrml's native server-function + <request> pattern. The compiler
+// generates server route handlers (emitted into status.server.js as named
+// exports) and client-side fetch wrappers. Giti's serve.js mounts the
+// generated routes alongside /api/*.
+//
+// Data source: imports giti's engine module directly. Server functions run
+// inside the generated handler and access the real jj-lib wrapper.
+
+<program>
+
+${
+  import { getEngine } from '../src/engine/index.js'
+  import { parseStatus } from '../src/commands/status.js'
+
+  server function loadStatus() {
+    const result = getEngine().status()
+    if (!result.ok) return { error: result.error }
+    return parseStatus(result.data.raw || "")
+  }
+
+  server function loadHistory() {
+    const result = getEngine().history(20)
+    if (!result.ok) return { error: result.error, entries: [] }
+    return { entries: result.data }
+  }
+}
+
+<div class="app">
+  <header class="topbar">
+    <h1>giti</h1>
+    <nav>
+      <a href="/">Status</a>
+      <a href="/history.html">History</a>
+    </nav>
+  </header>
+
+  <request id="statusReq">
+    ${ @status = loadStatus() }
+  </>
+
+  <request id="historyReq">
+    ${ @history = loadHistory() }
+  </>
+
+  <main>
+    <section class="panel">
+      <h2>Status</h2>
+
+      ${
+        if (<#statusReq>.loading && <#statusReq>.data is not) {
+          lift <p class="muted">Loading…</p>
+        } else if (@status.error) {
+          lift <p class="error">${@status.error}</p>
+        } else {
+          lift <div class="status-body">
+            ${
+              if (@status.bookmark) {
+                lift <p>On <strong>${@status.bookmark}</strong></p>
+              }
+            }
+            ${
+              if (@status.changed.length === 0 && @status.conflicts.length === 0) {
+                lift <p class="muted">Everything is clean.</p>
+              } else {
+                lift <ul class="changed-list">
+                  ${
+                    for (let f of @status.changed) {
+                      lift <li><span class="kind kind-${f.kind}">${f.kind}</span> ${f.path}</li>
+                    }
+                  }
+                </ul>
+              }
+            }
+          </div>
+        }
+      }
+    </section>
+
+    <section class="panel">
+      <h2>Recent history</h2>
+      ${
+        if (<#historyReq>.loading && <#historyReq>.data is not) {
+          lift <p class="muted">Loading…</p>
+        } else if (@history.error) {
+          lift <p class="error">${@history.error}</p>
+        } else if (@history.entries.length === 0) {
+          lift <p class="muted">No history yet.</p>
+        } else {
+          lift <ul class="history-list">
+            ${
+              for (let entry of @history.entries) {
+                lift <li>
+                  <code>${entry.changeId.slice(0, 8)}</code>
+                  <span class="desc">${entry.description || "(no message)"}</span>
+                  <span class="time muted">${entry.timestamp || ""}</span>
+                </li>
+              }
+            }
+          </ul>
+        }
+      }
+    </section>
+  </main>
+
+  <footer class="bottombar">
+    <span class="muted">giti 0.1.0 · local-dev</span>
+  </footer>
+</div>
+
+#{
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0e1116;
+    color: #e6edf3;
+  }
+
+  .app {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem;
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 0.75rem;
+  }
+
+  .topbar h1 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.4rem;
+  }
+
+  nav a {
+    color: #7d8590;
+    text-decoration: none;
+    margin-left: 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  nav a:hover {
+    color: #e6edf3;
+  }
+
+  main {
+    margin-top: 1.5rem;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .panel {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+  }
+
+  .panel h2 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .muted  { color: #7d8590; }
+  .error  { color: #f85149; }
+
+  .changed-list,
+  .history-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .changed-list li,
+  .history-list li {
+    padding: 0.35rem 0;
+    border-bottom: 1px solid #21262d;
+    font-size: 0.9rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+  }
+
+  .kind {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    background: #21262d;
+    color: #7d8590;
+  }
+
+  .kind-modified { color: #d29922; }
+  .kind-added    { color: #3fb950; }
+  .kind-deleted  { color: #f85149; }
+
+  .history-list code {
+    color: #58a6ff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .history-list .desc {
+    flex: 1;
+  }
+
+  .bottombar {
+    margin-top: 2rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #21262d;
+    font-size: 0.85rem;
+  }
+}
+
+</program>

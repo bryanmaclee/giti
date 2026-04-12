@@ -1,0 +1,20 @@
+// Repro 01: minimal <request> + server function, no imports, no conditionals.
+// Expected: compiles; client.js contains a fetch call to the generated route
+// with the route path populated; server.js exports a matching handler.
+
+<program>
+
+${
+  server function loadValue() {
+    return { value: 42 }
+  }
+}
+
+<div>
+  <request id="req1">
+    ${ @data = loadValue() }
+  </>
+  <p>Value: ${@data.value}</p>
+</div>
+
+</program>

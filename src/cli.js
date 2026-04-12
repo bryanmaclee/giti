@@ -19,6 +19,7 @@ import { land } from "./commands/land.js";
 import { status } from "./commands/status.js";
 import { describe } from "./commands/describe.js";
 import { sync } from "./commands/sync.js";
+import { serve } from "./commands/serve.js";
 
 const COMMANDS = {
   save,
@@ -31,6 +32,7 @@ const COMMANDS = {
   status,
   describe,
   sync,
+  serve,
 };
 
 const HELP = `giti — version control for humans
@@ -46,6 +48,7 @@ Commands:
   giti describe <h> msg   Update a save's description
   giti sync               Push and pull remote changes
   giti init               Initialize a new giti repository
+  giti serve [--port N]   Start the HTTP API server
 
 Options:
   --help, -h              Show this help
