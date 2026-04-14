@@ -96,8 +96,11 @@ when work is needed there. Cross-repo coordination happens through the user, not
 - All source code and docs under this repo's tree
 - Repo-scoped maps at `.claude/maps/` (via `project-mapper`)
 
+### What this PA reads + writes locally (user-voice)
+- `user-voice.md` (at repo root) — verbatim user log scoped to this repo (read + append only; never truncate)
+- Historical shared log archived at `../scrml-support/user-voice-archive.md` (read-only reference)
+
 ### What this PA reads from scrml-support (absolute paths)
-- `/home/bryan-maclee/scrmlMaster/scrml-support/user-voice.md` — verbatim user log (read + append only; never truncate)
 - `/home/bryan-maclee/scrmlMaster/scrml-support/.claude/resource-maps/` — cross-repo resource graph (via `resource-mapper`, PA-driven)
 - `/home/bryan-maclee/scrmlMaster/scrml-support/docs/deep-dives/` — research context (on demand)
 - `/home/bryan-maclee/scrmlMaster/scrml-support/design-insights.md` — debate outcomes (on demand)
@@ -110,7 +113,7 @@ when work is needed there. Cross-repo coordination happens through the user, not
 ### Session-start checklist (this repo only)
 1. Read `pa.md` (this file)
 2. Read `hand-off.md`
-3. Read the last ~10 entries from `/home/bryan-maclee/scrmlMaster/scrml-support/user-voice.md`
+3. Read the last ~10 **contentful** entries from `user-voice.md` (this repo's root) — skip non-contentful messages (acks, "keep going", "continue", "yes", "ok"); if any of the last 10 are non-contentful, read that many more so you end up with ~10 substantive entries
 4. Rotate `hand-off.md` → `handOffs/hand-off-<N>.md`
 5. Create fresh `hand-off.md`
 6. **FIRST SESSION ONLY:** run `project-mapper` cold to produce `.claude/maps/` + non-compliance report
@@ -126,9 +129,10 @@ when work is needed there. Cross-repo coordination happens through the user, not
 
 ### Writing to user-voice.md
 - Append-only, verbatim
-- Absolute path: `/home/bryan-maclee/scrmlMaster/scrml-support/user-voice.md`
+- Path: `user-voice.md` at this repo's root (per-repo as of 2026-04-14)
 - Never summarize, never paraphrase, never truncate
 - Session header: `## Session N — YYYY-MM-DD` (N is this repo's session count)
+- Only append user statements relevant to **this repo**; if a statement concerns a sibling repo, drop a message into their `handOffs/incoming/` instead
 
 ### What NOT to do
 - Do not edit files in other repos (the user will open a different Claude instance). The single exception is dropping message files into `<sibling>/handOffs/incoming/` — see Cross-repo messaging below.
