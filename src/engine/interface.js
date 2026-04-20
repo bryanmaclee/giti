@@ -87,4 +87,20 @@ export class EngineInterface {
    * opts: { remoteName?: string }
    */
   async fetch(opts) { throw new Error("not implemented"); }
+
+  /**
+   * Split a change by path. The named paths become the first (split-out)
+   * commit; the remainder becomes the second.
+   *
+   * opts: { paths: string[], message?: string, revision?: string }
+   *   - revision defaults to "@"
+   *   - message is the description for the split-out commit
+   */
+  async split(opts) { throw new Error("not implemented"); }
+
+  /**
+   * Create a new change above the current one (advances @).
+   * Equivalent to `jj new` with no args.
+   */
+  async newChange() { throw new Error("not implemented"); }
 }

@@ -13,6 +13,8 @@ import {
   classifyFromStatus,
   planBookmarkMoves,
   advanceBookmarks,
+  autoSplitSave,
+  splitMessages,
 } from "../private/save-routing.js";
 
 /**
@@ -46,10 +48,25 @@ export function generateMessage(changed) {
   return `${parts.join(", ")} file${changed.length !== 1 ? "s" : ""}`;
 }
 
+/**
+ * Extract the --split flag (and remove it from the message args).
+ * Returns { split: boolean, messageArgs: string[] }.
+ */
+export function parseSaveFlags(args) {
+  const out = [];
+  let split = false;
+  for (const a of args) {
+    if (a === "--split") { split = true; continue; }
+    out.push(a);
+  }
+  return { split, messageArgs: out };
+}
+
 export async function save(args, opts) {
   const engine = opts?.engine || getEngine();
   const cwd = opts?.cwd || process.cwd();
-  let message = args.join(" ") || null;
+  const { split: autoSplit, messageArgs } = parseSaveFlags(args);
+  let message = messageArgs.join(" ") || null;
 
   // Get status to check for changes and generate auto-message
   const status = await engine.status();
@@ -61,24 +78,60 @@ export async function save(args, opts) {
   // Classify the working-copy changes by scope (spec §12.2).
   const classification = classifyFromStatus(status.data.raw || "", cwd);
 
-  // Slice 3 refuses mixed commits; auto-splitting is deferred to slice 4.
   if (classification.scope === "mixed") {
-    process.stderr.write(
-      "Cannot save: this change touches both public and private paths.\n\n"
-    );
-    process.stderr.write("Private:\n");
-    for (const f of classification.privateFiles) {
-      process.stderr.write(`  ${f.path}  (${f.kind})\n`);
+    if (!autoSplit) {
+      process.stderr.write(
+        "Cannot save: this change touches both public and private paths.\n\n"
+      );
+      process.stderr.write("Private:\n");
+      for (const f of classification.privateFiles) {
+        process.stderr.write(`  ${f.path}  (${f.kind})\n`);
+      }
+      process.stderr.write("Public:\n");
+      for (const f of classification.publicFiles) {
+        process.stderr.write(`  ${f.path}  (${f.kind})\n`);
+      }
+      process.stderr.write(
+        "\nOptions:\n" +
+        "  giti save --split [msg]  Split into two commits automatically.\n" +
+        "  (stash one side, save, save the other)  Split manually.\n" +
+        "  giti private remove <pattern>  Unmark a pattern if it should be public.\n"
+      );
+      process.exit(1);
     }
-    process.stderr.write("Public:\n");
-    for (const f of classification.publicFiles) {
-      process.stderr.write(`  ${f.path}  (${f.kind})\n`);
-    }
-    process.stderr.write(
-      "\nSave them as separate commits (stash one side, save, then save the other),\n" +
-      "or unmark paths with 'giti private remove <pattern>' if they should be public.\n"
+
+    // --split: auto-split into two commits.
+    const { publicMessage, privateMessage } = splitMessages(
+      message,
+      generateMessage(classification.publicFiles),
+      generateMessage(classification.privateFiles)
     );
-    process.exit(1);
+    const plan = {
+      publicFiles: classification.publicFiles,
+      privateFiles: classification.privateFiles,
+      publicMessage,
+      privateMessage,
+    };
+    const result = await autoSplitSave(engine, plan);
+    if (!result.ok) {
+      process.stderr.write(
+        `giti save --split failed at the '${result.stage}' step: ${result.error}\n`
+      );
+      process.exit(1);
+    }
+
+    process.stdout.write(`Saved 2 commits:\n`);
+    process.stdout.write(`  public : ${publicMessage}\n`);
+    process.stdout.write(`  private: ${privateMessage}\n`);
+
+    for (const move of result.bookmarkMoves) {
+      if (!move.ok) {
+        process.stderr.write(
+          `giti: note: could not advance bookmark '${move.name}' (${move.error})\n`
+        );
+      }
+    }
+    return;
   }
 
   // Auto-generate message from changed files if none provided.

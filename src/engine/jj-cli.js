@@ -446,6 +446,33 @@ export class JjCliEngine extends EngineInterface {
     }
     return await this._run(args);
   }
+
+  /**
+   * Split a change by path: `jj split -r <rev> -m <msg> path1 path2 ...`
+   * The named paths become the first (split-out) commit; the remainder
+   * becomes the second. Both inherit the pre-split commit's description
+   * unless -m overrides the first.
+   *
+   * @param {{ paths: string[], message?: string, revision?: string }} opts
+   */
+  async split(opts = {}) {
+    const paths = opts.paths || [];
+    if (paths.length === 0) return err("split requires at least one path");
+
+    const args = ["split", "-r", opts.revision || "@"];
+    if (opts.message) {
+      args.push("-m", opts.message);
+    }
+    for (const p of paths) args.push(p);
+    return await this._run(args);
+  }
+
+  /**
+   * `jj new` — creates a new empty change above @.
+   */
+  async newChange() {
+    return await this._run(["new"]);
+  }
 }
 
 /**

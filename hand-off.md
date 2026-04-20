@@ -136,3 +136,25 @@ Slice 4 focused on multi-machine readiness: scope-aware bookmark push, link-priv
 - Auto-split of mixed saves (currently refused with clear error)
 - Fetch-side `_private` bookmark tracking on first pull (user has to know to use `--remote <private>`)
 - OQ-9 retroactive privatization
+
+### Private scopes slice 5 — LANDED
+Slice 5 closes the auto-split gap and adds scope visibility.
+
+- `src/engine/interface.js` — added `split({paths, message, revision})` and `newChange()` to the engine contract
+- `src/engine/jj-cli.js` — `split` → `jj split -r <rev> -m <msg> path1 path2 ...`; `newChange` → `jj new`
+- `src/private/save-routing.js` — added `autoSplitSave(engine, plan)` orchestrator (split → describe remainder → new → set main @-- → set _private @-) with staged error reporting; `splitMessages(userMsg, autoPub, autoPriv)` → user message gets `[public]`/`[private]` tags or falls back to per-bucket auto
+- `src/commands/save.js` — `parseSaveFlags(args)` extracts `--split` from anywhere in the arg list; `save` accepts `--split`; mixed WC without `--split` still refuses but now hints at the flag; with `--split` runs the full autoSplitSave pipeline and reports "Saved 2 commits: public / private"
+- `src/commands/private.js` — new `giti private status` subcommand: partitions `parseStatus` output by scope, prints two sections + a guidance line indicating which bookmarks will advance (or a split hint for mixed)
+- `tests/auto-split.test.js` (300 LOC, 25 tests) — engine split/newChange, parseSaveFlags, splitMessages, autoSplitSave happy path + all 6 failure stages + per-bookmark partial fail, save --split end-to-end (refuses-without, auto-split-with, auto-generated-messages, non-mixed-ignores-split), `giti private status` for empty/public/private/mixed
+
+**Test status:** 280 pass / 9 skip / 0 fail across 9 files (from 255 at slice 4).
+
+**§12 coverage after slice 5:**
+- [x] Auto-split mixed commits (§12.4 normative intent — "Save them as separate commits"): `giti save --split` now does this automatically
+- [x] Scope visibility: `giti private status` shows public/private/mixed annotation
+
+**Remaining gaps (slice 6+ candidates, NONE required for the user's original frustration):**
+- Real-jj integration test harness
+- Fetch-side automatic `_private` bookmark tracking
+- OQ-9 retroactive privatization
+- `giti private check <pattern>` — dry-run what a new glob would mark
