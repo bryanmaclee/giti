@@ -11,6 +11,7 @@ import { getEngine } from "../engine/index.js";
 import { parseStatus } from "./status.js";
 import { loadPrivateManifest, partitionByScope } from "../private/scope.js";
 import { listRemotes, getRemote } from "../private/remotes.js";
+import { PUBLIC_BOOKMARK, PRIVATE_BOOKMARK } from "../private/save-routing.js";
 
 /**
  * Parse CLI args for sync.
@@ -38,6 +39,21 @@ export function parseSyncArgs(args) {
 
   if (!push && !pull) { push = true; pull = true; }
   return { remote, push, pull };
+}
+
+/**
+ * Compute which bookmarks to push, given a resolved target remote.
+ *
+ *   - no target remote    → empty (let engine default)
+ *   - public remote       → [main]
+ *   - private remote      → [main, _private]
+ *
+ * Spec §12.3 normative #1/#2.
+ */
+export function bookmarksForPush(targetRemote) {
+  if (!targetRemote) return [];
+  if (targetRemote.scope === "private") return [PUBLIC_BOOKMARK, PRIVATE_BOOKMARK];
+  return [PUBLIC_BOOKMARK];
 }
 
 /**
@@ -148,16 +164,20 @@ export async function sync(args, opts) {
     : "default";
   process.stdout.write(`Syncing (${scopeTag})...\n`);
 
+  const remoteName = target.remote ? target.remote.name : undefined;
+
   // Pull first (fetch remote changes) unless --push was given alone.
   if (parsed.pull) {
-    const fetchResult = await engine._rawSync("fetch");
+    const fetchResult = typeof engine.fetch === "function"
+      ? await engine.fetch({ remoteName })
+      : await engine._rawSync("fetch");
     if (!fetchResult.ok) {
       process.stderr.write(`giti: pull failed: ${fetchResult.error}\n`);
       process.exit(1);
     }
   }
 
-  // Push with scope-aware safety.
+  // Push with scope-aware safety + scope-aware bookmark targeting.
   if (parsed.push) {
     const safety = await checkPushSafety(engine, cwd, target.remote);
     if (!safety.allowed) {
@@ -177,7 +197,10 @@ export async function sync(args, opts) {
       process.exit(1);
     }
 
-    const pushResult = await engine._rawSync("push");
+    const bookmarks = bookmarksForPush(target.remote);
+    const pushResult = typeof engine.push === "function"
+      ? await engine.push({ remoteName, bookmarks })
+      : await engine._rawSync("push");
     if (!pushResult.ok) {
       // Push failure is non-fatal — might have nothing to push.
       if (!pushResult.error.includes("Nothing changed")) {

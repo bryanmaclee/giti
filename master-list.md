@@ -86,7 +86,8 @@
 - [x][x] **Private scopes slice 1** (spec §12) — `.giti/private` manifest I/O, glob matching, `giti private {add,remove,list}` commands, `land` refusal on private diff, 40 tests
 - [x][x] **Private scopes slice 2** — remote scope config (`.giti/remotes.json`), `giti remote {add,remove,set-scope,list}`, `giti link-private`, `giti sync --remote NAME`, push refusal on public remote when working copy has private changes, private→public scope flip requires `--unsafe`. 48 tests.
 - [x][x] **Private scopes slice 3** — engine primitives (`setBookmark` with create-fallback, `bookmarkExists`, `changedFilesInRange`); save-time scope classification + bookmark routing (`main` + `_private`); mixed-commit refusal with clear error; commit-range-aware push safety. 33 new tests (22 routing + 11 engine).
-- [ ][ ] **Private scopes slice 4** (optional) — auto-split mixed working-copy, `giti private check/status`, real-jj integration tests, OQ-9 retroactive privatization
+- [x][x] **Private scopes slice 4** — engine `push({remoteName, bookmarks})` + `fetch({remoteName})` primitives; sync computes bookmarks-to-push from remote scope (public → [main], private → [main, _private]); `link-private` auto-creates `_private` bookmark at `bookmarks(main)`; `.giti/private` manifest un-ignored (rides `_private` via slice 3 routing). 16 new tests.
+- [ ][ ] **Private scopes slice 5** (optional) — auto-split mixed working-copy, `giti private check/status`, real-jj integration tests, OQ-9 retroactive privatization
 - [ ][ ] **Engine independence gate** — when scrml compiler does AST-level conflict resolution, revisit jj
 
 ### UI policy (S3)

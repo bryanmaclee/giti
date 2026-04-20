@@ -113,3 +113,26 @@ Per user request, added to `.giti/private`: `user-voice.md`, `hand-off.md`, `han
 - `giti private status` — show scope annotations on changed files
 - Real-jj integration tests (requires `jj` in CI)
 - Spec §12 OQ-9 retroactive privatization (requires history rewrite plumbing)
+
+### Private scopes slice 4 — LANDED
+Slice 4 focused on multi-machine readiness: scope-aware bookmark push, link-private bookmark bootstrap, manifest tracking.
+
+- `src/engine/interface.js` — added `push(opts)` and `fetch(opts)` to engine contract
+- `src/engine/jj-cli.js` — `push({remoteName, bookmarks})` builds `jj git push --remote X --bookmark A --bookmark B --allow-new`; `fetch({remoteName})` builds `jj git fetch --remote X`. Legacy `_rawSync(direction)` kept for backward compat.
+- `src/commands/sync.js` — added `bookmarksForPush(targetRemote)` helper (public → [main], private → [main, _private]); sync now calls `engine.push({remoteName, bookmarks})` and `engine.fetch({remoteName})` when available, falling back to `_rawSync` on older engines
+- `src/commands/link-private.js` — on successful remote add, checks if `_private` bookmark exists and creates it at `bookmarks(main)` if missing (non-fatal on failure, graceful on engines without the methods)
+- `.gitignore` — UN-ignored `.giti/private` (manifest now rides `_private` via the slice 3 save-routing)
+- `tests/sync-push.test.js` (211 LOC, 16 tests) — `bookmarksForPush` cases, engine `push` / `fetch` primitives with arg construction, sync→engine.push wiring for each scope, legacy `_rawSync` fallback, link-private bookmark-bootstrap paths (missing / exists / set-failure / engine-without-methods)
+
+**Test status:** 255 pass / 9 skip / 0 fail across 8 files (from 239 at slice 3).
+
+**§12 coverage after slice 4:**
+- [x] §12.3 #1 public remote receives `main` only (bookmarksForPush + explicit push)
+- [x] §12.3 #2 private remote receives `main + _private` (explicit push both)
+- [x] §12.5 bootstrap: `giti link-private` creates `_private` locally at `bookmarks(main)` on first run; next slice can add fetch on link
+
+**Known gaps still deferred:**
+- Real-jj integration test harness (all path testing uses mocked spawn)
+- Auto-split of mixed saves (currently refused with clear error)
+- Fetch-side `_private` bookmark tracking on first pull (user has to know to use `--remote <private>`)
+- OQ-9 retroactive privatization

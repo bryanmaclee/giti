@@ -9,11 +9,16 @@
  */
 
 import { addRemote, getRemote } from "../private/remotes.js";
+import { getEngine } from "../engine/index.js";
+import { PRIVATE_BOOKMARK } from "../private/save-routing.js";
 
 const USAGE = `Usage: giti link-private <url> [--name NAME]
 
 Attaches a private remote to this clone. Your private paths (see
 'giti private list') will sync to this remote via 'giti sync'.
+
+On first run this also creates the local '_private' bookmark (if missing)
+at the current 'main' head, so your next private-only save has a home.
 
 Options:
   --name NAME   Register under this remote name. Defaults to 'private'.
@@ -21,6 +26,7 @@ Options:
 
 export async function linkPrivate(args, opts) {
   const repoRoot = opts?.cwd || process.cwd();
+  const engine = opts?.engine || getEngine();
   const url = args[0];
 
   if (!url || url === "--help" || url === "-h") {
@@ -58,5 +64,23 @@ export async function linkPrivate(args, opts) {
   }
 
   process.stdout.write(`Linked private remote '${name}': ${url}\n`);
+
+  // Auto-create local _private bookmark at current main head (non-fatal).
+  if (typeof engine.bookmarkExists === "function" &&
+      typeof engine.setBookmark === "function") {
+    const existsResult = await engine.bookmarkExists(PRIVATE_BOOKMARK);
+    if (existsResult.ok && !existsResult.data) {
+      const created = await engine.setBookmark(PRIVATE_BOOKMARK, "bookmarks(main)");
+      if (created.ok) {
+        process.stdout.write(`Created local bookmark '${PRIVATE_BOOKMARK}' at main.\n`);
+      } else {
+        process.stderr.write(
+          `Note: could not create '${PRIVATE_BOOKMARK}' bookmark yet (${created.error}). ` +
+          `It will be created on your first private save.\n`
+        );
+      }
+    }
+  }
+
   process.stdout.write(`Run 'giti sync --remote ${name}' to pull your private overlay.\n`);
 }

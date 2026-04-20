@@ -8,8 +8,7 @@ dist/
 # giti: per-machine remote config (names + URLs + scope); never push.
 .giti/remotes.json
 
-# giti: private path manifest.
-# Per spec §12.2 this should ride the _private bookmark, NOT `main`.
-# Until slice 4 wires _private properly, keep it untracked so it does not
-# leak to the public remote.
-.giti/private
+# Note: .giti/private (the path manifest) is intentionally NOT ignored.
+# It rides the _private bookmark per spec §12.2. The save-routing in
+# src/private/save-routing.js ensures saves that only touch this file go
+# on _private; sync's push filter keeps _private off public remotes.

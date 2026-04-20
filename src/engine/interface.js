@@ -73,4 +73,18 @@ export class EngineInterface {
    * `range` is a jj-style revset range like "bookmarks(main)..@-".
    */
   async changedFilesInRange(range) { throw new Error("not implemented"); }
+
+  /**
+   * Push specific bookmarks to a named remote.
+   * opts: { remoteName?: string, bookmarks?: string[] }
+   * - remoteName undefined → use jj's default remote
+   * - bookmarks empty or undefined → push jj's default set (tracked bookmarks)
+   */
+  async push(opts) { throw new Error("not implemented"); }
+
+  /**
+   * Fetch refs from a named remote.
+   * opts: { remoteName?: string }
+   */
+  async fetch(opts) { throw new Error("not implemented"); }
 }

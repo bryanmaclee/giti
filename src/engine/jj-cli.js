@@ -400,6 +400,8 @@ export class JjCliEngine extends EngineInterface {
   }
 
   async _rawSync(direction) {
+    // Legacy path — kept for test compatibility. New call sites use
+    // push({...}) / fetch({...}) below.
     if (direction === "fetch") {
       return await this._run(["git", "fetch"]);
     }
@@ -407,6 +409,42 @@ export class JjCliEngine extends EngineInterface {
       return await this._run(["git", "push"]);
     }
     return err(`unknown sync direction: ${direction}`);
+  }
+
+  /**
+   * Push specific bookmarks to a remote.
+   *
+   * @param {{ remoteName?: string, bookmarks?: string[] }} opts
+   *   - remoteName: target git remote (maps to `--remote <name>`)
+   *   - bookmarks: explicit bookmark list (maps to `--bookmark <name>` repeated)
+   *     When empty/undefined, jj's default push behavior runs (pushes tracked bookmarks).
+   */
+  async push(opts = {}) {
+    const args = ["git", "push"];
+    if (opts.remoteName) {
+      args.push("--remote", opts.remoteName);
+    }
+    if (Array.isArray(opts.bookmarks) && opts.bookmarks.length > 0) {
+      for (const b of opts.bookmarks) {
+        args.push("--bookmark", b);
+      }
+      // Creating new remote-tracking bookmarks requires --allow-new.
+      args.push("--allow-new");
+    }
+    return await this._run(args);
+  }
+
+  /**
+   * Fetch refs from a remote (or all remotes if none specified).
+   *
+   * @param {{ remoteName?: string }} opts
+   */
+  async fetch(opts = {}) {
+    const args = ["git", "fetch"];
+    if (opts.remoteName) {
+      args.push("--remote", opts.remoteName);
+    }
+    return await this._run(args);
   }
 }
 
