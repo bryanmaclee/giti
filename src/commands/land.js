@@ -13,6 +13,8 @@ import { existsSync } from "node:fs";
 import { resolve, join } from "node:path";
 
 import { getEngine } from "../engine/index.js";
+import { parseStatus } from "./status.js";
+import { loadPrivateManifest, partitionByScope } from "../private/scope.js";
 
 /**
  * Resolve the scrmlTS compiler CLI entry point.
@@ -86,7 +88,29 @@ land.resetRunners = function resetRunners() {
 export async function land(args) {
   const engine = getEngine();
 
-  // Step 0: Check for conflicts before doing anything
+  // Step 0a: Refuse to land if the diff touches any private-scoped path.
+  // Spec §12.3 normative #5: "giti land SHALL reject a landing whose diff
+  // touches any private-scoped path. Landings are public by definition."
+  const statusResult = await engine.status();
+  if (statusResult.ok && statusResult.data.raw) {
+    const parsed = parseStatus(statusResult.data.raw);
+    const globs = loadPrivateManifest(process.cwd());
+    const { private: privChanged } = partitionByScope(parsed.changed, globs);
+    if (privChanged.length > 0) {
+      process.stderr.write("Cannot land: your changes touch private paths.\n\n");
+      for (const f of privChanged) {
+        process.stderr.write(`  ${f.path}  (${f.kind}, private)\n`);
+      }
+      process.stderr.write(
+        "\nLandings are public. Move these changes off your public line of\n" +
+        "work first (they belong on the private bookmark), or unmark them\n" +
+        "with 'giti private remove <pattern>' if they should be public.\n"
+      );
+      process.exit(1);
+    }
+  }
+
+  // Step 0b: Check for conflicts before doing anything
   const conflictResult = await engine.conflicts();
   if (conflictResult.ok && conflictResult.data.hasConflicts) {
     const files = conflictResult.data.files;

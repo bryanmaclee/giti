@@ -78,6 +78,7 @@ it substantially for teams by using the compiler as the primary gate.
 | `.git/stash` | Eliminated (every working state is a commit; stash is not needed) |
 | Staging area (`git add`) | Eliminated (working copy IS a commit) |
 | Detached HEAD | Eliminated (no named branch required; every change is tracked) |
+| `.gitignore` + "private repo for secrets" | Private scopes (see Section 12) |
 
 ---
 
@@ -484,7 +485,7 @@ giti's jj backend uses git-compatible storage. This means:
 
 1. A giti repository IS a git repository. The underlying objects are git objects.
 2. `giti sync` SHALL push/pull to git remotes (GitHub, GitLab, Forgejo, self-hosted git).
-3. Existing git repositories can be imported into giti. (See Section 12: Migration.)
+3. Existing git repositories can be imported into giti. (See Section 11: Migration.)
 4. Other developers using raw git on a giti-managed repository is supported but NOT recommended.
    The giti surface layer provides guarantees (no detached HEAD, no force push, full undo) that
    raw git access can violate.
@@ -1230,7 +1231,19 @@ giti debug                    # open debug console
 giti debug run <jj-command>   # execute a raw jj command (with warning banner)
 ```
 
-### 9.8 Command Flags
+### 9.8 Private Scopes (see Section 12)
+
+```
+giti private add <path>       # mark path as private (glob supported)
+giti private remove <path>    # unmark path as private
+giti private list             # show private path patterns
+giti remote add <name> <url> [--public | --private]   # defaults to --public
+giti remote set-scope <name> public | private         # change remote scope
+giti remote list              # show remotes with scope
+giti link-private <url>       # attach private remote to an already-cloned public repo
+```
+
+### 9.9 Command Flags
 
 ```
 --yes           # skip confirmation prompts (use in scripts)
@@ -1405,7 +1418,115 @@ Named branches are for sharing and landing.
 
 ---
 
-## 12. Open Questions
+## 12. Private Scopes
+
+### 12.1 Motivation
+
+A developer running a public repository routinely accumulates local files that sync their own
+context across machines but are not meant for the public mirror: agent transcripts, hand-off
+notes, personal voice logs, uncommitted experiments, machine-specific configuration. git offers
+two bad answers: `.gitignore` (file is untracked — lost when switching machines) or a second
+private repository (double bookkeeping, no shared history with the public project). The result
+is that developers either lose personal context or accidentally expose it.
+
+giti treats privacy as a first-class scope that rides alongside the public history, so a single
+repository can carry both public work and personal overlay without leaking either.
+
+### 12.2 Model
+
+Privacy in giti is expressed through two dimensions: **path scope** and **remote scope**.
+
+**Path scope.** Each tracked path is either `public` (default) or `private`. Private paths are
+declared in a manifest file `.giti/private` whose contents are glob patterns (same syntax as
+`.gitignore`). The manifest itself lives only on the private stream — it is never pushed to
+public remotes.
+
+**Remote scope.** Each configured remote is either `public` (default) or `private`. A public
+remote receives only public-stream commits. A private remote receives both streams.
+
+**Parallel private history.** giti maintains two bookmarks that share a working copy but
+diverge at push time:
+
+- `main` — the public stream. All commits touching only public-scoped paths.
+- `_private` — the private stream. Contains both its own commits (on private-scoped paths) and
+  merge commits that reference public-stream positions, so a machine pulling `_private` can
+  reproduce the full working-copy state.
+
+The working copy materializes both streams as a single flat tree. `giti status` marks private
+paths with a scope indicator so the developer always knows what will leave the machine.
+
+### 12.3 Push and Pull Behavior
+
+**Normative statements:**
+
+1. `giti sync --push <remote>` SHALL push `main` only when the remote scope is `public`.
+2. `giti sync --push <remote>` SHALL push `main` and `_private` when the remote scope is
+   `private`.
+3. `giti sync --pull <remote>` SHALL fetch whichever streams the remote carries. Pulling from
+   a public remote updates `main` only; pulling from a private remote updates both.
+4. giti SHALL refuse to push a commit that touches a private-scoped path to a public remote,
+   even if the commit also touches public-scoped paths. The developer SHALL split the commit
+   or move the private content to `_private` first.
+5. `giti land` SHALL reject a landing whose diff touches any private-scoped path. Landings are
+   public by definition.
+6. Changing a remote from `private` to `public` SHALL require `--unsafe` and display a warning
+   that private history will become visible at the next push. The reverse direction is safe
+   and requires no flag.
+
+### 12.4 Marking and Unmarking Paths
+
+`giti private add <path>` appends the path (or glob) to `.giti/private` on the `_private`
+stream and relocates any matching tracked content from `main` to `_private` in the next save.
+The public stream retains the pre-mark history of that path; subsequent public commits do not
+include it. Retroactive history rewrite to remove past public versions is out of scope for v1
+(tracked in OQ-9).
+
+`giti private remove <path>` removes the glob from the manifest. Newly written content at that
+path will be public again on the next save. giti SHALL warn that any existing content at the
+path remains on the `_private` stream and will not automatically appear in a public commit.
+
+### 12.5 Bootstrap and Machine Switch
+
+A public clone sees only `main`:
+
+```
+giti clone https://public.example/project
+```
+
+To attach an existing private remote on a new machine:
+
+```
+giti link-private git@private.example:me/project-private
+giti sync --pull private
+```
+
+The link-private command registers the private remote, pulls `_private`, and reconciles the
+working copy. A machine without the private remote simply operates on the public stream —
+nothing breaks, nothing leaks.
+
+### 12.6 Safety Rails
+
+giti SHALL enforce the following invariants:
+
+1. No commit on `main` SHALL touch a path covered by `.giti/private`.
+2. No push to a public remote SHALL include `_private` refs or their reachable history.
+3. `giti check` and `giti land` SHALL refuse to run if the working copy contains uncommitted
+   private-scoped changes that would be lost.
+4. `.giti/private` itself SHALL be implicitly private — it never appears on `main`.
+
+### 12.7 Interaction with jj Engine
+
+The jj engine natively supports multiple bookmarks sharing a working copy, which is the
+primitive giti uses to implement the two streams. The push filter is a giti-layer concern:
+giti computes which bookmarks are eligible for a given remote based on scope, then delegates
+the transport to jj.
+
+Non-scrml files and scrml files are treated identically. Scope is a path attribute, independent
+of content type.
+
+---
+
+## 13. Open Questions
 
 These questions are tracked and must be resolved before their respective features can be
 implemented. Each is a spec issue that blocks a compiler pass or platform feature.
@@ -1498,6 +1619,20 @@ the poll interval be shorter?
 **Blocks:** v4 real-time conflict detection architecture.
 **Acceptance criteria:** Defined cache staleness policy with measured impact on false negative
 conflict detection rate.
+
+### OQ-9: Retroactive private migration
+
+**Question:** Section 12.4 specifies that marking a path private does not rewrite past public
+history. The past versions of the file remain visible on the public remote. Some use cases
+(accidentally committed credential, personal note added to a public path) need retroactive
+scrubbing. Should giti offer a `giti private backfill <path>` operation that rewrites public
+history to remove a path, with the understanding that this invalidates existing forks and
+requires a coordinated force push?
+
+**Blocks:** v1.1 private scopes polish. v1 ships without retroactive migration.
+**Acceptance criteria:** Either a specified backfill operation with a clear consent flow and
+fork-invalidation warning, or a documented decision that giti will not support retroactive
+privatization and users must rely on external tools (`git filter-repo`) for this case.
 
 ---
 

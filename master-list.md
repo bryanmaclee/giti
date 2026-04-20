@@ -2,7 +2,7 @@
 
 **Purpose:** Live inventory of the giti collaboration platform.
 
-**Last updated:** 2026-04-10 (S86 — initial split)
+**Last updated:** 2026-04-20 (S5 — private scopes spec addendum)
 
 ---
 
@@ -83,6 +83,10 @@
 - [ ][ ] **Auth + multi-repo** — user accounts, repo creation, access control (blocks non-local hosting)
 - [ ][ ] **Deploy** — Fly.io or VPS (blocked on auth)
 - [ ][ ] **GAP-1–11 implementations** — content-loss detection, protected contexts, `giti check`, granular undo
+- [x][x] **Private scopes slice 1** (spec §12) — `.giti/private` manifest I/O, glob matching, `giti private {add,remove,list}` commands, `land` refusal on private diff, 40 tests
+- [x][x] **Private scopes slice 2** — remote scope config (`.giti/remotes.json`), `giti remote {add,remove,set-scope,list}`, `giti link-private`, `giti sync --remote NAME`, push refusal on public remote when working copy has private changes, private→public scope flip requires `--unsafe`. 48 tests.
+- [x][x] **Private scopes slice 3** — engine primitives (`setBookmark` with create-fallback, `bookmarkExists`, `changedFilesInRange`); save-time scope classification + bookmark routing (`main` + `_private`); mixed-commit refusal with clear error; commit-range-aware push safety. 33 new tests (22 routing + 11 engine).
+- [ ][ ] **Private scopes slice 4** (optional) — auto-split mixed working-copy, `giti private check/status`, real-jj integration tests, OQ-9 retroactive privatization
 - [ ][ ] **Engine independence gate** — when scrml compiler does AST-level conflict resolution, revisit jj
 
 ### UI policy (S3)
@@ -90,8 +94,17 @@
 - Compiler bugs blocking the UI → P0 on scrmlTS (cross-repo escalation via user)
 - See pa.md "compiler bug escalation path"
 
-### giti-blocking compiler bugs (none yet)
-_When the UI work hits a compiler issue, log it here: file, expected, actual, compiler version._
+### giti-blocking compiler bugs
+
+Batched escalation sent 2026-04-20 12:10 → `scrmlTS/handOffs/incoming/2026-04-20-1210-giti-to-scrmlTS-server-function-codegen-bugs.md`. Compiler version at send: `acc56be` (S32 phase 3c).
+
+- **GITI-BLOCK-001** — `<request>` tag emits `fetch("", { method: "GET" })`; also: reactive receives unawaited Promise. Repro: `ui/repros/repro-01-request-minimal.scrml`
+- **GITI-BLOCK-002** — `E-SCOPE-001` false positive on `import { x } from '.js'` used in a `server function` body (the import IS preserved in `.server.js` — just rejected at compile). Repro: `ui/repros/repro-02-js-import.scrml`
+- **GITI-BLOCK-003** — server-only imports leak into `.client.js` (browser 500 on relative path)
+- **GITI-BLOCK-004** — `lift <bare-expr>` inside a server function lowers to `_scrml_lift(() => document.createTextNode(...))` (server has no `document`). `lift ?{SQL}.all()` works because SQL has its own lowering.
+- **GITI-BLOCK-005** — `${serverFn()}` in markup: fetch fires once at module top, result never wires to DOM. No working "render data from server function" idiom today.
+
+**Status:** UI work parked pending fix. giti pivots to non-scrml features (private scopes §12).
 
 
 ### Cleanup (post-split)

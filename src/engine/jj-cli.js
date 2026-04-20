@@ -331,6 +331,70 @@ export class JjCliEngine extends EngineInterface {
     return ok({ landed: bookmark, onto: target });
   }
 
+  /**
+   * Move a bookmark to point at `target`. Creates the bookmark if it does not exist.
+   * `target` is a revset string (e.g. "@-", "bookmarks(main)", a change id).
+   */
+  async setBookmark(name, target) {
+    if (!name) return err("bookmark name required");
+    const targetSpec = target || "@-";
+
+    const setResult = await this._run(
+      ["bookmark", "set", name, "--to", targetSpec, "--allow-backwards"]
+    );
+    if (setResult.ok) return ok({ name, target: targetSpec });
+
+    // Fall back to `bookmark create` if the set failed because the bookmark
+    // does not exist yet. `friendlyError` turns "no such bookmark" into a
+    // canned sentence — detect via the raw word.
+    const createResult = await this._run(
+      ["bookmark", "create", name, "--revision", targetSpec]
+    );
+    if (createResult.ok) return ok({ name, target: targetSpec, created: true });
+    return createResult;
+  }
+
+  /**
+   * Returns true iff a LOCAL bookmark with this name exists.
+   * Uses `jj bookmark list <name>`. Exits non-zero with "no such bookmark"
+   * style error when absent — we translate that to { ok: true, data: false }.
+   */
+  async bookmarkExists(name) {
+    if (!name) return ok(false);
+    const result = await this._run(["bookmark", "list", name]);
+    if (!result.ok) {
+      // friendlyError may have mapped the message; treat any error as "absent".
+      return ok(false);
+    }
+    // `bookmark list NAME` prints nothing when absent in newer jj versions,
+    // or a line starting with "NAME:" when present.
+    return ok(result.data.trim().length > 0);
+  }
+
+  /**
+   * List files changed within a revset range, returning parsed status-style
+   * entries: { kind: 'modified'|'added'|'deleted', path }.
+   *
+   * Uses `jj diff --summary -r <range>`. The summary format prints lines like:
+   *   M path/to/file
+   *   A path/to/new
+   *   D path/to/gone
+   */
+  async changedFilesInRange(range) {
+    if (!range) return err("range required");
+    const result = await this._run(["diff", "--summary", "-r", range]);
+    if (!result.ok) return result;
+
+    const files = [];
+    for (const line of result.data.split("\n")) {
+      const m = line.match(/^([MAD])\s+(.+)$/);
+      if (!m) continue;
+      const kind = m[1] === "M" ? "modified" : m[1] === "A" ? "added" : "deleted";
+      files.push({ kind, path: m[2].trim() });
+    }
+    return ok(files);
+  }
+
   async _rawDescribe(target, message) {
     return await this._run(["describe", target, "-m", message]);
   }

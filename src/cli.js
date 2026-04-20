@@ -20,6 +20,9 @@ import { status } from "./commands/status.js";
 import { describe } from "./commands/describe.js";
 import { sync } from "./commands/sync.js";
 import { serve } from "./commands/serve.js";
+import { private_ } from "./commands/private.js";
+import { remote } from "./commands/remote.js";
+import { linkPrivate } from "./commands/link-private.js";
 
 const COMMANDS = {
   save,
@@ -33,6 +36,9 @@ const COMMANDS = {
   describe,
   sync,
   serve,
+  private: private_,
+  remote,
+  "link-private": linkPrivate,
 };
 
 const HELP = `giti — version control for humans
@@ -49,6 +55,9 @@ Commands:
   giti sync               Push and pull remote changes
   giti init               Initialize a new giti repository
   giti serve [--port N]   Start the HTTP API server
+  giti private <sub>      Manage private path scopes (add|remove|list)
+  giti remote <sub>       Manage remotes (add|remove|set-scope|list)
+  giti link-private <url> Attach a private remote to this clone
 
 Options:
   --help, -h              Show this help

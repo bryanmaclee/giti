@@ -60,4 +60,17 @@ export class EngineInterface {
 
   /** Get current status (modified files, current branch) */
   async status() { throw new Error("not implemented"); }
+
+  /** Move a bookmark (create if missing). target is a revset like "@-" or "bookmarks(foo)". */
+  async setBookmark(name, target) { throw new Error("not implemented"); }
+
+  /** Whether a local bookmark exists. */
+  async bookmarkExists(name) { throw new Error("not implemented"); }
+
+  /**
+   * List files changed in a revset range.
+   * Returns { ok: true, data: Array<{kind: 'modified'|'added'|'deleted', path: string}> }.
+   * `range` is a jj-style revset range like "bookmarks(main)..@-".
+   */
+  async changedFilesInRange(range) { throw new Error("not implemented"); }
 }

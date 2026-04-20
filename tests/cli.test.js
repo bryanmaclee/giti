@@ -928,3 +928,117 @@ describe("generateMessage", () => {
     expect(msg).toContain("files");
   });
 });
+
+// ---------------------------------------------------------------------------
+// setBookmark / bookmarkExists / changedFilesInRange (slice 3 engine primitives)
+// ---------------------------------------------------------------------------
+
+describe("setBookmark", () => {
+  test("moves an existing bookmark via `bookmark set --to`", async () => {
+    const spawn = mockSpawn([
+      { stdout: "", stderr: "", exitCode: 0 }, // bookmark set succeeds
+    ]);
+    const engine = new JjCliEngine("/repo", { spawn });
+    const r = await engine.setBookmark("main", "@-");
+    expect(r.ok).toBe(true);
+    expect(r.data.created).toBeUndefined();
+    expect(spawn.recorded[0].cmd).toContain("bookmark");
+    expect(spawn.recorded[0].cmd).toContain("set");
+    expect(spawn.recorded[0].cmd).toContain("--allow-backwards");
+  });
+
+  test("falls back to `bookmark create` when set fails", async () => {
+    const spawn = mockSpawn([
+      { stdout: "", stderr: "No bookmark exists with that name.", exitCode: 1 }, // set fails
+      { stdout: "", stderr: "", exitCode: 0 }, // create succeeds
+    ]);
+    const engine = new JjCliEngine("/repo", { spawn });
+    const r = await engine.setBookmark("_private", "@-");
+    expect(r.ok).toBe(true);
+    expect(r.data.created).toBe(true);
+    expect(spawn.recorded[1].cmd).toContain("create");
+  });
+
+  test("returns an error when both set and create fail", async () => {
+    const spawn = mockSpawn([
+      { stdout: "", stderr: "no such bookmark", exitCode: 1 },
+      { stdout: "", stderr: "disk is full or something", exitCode: 1 },
+    ]);
+    const engine = new JjCliEngine("/repo", { spawn });
+    const r = await engine.setBookmark("main", "@-");
+    expect(r.ok).toBe(false);
+  });
+
+  test("rejects empty name", async () => {
+    const engine = new JjCliEngine("/repo", { spawn: mockSpawn([]) });
+    const r = await engine.setBookmark("", "@-");
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/name required/);
+  });
+});
+
+describe("bookmarkExists", () => {
+  test("true when `bookmark list NAME` prints output", async () => {
+    const spawn = mockSpawn([{ stdout: "main: abcdef (behind by 0 commits)\n", exitCode: 0 }]);
+    const engine = new JjCliEngine("/repo", { spawn });
+    const r = await engine.bookmarkExists("main");
+    expect(r.ok).toBe(true);
+    expect(r.data).toBe(true);
+  });
+
+  test("false when `bookmark list NAME` output is empty", async () => {
+    const spawn = mockSpawn([{ stdout: "", exitCode: 0 }]);
+    const engine = new JjCliEngine("/repo", { spawn });
+    const r = await engine.bookmarkExists("ghost");
+    expect(r.data).toBe(false);
+  });
+
+  test("false when `bookmark list NAME` errors (treats as absent)", async () => {
+    const spawn = mockSpawn([{ stdout: "", stderr: "no such bookmark", exitCode: 1 }]);
+    const engine = new JjCliEngine("/repo", { spawn });
+    const r = await engine.bookmarkExists("ghost");
+    expect(r.data).toBe(false);
+  });
+});
+
+describe("changedFilesInRange", () => {
+  test("parses `jj diff --summary -r <range>` output", async () => {
+    const spawn = mockSpawn([{
+      stdout: "M src/main.js\nA docs/readme.md\nD old/thing.js\n",
+      exitCode: 0,
+    }]);
+    const engine = new JjCliEngine("/repo", { spawn });
+    const r = await engine.changedFilesInRange("main..@");
+    expect(r.ok).toBe(true);
+    expect(r.data).toEqual([
+      { kind: "modified", path: "src/main.js" },
+      { kind: "added", path: "docs/readme.md" },
+      { kind: "deleted", path: "old/thing.js" },
+    ]);
+    expect(spawn.recorded[0].cmd).toContain("--summary");
+  });
+
+  test("empty output yields empty list", async () => {
+    const spawn = mockSpawn([{ stdout: "", exitCode: 0 }]);
+    const engine = new JjCliEngine("/repo", { spawn });
+    const r = await engine.changedFilesInRange("main..@");
+    expect(r.ok).toBe(true);
+    expect(r.data).toEqual([]);
+  });
+
+  test("skips lines that do not match [MAD] path pattern", async () => {
+    const spawn = mockSpawn([{
+      stdout: "Summary:\nM src/a.js\n(some header line)\nA src/b.js\n",
+      exitCode: 0,
+    }]);
+    const engine = new JjCliEngine("/repo", { spawn });
+    const r = await engine.changedFilesInRange("main..@");
+    expect(r.data.map((f) => f.path)).toEqual(["src/a.js", "src/b.js"]);
+  });
+
+  test("empty range yields error", async () => {
+    const engine = new JjCliEngine("/repo", { spawn: mockSpawn([]) });
+    const r = await engine.changedFilesInRange("");
+    expect(r.ok).toBe(false);
+  });
+});

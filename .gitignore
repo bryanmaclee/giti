@@ -4,3 +4,12 @@ dist/
 *.log
 .env
 .env.local
+
+# giti: per-machine remote config (names + URLs + scope); never push.
+.giti/remotes.json
+
+# giti: private path manifest.
+# Per spec §12.2 this should ride the _private bookmark, NOT `main`.
+# Until slice 4 wires _private properly, keep it untracked so it does not
+# leak to the public remote.
+.giti/private

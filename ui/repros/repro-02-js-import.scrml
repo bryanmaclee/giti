@@ -1,0 +1,19 @@
+// Repro 02: does a JS import from a server function survive codegen?
+// Expected: `.server.js` output contains the import so the handler can call `getGreeting()`.
+
+<program>
+
+${
+  import { getGreeting } from '../../src/engine/probe.js'
+
+  server function loadGreeting() {
+    lift getGreeting("world")
+  }
+}
+
+<div>
+  <h1>Greeting probe</h1>
+  <p>${loadGreeting()}</p>
+</div>
+
+</program>
