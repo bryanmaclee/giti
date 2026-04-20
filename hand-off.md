@@ -34,6 +34,31 @@ Not yet implemented — spec-only for now.
 ### Dropbox escalation to scrmlTS (SENT S5)
 Batched bug report: GITI-BLOCK-001 (re-verified against current `acc56be` scrmlTS — partially better but `<request>` tag still emits empty-URL fetch, unawaited promise in reactive), plus new GITI-BLOCK-002/003/004/005 surfaced by minimal `import { x } from '.js' + server function + lift` probe (`ui/repros/repro-02-js-import.scrml`). Message: `/home/bryan/scrmlMaster/scrmlTS/handOffs/incoming/2026-04-20-1210-giti-to-scrmlTS-server-function-codegen-bugs.md`.
 
+**UPDATE — all 5 fixed + verified S5 (2026-04-20 ~16:00).** scrmlTS replied `2026-04-20-1700-scrmlTS-to-giti-all-5-bugs-fixed.md` (archived to read/) listing 4 commits (`881b411`/`e585dba`/`e5f5b22`/`d23fd54`). Recompiled both repros against current tip: all 5 PASS — import scope, server-only prune, `lift → return`, awaited server-fn interpolation, `<request>` without `url=` no longer emits broken fetch. Confirmation reply sent: `2026-04-20-1558-giti-to-scrmlTS-bugs-verified-all-pass.md`.
+
+Known caveat (**GITI-006**, cosmetic): markup `${@var.path}` emits a bare module-top `_scrml_reactive_get(...).value;` that fires before the async reactive init resolves → `undefined.path` throw. Workaround: default value `@data = { value: null }`. Low-priority for giti; flagged in reply as "ride or ticket, your call."
+
+### Server-mount design question (SENT S5)
+Follow-on dropbox: `2026-04-20-1604-giti-to-scrmlTS-server-mounting-design.md` (`needs: action`, design debate requested). Question: should the compiler emit server-mount scaffolding? Options A (per-file `routes`+`mount`), B (whole-project `server.entry.js`), C (hybrid), D (status quo). Giti ranks A ≈ C > D > B (composition requirement — `/api/*` must stay alongside `/_scrml/*`). Awaiting their verdict; UI work continues against the current Option-D shape (hand-iterate `Object.values(routes)`) in the meantime.
+
+### ui/status.scrml iteration 3 — LANDED (536 LOC)
+First substantial scrml file against `d23fd54` compiler tip. Written to explicitly dodge the GITI-006 bare-read quirk by pre-seeding `@state` with full default shapes before the awaited server-fn hydration. Three server functions wrap `engine.status() / .history() / .listBranches()` and classify working-copy changes by scope via `classifyFromStatus`. Panels: current status (public/private split, conflicts, mixed hint), bookmarks (with main/private color tagging), recent saves. ~250 LOC CSS dark-theme.
+
+**Compiles clean.** Client.js reactive wiring looks right: defaults set first, then `(async () => _scrml_reactive_set(..., await fetchX()))()` hydration per server function (GITI-001 pattern working). Conditional lift branches tracked via `_scrml_effect` + branch index.
+
+**But rendered DOM would be illegible** due to **GITI-008** (see below).
+
+### Two new bugs found + filed S5 (2026-04-20 16:14)
+- **GITI-007 (CSS, cosmetic):** `<bare-tag> <space> <any-selector> { }` after another rule in the same `#{ }` block gets misparsed as `prop: ; selector { }`. Repro `ui/repros/repro-04-css-bare-tag-compound.scrml`. Workaround: class-qualify the parent selector (`nav a` → `.topbar a`). Applied in status.scrml.
+- **GITI-008 (lift path, BLOCKING):** Text content inside `${ if (...) { lift <el>...</el> } }` branches emits one `document.createTextNode("word")` per whitespace-delimited token with no whitespace between — DOM renders "Helloworldthisisatest" instead of "Hello world this is a test". Repro `ui/repros/repro-03-lift-whitespace.scrml`. Static markup (outside lift) preserves whitespace correctly — issue is specific to the lift-branch DOM emitter.
+
+Dropbox: `scrmlTS/handOffs/incoming/2026-04-20-1614-giti-to-scrmlTS-two-new-bugs-from-status-scrml.md` (`needs: action`).
+
+### Status
+- scrmlTS inbox is clear (their reply archived).
+- Three pending needs at scrmlTS: server-mount design debate (1604), GITI-007 + GITI-008 fixes (1614).
+- giti UI work parked again until GITI-008 fix lands. status.scrml stays in place; no backward-incompatible change from a GITI-008 fix is expected.
+
 Also logged in master-list.md "giti-blocking compiler bugs" — pending update.
 
 ### UI work parked

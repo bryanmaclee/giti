@@ -1,0 +1,35 @@
+// Repro 04 — GITI-007: CSS compound selector starting with bare HTML tag
+// is misparsed as a CSS declaration when it follows a prior rule block.
+//
+// Expected: `nav a { color: red; }` survives as-is in status.css.
+// Actual: emitted as `nav: ; a { color: red; }` — the parser treats `nav`
+// as a property name, the space as the prop/value boundary, and the
+// subsequent selector as a nested rule value. Visible only in a rule
+// where compound selectors start with a bare tag (not a class/id/etc.).
+//
+// Class-qualified selectors like `.topbar a { }` work correctly.
+// Standalone bare tags like `nav { }` or `main { }` also work.
+// The bug is specifically `<bare-tag> <space> <selector> { }`.
+
+<program>
+
+<nav>
+  <a href="/">Home</a>
+</nav>
+
+#{
+  nav {
+    display: flex;
+  }
+
+  nav a {
+    color: red;
+  }
+
+  /* this is the workaround shape that parses cleanly: */
+  .topbar a {
+    color: blue;
+  }
+}
+
+</program>

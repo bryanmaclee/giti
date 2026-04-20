@@ -1,0 +1,27 @@
+// Repro 03 — GITI-008: lift-branch DOM construction strips whitespace,
+// emits one createTextNode per word.
+//
+// Expected: rendered <p> says "Hello world this is a test".
+// Actual: compiled client.js emits 6 separate createTextNode calls
+// with NO spaces between, producing "Helloworldthisisatest" in the DOM.
+//
+// Static markup (outside a lift branch) preserves whitespace correctly —
+// this only manifests for text nested inside conditional/loop lift output.
+
+<program>
+
+${ @show = true }
+
+<div>
+  <!-- Static markup path — whitespace preserved in status.html -->
+  <p>Hello world this is a test</p>
+
+  <!-- Lift-branch path — whitespace stripped in client.js -->
+  ${
+    if (@show) {
+      lift <p>Hello world this is a test</p>
+    }
+  }
+</div>
+
+</program>

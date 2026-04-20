@@ -1,221 +1,537 @@
-// giti — status dashboard (iteration 2: real data)
+// giti — status dashboard (iteration 3)
 //
-// Uses scrml's native server-function + <request> pattern. The compiler
-// generates server route handlers (emitted into status.server.js as named
-// exports) and client-side fetch wrappers. Giti's serve.js mounts the
-// generated routes alongside /api/*.
+// Built against scrmlTS d23fd54+ (GITI-BLOCK-001..005 fixed, 2026-04-20).
+// Uses the now-working `server function + import + ${serverFn()}` idiom.
+// Avoids <request> (broken without url=) and bare `${@x.y}` module-top
+// reads (GITI-006 caveat) by hydrating `@state` with a default shape
+// before the awaited server call resolves.
 //
-// Data source: imports giti's engine module directly. Server functions run
-// inside the generated handler and access the real jj-lib wrapper.
+// Data source: giti's JS engine module (jj-cli wrapper) called from
+// server-function bodies. The compiler preserves the import in
+// .server.js (fixed GITI-002) and prunes it from .client.js (GITI-003).
 
 <program>
 
 ${
   import { getEngine } from '../src/engine/index.js'
   import { parseStatus } from '../src/commands/status.js'
+  import { classifyFromStatus } from '../src/private/save-routing.js'
+
+  // ---------- Server functions: wrap the engine ----------
 
   server function loadStatus() {
-    const result = getEngine().status()
-    if (!result.ok) return { error: result.error }
-    return parseStatus(result.data.raw || "")
+    const engine = getEngine()
+    const res = await engine.status()
+    if (!res.ok) {
+      return {
+        error: res.error,
+        scope: "empty",
+        bookmark: null,
+        changed: [],
+        conflicts: [],
+        publicFiles: [],
+        privateFiles: [],
+      }
+    }
+    const cls = classifyFromStatus(res.data.raw || "", process.cwd())
+    return {
+      error: null,
+      scope: cls.scope,
+      bookmark: cls.parsed.bookmark,
+      changed: cls.parsed.changed,
+      conflicts: cls.parsed.conflicts,
+      publicFiles: cls.publicFiles,
+      privateFiles: cls.privateFiles,
+    }
   }
 
   server function loadHistory() {
-    const result = getEngine().history(20)
-    if (!result.ok) return { error: result.error, entries: [] }
-    return { entries: result.data }
+    const engine = getEngine()
+    const res = await engine.history(12)
+    if (!res.ok) return { error: res.error, entries: [] }
+    return { error: null, entries: res.data }
   }
+
+  server function loadBookmarks() {
+    const engine = getEngine()
+    const res = await engine.listBranches()
+    if (!res.ok) return { error: res.error, list: [] }
+    return { error: null, list: res.data }
+  }
+
+  // ---------- Reactive state: seeded with defaults to dodge GITI-006 ----------
+  // The awaited fetch returns after the initial render; the reactive effects
+  // re-render the DOM once real data arrives. Defaults ensure property reads
+  // don't throw during that gap.
+
+  @status = {
+    error: null,
+    scope: "empty",
+    bookmark: null,
+    changed: [],
+    conflicts: [],
+    publicFiles: [],
+    privateFiles: [],
+  }
+
+  @history = { error: null, entries: [] }
+
+  @bookmarks = { error: null, list: [] }
+
+  // Hydrate (fixed GITI-001: these assignments are auto-rewritten to
+  // awaited async IIFEs so the Promise resolves before reactive_set).
+  @status    = loadStatus()
+  @history   = loadHistory()
+  @bookmarks = loadBookmarks()
 }
 
 <div class="app">
+
   <header class="topbar">
-    <h1>giti</h1>
+    <div class="title">
+      <span class="logo">giti</span>
+      <span class="muted">status</span>
+    </div>
     <nav>
-      <a href="/">Status</a>
+      <a href="/" class="active">Status</a>
       <a href="/history.html">History</a>
+      <a href="/bookmarks.html">Bookmarks</a>
     </nav>
   </header>
 
-  <request id="statusReq">
-    ${ @status = loadStatus() }
-  </>
-
-  <request id="historyReq">
-    ${ @history = loadHistory() }
-  </>
-
   <main>
+
+    <!-- ============ CURRENT STATUS ============ -->
     <section class="panel">
-      <h2>Status</h2>
+      <h2>Current status</h2>
 
       ${
-        if (<#statusReq>.loading && <#statusReq>.data is not) {
-          lift <p class="muted">Loading…</p>
-        } else if (@status.error) {
-          lift <p class="error">${@status.error}</p>
-        } else {
-          lift <div class="status-body">
-            ${
-              if (@status.bookmark) {
-                lift <p>On <strong>${@status.bookmark}</strong></p>
+        if (@status.error) {
+          lift <p class="error">Engine error: ${@status.error}</p>
+        } else if (@status.scope == "empty" && @status.conflicts.length == 0) {
+          lift <p class="muted">Working copy is clean. No pending changes.</p>
+        }
+      }
+
+      ${
+        if (@status.bookmark) {
+          lift <p class="kv"><span class="k">On</span> <code>${@status.bookmark}</code></p>
+        }
+      }
+
+      ${
+        if (@status.conflicts.length > 0) {
+          lift <div class="conflicts">
+            <h3>Conflicts</h3>
+            <ul class="file-list">
+              ${
+                for (let f of @status.conflicts) {
+                  lift <li class="conflict"><span class="tag tag-conflict">conflict</span> ${f}</li>
+                }
               }
-            }
-            ${
-              if (@status.changed.length === 0 && @status.conflicts.length === 0) {
-                lift <p class="muted">Everything is clean.</p>
-              } else {
-                lift <ul class="changed-list">
-                  ${
-                    for (let f of @status.changed) {
-                      lift <li><span class="kind kind-${f.kind}">${f.kind}</span> ${f.path}</li>
-                    }
-                  }
-                </ul>
-              }
-            }
+            </ul>
+            <p class="hint">Resolve these files, then <code>giti save</code>.</p>
           </div>
         }
       }
+
+      ${
+        if (@status.publicFiles.length > 0) {
+          lift <div class="changes">
+            <h3>Public changes <span class="count">${@status.publicFiles.length}</span></h3>
+            <ul class="file-list">
+              ${
+                for (let f of @status.publicFiles) {
+                  lift <li>
+                    <span class="tag tag-${f.kind}">${f.kind}</span>
+                    <span class="path">${f.path}</span>
+                  </li>
+                }
+              }
+            </ul>
+          </div>
+        }
+      }
+
+      ${
+        if (@status.privateFiles.length > 0) {
+          lift <div class="changes private">
+            <h3>Private changes <span class="count">${@status.privateFiles.length}</span></h3>
+            <ul class="file-list">
+              ${
+                for (let f of @status.privateFiles) {
+                  lift <li>
+                    <span class="tag tag-${f.kind}">${f.kind}</span>
+                    <span class="path">${f.path}</span>
+                    <span class="scope-mark">private</span>
+                  </li>
+                }
+              }
+            </ul>
+          </div>
+        }
+      }
+
+      ${
+        if (@status.scope == "mixed") {
+          lift <div class="hint-box">
+            <strong>Mixed save.</strong>
+            <span class="muted">Use</span>
+            <code>giti save --split "msg"</code>
+            <span class="muted">to split into a public and a private commit.</span>
+          </div>
+        }
+      }
+
     </section>
 
+    <!-- ============ BOOKMARKS ============ -->
     <section class="panel">
-      <h2>Recent history</h2>
+      <h2>Bookmarks</h2>
       ${
-        if (<#historyReq>.loading && <#historyReq>.data is not) {
-          lift <p class="muted">Loading…</p>
-        } else if (@history.error) {
-          lift <p class="error">${@history.error}</p>
-        } else if (@history.entries.length === 0) {
-          lift <p class="muted">No history yet.</p>
+        if (@bookmarks.error) {
+          lift <p class="error">Could not list bookmarks: ${@bookmarks.error}</p>
+        } else if (@bookmarks.list.length == 0) {
+          lift <p class="muted">No bookmarks yet.</p>
         } else {
-          lift <ul class="history-list">
+          lift <ul class="bookmark-list">
             ${
-              for (let entry of @history.entries) {
-                lift <li>
-                  <code>${entry.changeId.slice(0, 8)}</code>
-                  <span class="desc">${entry.description || "(no message)"}</span>
-                  <span class="time muted">${entry.timestamp || ""}</span>
+              for (let b of @bookmarks.list) {
+                const nameCls = b.name == "_private" ? "name-priv" : "name-pub"
+                lift <li class="bookmark">
+                  <span class="name ${nameCls}">${b.name}</span>
+                  <span class="info muted">${b.info}</span>
                 </li>
               }
             }
           </ul>
         }
       }
+      <p class="hint">
+        <code>main</code> tracks public commits.
+        <code>_private</code> tracks your personal overlay — never leaves machines scoped 'private'.
+      </p>
     </section>
+
+    <!-- ============ HISTORY ============ -->
+    <section class="panel">
+      <h2>Recent saves</h2>
+      ${
+        if (@history.error) {
+          lift <p class="error">Could not read history: ${@history.error}</p>
+        } else if (@history.entries.length == 0) {
+          lift <p class="muted">No saves yet. Try <code>giti save "first"</code>.</p>
+        } else {
+          lift <ol class="history-list">
+            ${
+              for (let e of @history.entries) {
+                lift <li class="entry">
+                  <code class="change-id">${e.changeId}</code>
+                  <span class="desc">${e.description || "(no message)"}</span>
+                  <span class="author muted">${e.author}</span>
+                  <span class="time muted">${e.timestamp}</span>
+                </li>
+              }
+            }
+          </ol>
+        }
+      }
+    </section>
+
   </main>
 
   <footer class="bottombar">
-    <span class="muted">giti 0.1.0 · local-dev</span>
+    <span class="muted">giti 0.1.0</span>
+    <span class="muted">·</span>
+    <span class="muted">local-dev</span>
+    <span class="muted">·</span>
+    <span class="muted">spec §12 private scopes</span>
   </footer>
+
 </div>
 
 #{
+  /* ================= THEME ================= */
+
+  :root {
+    --bg:        #0e1116;
+    --panel:    #161b22;
+    --border:    #21262d;
+    --fg:         #e6edf3;
+    --muted:     #7d8590;
+    --accent:    #58a6ff;
+    --accent-2:  #a371f7;
+    --ok:       #3fb950;
+    --warn:      #d29922;
+    --err:       #f85149;
+    --priv:      #a371f7;
+    --mono:      ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans:       -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #0e1116;
-    color: #e6edf3;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 1.5;
   }
 
   .app {
-    max-width: 900px;
+    max-width: 920px;
     margin: 0 auto;
-    padding: 1.5rem;
+    padding: 1.5rem 1.25rem 3rem 1.25rem;
   }
+
+  /* ----- top bar ----- */
 
   .topbar {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    border-bottom: 1px solid #21262d;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
     padding-bottom: 0.75rem;
+    margin-bottom: 1.25rem;
   }
 
-  .topbar h1 {
-    margin: 0;
-    font-weight: 600;
-    font-size: 1.4rem;
+  .title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
   }
 
-  nav a {
-    color: #7d8590;
+  .logo {
+    font-weight: 700;
+    font-size: 1.3rem;
+    letter-spacing: -0.02em;
+  }
+
+  .topbar nav {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .topbar a {
+    color: var(--muted);
     text-decoration: none;
-    margin-left: 1.25rem;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
   }
 
-  nav a:hover {
-    color: #e6edf3;
+  .topbar a:hover {
+    color: var(--fg);
+    background: var(--panel);
   }
+
+  .topbar a.active {
+    color: var(--fg);
+    background: var(--panel);
+  }
+
+  /* ----- panels ----- */
 
   main {
-    margin-top: 1.5rem;
     display: grid;
     gap: 1rem;
   }
 
   .panel {
-    background: #161b22;
-    border: 1px solid #21262d;
-    border-radius: 6px;
-    padding: 1rem 1.25rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem 1.25rem 1.25rem;
   }
 
   .panel h2 {
-    margin: 0 0 0.75rem 0;
+    margin: 0 0 0.85rem 0;
     font-size: 1rem;
     font-weight: 600;
+    letter-spacing: 0.01em;
   }
 
-  .muted  { color: #7d8590; }
-  .error  { color: #f85149; }
+  .panel h3 {
+    margin: 1rem 0 0.5rem 0;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
 
-  .changed-list,
-  .history-list {
+  .panel h3 .count {
+    display: inline-block;
+    background: var(--border);
+    color: var(--fg);
+    padding: 0.05rem 0.45rem;
+    border-radius: 10px;
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    letter-spacing: 0;
+  }
+
+  /* ----- text helpers ----- */
+
+  .muted { color: var(--muted); }
+  .error { color: var(--err); }
+  code { font-family: var(--mono); font-size: 0.85em; background: var(--bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+
+  .kv { display: flex; align-items: baseline; gap: 0.5rem; margin: 0.25rem 0; }
+  .kv .k { color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .hint {
+    margin-top: 0.75rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .hint-box {
+    margin-top: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--warn);
+    border-radius: 6px;
+    background: rgba(210, 153, 34, 0.06);
+    font-size: 0.88rem;
+  }
+
+  .hint-box strong { color: var(--warn); }
+
+  /* ----- file lists ----- */
+
+  .file-list,
+  .history-list,
+  .bookmark-list {
     list-style: none;
     padding: 0;
     margin: 0;
   }
 
-  .changed-list li,
-  .history-list li {
-    padding: 0.35rem 0;
-    border-bottom: 1px solid #21262d;
-    font-size: 0.9rem;
+  .file-list li,
+  .bookmark-list li {
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--border);
     display: flex;
-    gap: 0.75rem;
     align-items: baseline;
+    gap: 0.6rem;
+    font-size: 0.9rem;
   }
 
-  .kind {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0.1rem 0.4rem;
-    border-radius: 3px;
-    background: #21262d;
-    color: #7d8590;
+  .file-list li:last-child,
+  .bookmark-list li:last-child {
+    border-bottom: none;
   }
 
-  .kind-modified { color: #d29922; }
-  .kind-added    { color: #3fb950; }
-  .kind-deleted  { color: #f85149; }
-
-  .history-list code {
-    color: #58a6ff;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-
-  .history-list .desc {
+  .path {
+    font-family: var(--mono);
+    color: var(--fg);
     flex: 1;
   }
 
-  .bottombar {
-    margin-top: 2rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid #21262d;
-    font-size: 0.85rem;
+  .scope-mark {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--priv);
   }
+
+  .changes.private {
+    margin-top: 0.75rem;
+  }
+
+  .conflicts {
+    border: 1px solid var(--err);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin: 0.5rem 0;
+    background: rgba(248, 81, 73, 0.06);
+  }
+
+  .conflicts h3 { color: var(--err); margin-top: 0; }
+
+  /* ----- tags (kind badges) ----- */
+
+  .tag {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.1rem 0.45rem;
+    border-radius: 3px;
+    background: var(--border);
+    color: var(--muted);
+    font-weight: 500;
+    min-width: 4.5rem;
+    text-align: center;
+  }
+
+  .tag-modified { color: var(--warn); }
+  .tag-added    { color: var(--ok); }
+  .tag-deleted  { color: var(--err); }
+  .tag-conflict { color: var(--err); background: rgba(248, 81, 73, 0.1); }
+
+  /* ----- bookmarks ----- */
+
+  .bookmark .name {
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+
+  .name-pub  { color: var(--accent); }
+  .name-priv { color: var(--priv); }
+
+  .bookmark .info {
+    flex: 1;
+    font-size: 0.82rem;
+  }
+
+  /* ----- history ----- */
+
+  .history-list {
+    counter-reset: entry;
+  }
+
+  .history-list .entry {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 0.75rem;
+    align-items: baseline;
+    font-size: 0.88rem;
+  }
+
+  .history-list .entry:last-child { border-bottom: none; }
+
+  .change-id {
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+  }
+
+  .desc {
+    color: var(--fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .author, .time {
+    font-size: 0.78rem;
+  }
+
+  /* ----- footer ----- */
+
+  .bottombar {
+    margin-top: 1.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.82rem;
+    text-align: center;
+  }
+
+  .bottombar > span { margin: 0 0.25rem; }
 }
 
 </program>
