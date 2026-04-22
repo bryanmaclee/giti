@@ -11,7 +11,7 @@
  * Spec ref: giti-spec-v1.md §M4.1
  */
 
-import { existsSync, statSync } from "node:fs";
+import { existsSync, statSync, readdirSync } from "node:fs";
 import { join, resolve, normalize } from "node:path";
 
 import { getEngine } from "../engine/index.js";
@@ -69,15 +69,66 @@ async function readJson(req) {
 }
 
 /**
+ * Compose a chain of scrml-generated WinterCG fetch handlers into a single
+ * dispatcher that tries each in order and returns the first non-null
+ * Response. Matches the verdict in scrmlTS design-insight 22: each
+ * `.server.js` exports `fetch(request): Response | null`; the `null` return
+ * is the composition seam.
+ */
+export function composeScrmlFetch(handlers) {
+  return async function scrmlDispatch(req) {
+    for (const h of handlers) {
+      const r = await h(req);
+      if (r !== null && r !== undefined) return r;
+    }
+    return null;
+  };
+}
+
+/**
+ * Discover every `*.server.js` file under `distDir` and dynamically import
+ * its `fetch` export (if present). Returns an array of fetch functions
+ * ready to pass to composeScrmlFetch.
+ *
+ * Files emitted by scrml that have no server functions have no `fetch`
+ * export — those are silently skipped.
+ */
+export async function loadScrmlHandlers(distDir) {
+  if (!distDir || !existsSync(distDir)) return [];
+  const handlers = [];
+
+  const walk = (dir) => {
+    const entries = readdirSync(dir, { withFileTypes: true });
+    const files = [];
+    for (const e of entries) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) files.push(...walk(p));
+      else if (e.isFile() && e.name.endsWith(".server.js")) files.push(p);
+    }
+    return files;
+  };
+
+  for (const file of walk(distDir)) {
+    const mod = await import(file);
+    if (typeof mod.fetch === "function") handlers.push(mod.fetch);
+  }
+  return handlers;
+}
+
+/**
  * Build the fetch handler.
  *
  * @param {object} opts
- * @param {object} [opts.engine]    injectable engine (defaults to getEngine())
- * @param {boolean} [opts.localDev] unlock write endpoints (save/switch/merge/undo)
- * @param {string}  [opts.distDir]  absolute path to compiled scrml UI (static serving)
+ * @param {object} [opts.engine]        injectable engine (defaults to getEngine())
+ * @param {boolean} [opts.localDev]     unlock write endpoints (save/switch/merge/undo)
+ * @param {string}  [opts.distDir]      absolute path to compiled scrml UI (static serving)
+ * @param {Array}   [opts.scrmlHandlers] scrml WinterCG fetch handlers (first-match wins)
  */
-export function createHandler({ engine, localDev = false, distDir = null } = {}) {
+export function createHandler({
+  engine, localDev = false, distDir = null, scrmlHandlers = [],
+} = {}) {
   const eng = engine || getEngine();
+  const scrml = composeScrmlFetch(scrmlHandlers);
 
   async function handleGet(pathname, url) {
     if (pathname === "/health") return json({ ok: true, localDev });
@@ -140,6 +191,10 @@ export function createHandler({ engine, localDev = false, distDir = null } = {})
     const url = new URL(req.url);
     const { pathname } = url;
 
+    // scrml-generated /_scrml/* routes first (first-match wins, null falls through).
+    const scrmlResponse = await scrml(req);
+    if (scrmlResponse) return scrmlResponse;
+
     if (pathname.startsWith("/api/")) {
       const apiPath = pathname.slice(4); // "/api/status" -> "/status"
 
@@ -187,6 +242,9 @@ export async function startServer({ port = 3737, engine, localDev = false } = {}
     throw new Error(`UI compile failed:\n${compile.error}`);
   }
 
-  const fetch = createHandler({ engine, localDev, distDir: compile.distDir });
+  const scrmlHandlers = await loadScrmlHandlers(compile.distDir);
+  const fetch = createHandler({
+    engine, localDev, distDir: compile.distDir, scrmlHandlers,
+  });
   return Bun.serve({ port, hostname: "127.0.0.1", fetch });
 }

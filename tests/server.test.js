@@ -7,7 +7,12 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createHandler, VERSION } from "../src/server/index.js";
+import {
+  createHandler,
+  VERSION,
+  composeScrmlFetch,
+  loadScrmlHandlers,
+} from "../src/server/index.js";
 
 function mockEngine(overrides = {}) {
   return {
@@ -316,6 +321,117 @@ describe("server / static UI", () => {
     const res = await get(handler, "/version");
     expect(res.status).toBe(200);
     expect((await res.json()).version).toBe(VERSION);
+    rmSync(dir, { recursive: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// scrml route composition (design-insight 22)
+// ---------------------------------------------------------------------------
+
+describe("composeScrmlFetch", () => {
+  test("empty chain returns null", async () => {
+    const dispatch = composeScrmlFetch([]);
+    expect(await dispatch(new Request("http://x/"))).toBeNull();
+  });
+
+  test("first non-null response wins", async () => {
+    const a = async () => null;
+    const b = async () => new Response("B", { status: 200 });
+    const c = async () => new Response("C", { status: 200 });
+    const dispatch = composeScrmlFetch([a, b, c]);
+    const r = await dispatch(new Request("http://x/"));
+    expect(await r.text()).toBe("B");
+  });
+
+  test("all-null chain falls through to null", async () => {
+    const a = async () => null;
+    const b = async () => null;
+    const dispatch = composeScrmlFetch([a, b]);
+    expect(await dispatch(new Request("http://x/"))).toBeNull();
+  });
+});
+
+describe("createHandler with scrmlHandlers", () => {
+  function mockEngineLocal() {
+    return {
+      status: async () => ({ ok: true, data: { raw: "" } }),
+      history: async () => ({ ok: true, data: [] }),
+    };
+  }
+
+  test("scrml handler takes precedence over /api/* for matching paths", async () => {
+    const scrml = async (req) => {
+      const u = new URL(req.url);
+      if (u.pathname === "/_scrml/foo") {
+        return new Response(JSON.stringify({ from: "scrml" }), { status: 200 });
+      }
+      return null;
+    };
+    const handler = createHandler({
+      engine: mockEngineLocal(),
+      scrmlHandlers: [scrml],
+    });
+    const res = await handler(new Request("http://127.0.0.1/_scrml/foo"));
+    expect(res.status).toBe(200);
+    expect((await res.json()).from).toBe("scrml");
+  });
+
+  test("scrml returning null falls through to existing /api/* behavior", async () => {
+    const scrml = async () => null;
+    const handler = createHandler({
+      engine: mockEngineLocal(),
+      scrmlHandlers: [scrml],
+    });
+    const res = await handler(new Request("http://127.0.0.1/api/health"));
+    expect(res.status).toBe(200);
+    expect((await res.json()).ok).toBe(true);
+  });
+
+  test("no scrml handlers: existing routes unaffected (backward compat)", async () => {
+    const handler = createHandler({ engine: mockEngineLocal() });
+    const res = await handler(new Request("http://127.0.0.1/api/version"));
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("loadScrmlHandlers", () => {
+  test("missing distDir returns empty array", async () => {
+    const handlers = await loadScrmlHandlers("/no/such/path");
+    expect(handlers).toEqual([]);
+  });
+
+  test("imports fetch export from a .server.js file", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "scrml-handlers-"));
+    writeFileSync(
+      join(dir, "mod.server.js"),
+      `export async function fetch(req) {
+        const u = new URL(req.url);
+        if (u.pathname === "/_scrml/ping") return new Response("pong");
+        return null;
+      }
+      `,
+    );
+    const handlers = await loadScrmlHandlers(dir);
+    expect(handlers).toHaveLength(1);
+
+    const r = await handlers[0](new Request("http://x/_scrml/ping"));
+    expect(await r.text()).toBe("pong");
+    rmSync(dir, { recursive: true });
+  });
+
+  test("skips files without a fetch export", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "scrml-handlers-"));
+    writeFileSync(
+      join(dir, "no-fetch.server.js"),
+      `export const something = 1;\n`,
+    );
+    writeFileSync(
+      join(dir, "has-fetch.server.js"),
+      `export async function fetch(req) { return new Response("ok"); }\n`,
+    );
+    const handlers = await loadScrmlHandlers(dir);
+    expect(handlers).toHaveLength(1);
     rmSync(dir, { recursive: true });
   });
 });
