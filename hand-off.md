@@ -47,4 +47,5 @@
 - **Diff viewer** — needs an engine primitive for `jj diff <change>` if not already present, then a two-pane scrml UI. Master-list §E next item.
 - **Landing dashboard** — compiler-gate + test results + queue per `giti land`.
 - **Theme refactor done** — `ui/theme.css` hand-written, copied by `compileUi`, injected as `<link>` into every compiled HTML head before the per-page CSS. `@import` inside scrml `#{}` blocked by scrml CSS parser mangling at-rules (workaround: HTML link injection). history + bookmarks now 45% leaner; status kept standalone.
+- **GITI-011 filed** — scrml CSS parser has no at-rule handling (@import, @media, @keyframes, @font-face, @supports, @page all mangle). Confirmed via probe against scrmlTS `8691f75`. Blocks responsive design + animations. Repro: `ui/repros/repro-07-css-at-rules.scrml`. Report: `scrmlTS/handOffs/incoming/2026-04-22-0841-giti-to-scrmlTS-giti-011-css-at-rules.md` + sidecar.
 - **GITI-009** still open (scrmlTS queue, not blocking; workaround applied).
