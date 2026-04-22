@@ -23,7 +23,7 @@ At end of S5 an S35 reply landed from scrmlTS and work began integrating it, but
 **Test status:** 289 pass / 9 skip / 0 fail across 9 files (up from 280 at S5 close — confirmed locally 2026-04-21).
 
 ## Inbox
-- Clear. Last S5 message from scrmlTS (S35 verdict) archived to `handOffs/incoming/read/`.
+- Clear. S5 scrmlTS verdict + S6 master pa.md-updates message both archived to `handOffs/incoming/read/`. Reply to master sent.
 
 ## Pending from scrmlTS's S35 reply (design-insight 22)
 Three asks:
@@ -31,13 +31,32 @@ Three asks:
 2. **Try the one-line composition** `scrml(req) ?? myApi(req)` — ALREADY DONE in the uncommitted work above; the chain is in `createHandler`. Needs live verification once UI re-compiles against the new compiler tip.
 3. **Resume UI work** — lift-branch whitespace blocker cleared
 
-## Session 6 priorities (suggested)
-1. Commit the uncommitted S5-tail work as a proper "session 6 slice 1" commit (or split into logical chunks)
-2. Update `master-list.md` — strike through fixed compiler bugs (001–005 + 007 + 008), note GITI-006 (cosmetic) still open
-3. Re-verify `ui/status.scrml` against current scrmlTS tip (commits `3f79d71` / `b8f3b51` / `8c64a98`) — expect lift-branch text + CSS `nav a` selector to render correctly now
-4. If status.scrml renders clean: wire it into the running server via the new `loadScrmlHandlers` path + Bun.serve and eyeball it live
-5. Send a reply message to scrmlTS closing out asks #1–3
-6. Consider next UI screen (history timeline or diff viewer) per master-list §E
+## Session 6 work completed
+
+1. **Committed S5-tail** (`c530779`) — scrml per-file fetch composition: `composeScrmlFetch`, `loadScrmlHandlers`, `createHandler({scrmlHandlers})` + `startServer` auto-discovery; +9 tests. 289 pass / 9 skip / 0 fail.
+2. **master-list + hand-off rotation** (`03dc6a3`) — compiler bugs 001–005/007/008 struck through; GITI-006 kept as open (cosmetic); `.giti/private` manifest tracked.
+3. **status.scrml re-verified** against scrmlTS `ccae1f6` — GITI-007/008 fixes confirmed in codegen (whole-phrase text nodes; clean `nav a` CSS); per-file `fetch(request)` export visible in `status.server.js:137`.
+4. **Server wire-up confirmed live** — Bun.serve at `127.0.0.1:3737` serves static shell, runtime.js, and routes `/_scrml/*` → scrml handler chain (CSRF-gated, returns 403 to unauth'd curl) vs `/api/*` → giti handler (200). Composition per design-insight 22 works end-to-end.
+5. **pa.md policy sync** (`20d44e2`) — master's 2026-04-22 edits applied: no-direct-main rule relaxed into new "Commit rules" section; cross-repo bug reports now require reproducer (sidecar or inline). Reply sent.
+6. **status.scrml import-path fix** (`c671d8d`) — `../src/...` → `../../src/...` to match output-file depth. Flagged as **GITI-009** (compiler UX: scrmlTS should rewrite source-relative imports to resolve from output location).
+
+## Still open / parked
+
+**Three errors in browser** — status.scrml loads its shell but the three server-fn calls (loadStatus / loadHistory / loadBookmarks) all error out in the browser. Parked; next session diagnose. Likely candidates:
+- Client-side CSRF token acquisition (the server route issues CSRF 403 without token — client needs to fetch+attach)
+- Server-fn body throwing at runtime (e.g., `getEngine()` path issue in the bun-spawned subprocess)
+- Serialization/contract mismatch between scrml client stub and scrml-generated server handler
+
+**GITI-009** — scrmlTS forwards relative imports verbatim; source-relative paths don't resolve from compiled-output location. Workaround applied in status.scrml with `../../` prefix. File a repro + send to scrmlTS when convenient.
+
+**GITI-006** (cosmetic, from S5) — still open. Workaround (pre-seed full defaults) is in place.
+
+## Next session priorities (suggested)
+1. Diagnose the three server-fn errors in browser (capture the actual error — devtools console + network tab)
+2. File GITI-009 repro to scrmlTS (source-relative import rewrite)
+3. Depending on #1's root cause: either fix in giti (wiring) or escalate to scrmlTS (codegen)
+4. Send scrmlTS a session-closing reply covering asks #1-3 from S35 (two fixes verified + composition live + GITI-009 filed)
+5. Then: next UI screen (history timeline, diff viewer) per master-list §E
 
 ## Not in scope this session unless user pushes
 - Private scopes slice 6 (check/real-jj harness/OQ-9) — deferred, none required for original frustration
