@@ -1,0 +1,88 @@
+// giti — pending-changes diff viewer (v0)
+//
+// v0 scope: show the raw working-copy diff (what `giti save` would capture
+// right now). No per-change selector yet — a future iteration will take a
+// changeId from query string (SPEC §20.3 route.query) and show that
+// change's diff instead.
+//
+// Engine: `jj diff` via engine.diff() — already present, no new primitive.
+
+<program>
+
+${
+  // GITI-009 workaround: paths relative to compiled-output location.
+  import { getEngine } from '../../src/engine/index.js'
+
+  server function loadWorkingDiff() {
+    const engine = getEngine()
+    const res = await engine.diff()
+    if (!res.ok) return { error: res.error, diff: "" }
+    return { error: null, diff: res.data || "" }
+  }
+
+  @state = { error: null, diff: "" }
+  @state = loadWorkingDiff()
+}
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="title">
+      <span class="logo">giti</span>
+      <span class="muted">diff</span>
+    </div>
+    <nav>
+      <a href="/">Status</a>
+      <a href="/history.html">History</a>
+      <a href="/bookmarks.html">Bookmarks</a>
+      <a href="/diff.html" class="active">Diff</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <section class="panel">
+      <h2>Pending changes</h2>
+      <p class="muted">Working-copy diff against parent change. Run <code>giti save</code> in the terminal to commit.</p>
+
+      ${
+        if (@state.error) {
+          lift <p class="error">Could not read diff: ${@state.error}</p>
+        } else if (@state.diff == "") {
+          lift <p class="muted">No pending changes. Working copy is clean.</p>
+        } else {
+          lift <pre class="diff-pane">${@state.diff}</pre>
+        }
+      }
+    </section>
+
+  </main>
+
+  <footer class="bottombar">
+    <span class="muted">giti 0.1.0</span>
+    <span class="muted">·</span>
+    <span class="muted">local-dev</span>
+  </footer>
+
+</div>
+
+#{
+  /* Shared chrome lives in theme.css (injected by compileUi). Only
+     page-specific rules below. */
+
+  .diff-pane {
+    margin: 0;
+    padding: 12px 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.45;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text);
+  }
+}
+
+</program>
