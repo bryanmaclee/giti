@@ -300,6 +300,21 @@ export class JjCliEngine extends EngineInterface {
   }
 
   /**
+   * Get the diff that a specific change introduces (what changed in that
+   * revision, parent → self). Complements diff() which is working-copy-
+   * against-parent.
+   *
+   * @param {string} changeId - jj change id (full or short)
+   * @returns {{ ok: true, data: string } | { ok: false, error: string }}
+   */
+  async diffChange(changeId) {
+    if (!changeId) return { ok: false, error: "changeId is required" };
+    const result = await this._run(["diff", "-r", changeId]);
+    if (!result.ok) return result;
+    return ok(result.data);
+  }
+
+  /**
    * Land a bookmark onto main. Moves the main bookmark to the target bookmark's
    * change, effectively "merging" it.
    *

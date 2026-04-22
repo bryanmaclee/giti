@@ -1,11 +1,14 @@
-// giti — pending-changes diff viewer (v0)
+// giti — diff viewer (v1)
 //
-// v0 scope: show the raw working-copy diff (what `giti save` would capture
-// right now). No per-change selector yet — a future iteration will take a
-// changeId from query string (SPEC §20.3 route.query) and show that
-// change's diff instead.
+// v0 showed the raw working-copy diff. v1 adds per-change selection via
+// URL query (/diff.html?change=<id>). Left pane: recent history. Right
+// pane: diff for selected change, or working-copy diff if no change is
+// selected.
 //
-// Engine: `jj diff` via engine.diff() — already present, no new primitive.
+// Selection flow: each history entry is an <a href="/diff.html?change=X">.
+// Clicking navigates — the server fn reads `route.query.change` and
+// serves the matching diff. Full-page reload, no client-side state.
+// Tests scrml's SPEC §20.3 route.query injection from the author side.
 
 <program>
 
@@ -13,15 +16,35 @@ ${
   // GITI-009 workaround: paths relative to compiled-output location.
   import { getEngine } from '../../src/engine/index.js'
 
-  server function loadWorkingDiff() {
+  server function loadHistory() {
     const engine = getEngine()
-    const res = await engine.diff()
-    if (!res.ok) return { error: res.error, diff: "" }
-    return { error: null, diff: res.data || "" }
+    const res = await engine.history(30)
+    if (!res.ok) return { error: res.error, entries: [] }
+    return { error: null, entries: res.data }
   }
 
-  @state = { error: null, diff: "" }
-  @state = loadWorkingDiff()
+  // changeId: string | null. If null → working-copy diff. Otherwise →
+  // diff of that specific change. Compiler's internal route.query is NOT
+  // author-exposed (E-SCOPE-001), so the client reads the URL param and
+  // passes it in as an explicit arg.
+  server function loadDiff(changeId) {
+    const engine = getEngine()
+    const res = changeId
+      ? await engine.diffChange(changeId)
+      : await engine.diff()
+    if (!res.ok) return { error: res.error, diff: "", change: changeId }
+    return { error: null, diff: res.data || "", change: changeId }
+  }
+
+  @history = { error: null, entries: [] }
+  @diff = { error: null, diff: "", change: null }
+
+  // Client-side: read ?change= out of the URL. window.location is
+  // available at scrml client-code scope (browser globals).
+  @selectedChange = new URLSearchParams(window.location.search).get('change')
+
+  @history = loadHistory()
+  @diff = loadDiff(@selectedChange)
 }
 
 <div class="app">
@@ -39,19 +62,67 @@ ${
     </nav>
   </header>
 
-  <main>
+  <main class="diff-layout">
 
-    <section class="panel">
-      <h2>Pending changes</h2>
-      <p class="muted">Working-copy diff against parent change. Run <code>giti save</code> in the terminal to commit.</p>
+    <aside class="panel change-picker">
+      <h2>Changes</h2>
+      <p class="muted">
+        ${
+          if (@diff.change) {
+            lift <a href="/diff.html">← Pending changes</a>
+          } else {
+            lift <span>Pending changes (selected)</span>
+          }
+        }
+      </p>
+      ${
+        if (@history.error) {
+          lift <p class="error">Could not read history: ${@history.error}</p>
+        } else if (@history.entries.length == 0) {
+          lift <p class="muted">No saves yet.</p>
+        } else {
+          lift <ol class="picker-list">
+            ${
+              for (let e of @history.entries) {
+                lift <li>
+                  <a href="/diff.html?change=${e.changeId}">
+                    <code class="change-id">${e.changeId}</code>
+                    <span class="desc">${e.description || "(no message)"}</span>
+                  </a>
+                </li>
+              }
+            }
+          </ol>
+        }
+      }
+    </aside>
+
+    <section class="panel diff-view">
+      <h2>
+        ${
+          if (@diff.change) {
+            lift <span>Diff for <code>${@diff.change}</code></span>
+          } else {
+            lift <span>Pending changes</span>
+          }
+        }
+      </h2>
 
       ${
-        if (@state.error) {
-          lift <p class="error">Could not read diff: ${@state.error}</p>
-        } else if (@state.diff == "") {
-          lift <p class="muted">No pending changes. Working copy is clean.</p>
+        if (@diff.error) {
+          lift <p class="error">Could not read diff: ${@diff.error}</p>
+        } else if (@diff.diff == "") {
+          lift <p class="muted">
+            ${
+              if (@diff.change) {
+                lift <span>This change introduced no file modifications.</span>
+              } else {
+                lift <span>No pending changes. Working copy is clean.</span>
+              }
+            }
+          </p>
         } else {
-          lift <pre class="diff-pane">${@state.diff}</pre>
+          lift <pre class="diff-pane">${@diff.diff}</pre>
         }
       }
     </section>
@@ -69,6 +140,71 @@ ${
 #{
   /* Shared chrome lives in theme.css (injected by compileUi). Only
      page-specific rules below. */
+
+  .diff-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .change-picker {
+    position: sticky;
+    top: 16px;
+  }
+
+  .change-picker h2 {
+    margin-bottom: 8px;
+  }
+
+  .picker-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .picker-list li {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .picker-list li:last-child {
+    border-bottom: none;
+  }
+
+  .picker-list a {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 8px;
+    padding: 8px 4px;
+    color: var(--text);
+    text-decoration: none;
+    align-items: baseline;
+  }
+
+  .picker-list a:hover {
+    background: rgba(88, 166, 255, 0.06);
+  }
+
+  .change-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    color: var(--accent);
+  }
+
+  .desc {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  .diff-view h2 code {
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 6px;
+    font-size: 13px;
+  }
 
   .diff-pane {
     margin: 0;
