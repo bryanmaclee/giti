@@ -1,0 +1,8 @@
+# giti private paths (spec §12)
+# One glob per line. Matching files stay on the _private bookmark
+# and are never pushed to remotes scoped 'public'.
+
+user-voice.md
+hand-off.md
+handOffs/
+.claude/

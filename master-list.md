@@ -2,7 +2,7 @@
 
 **Purpose:** Live inventory of the giti collaboration platform.
 
-**Last updated:** 2026-04-20 (S5 — private scopes spec addendum)
+**Last updated:** 2026-04-21 (S6 — compiler bugs 001–005/007/008 fixed by scrmlTS, scrml per-file fetch composition wired)
 
 ---
 
@@ -75,11 +75,12 @@
 - [x][x] **Bun HTTP API (read-only)** — `/api/health`, `/api/version`, `/api/status`, `/api/history` (S3)
 - [x][x] **Bun HTTP API (local-dev writes)** — `/api/save`, `/api/switch`, `/api/merge`, `/api/undo` gated on `--local-dev`, bound 127.0.0.1 (S3)
 - [x][x] **Compiler gate in `land`** — resolves `$SCRMLTS_PATH` or `../scrmlTS`, globs `.scrml`, skips when none (S3)
-- [ ][ ] **Web UI — status dashboard** — written in scrml (see policy below)
+- [~][ ] **Web UI — status dashboard** — scrml shell `ui/status.scrml` landed (536 LOC, compiles clean against `d23fd54`). Blocked on GITI-008 at S5; unblocked S6 — needs live verification + wire-up to `loadScrmlHandlers`
 - [ ][ ] **Web UI — history timeline**
 - [ ][ ] **Web UI — diff viewer + file browser**
 - [ ][ ] **Web UI — landing dashboard** — compiler gate results, test results, landing queue
-- [ ][ ] **Compile-on-serve pipeline** — Bun.serve compiles `ui/*.scrml` → dist, serves at `/`
+- [x][x] **Compile-on-serve pipeline** — Bun.serve compiles `ui/*.scrml` → dist, serves at `/` (S3)
+- [x][x] **scrml per-file fetch composition** — `composeScrmlFetch` + `loadScrmlHandlers` wired into `createHandler`/`startServer`; first-match-wins, null falls through to `/api/*` (S6, commit `c530779`)
 - [ ][ ] **Auth + multi-repo** — user accounts, repo creation, access control (blocks non-local hosting)
 - [ ][ ] **Deploy** — Fly.io or VPS (blocked on auth)
 - [ ][ ] **GAP-1–11 implementations** — content-loss detection, protected contexts, `giti check`, granular undo
@@ -98,15 +99,23 @@
 
 ### giti-blocking compiler bugs
 
-Batched escalation sent 2026-04-20 12:10 → `scrmlTS/handOffs/incoming/2026-04-20-1210-giti-to-scrmlTS-server-function-codegen-bugs.md`. Compiler version at send: `acc56be` (S32 phase 3c).
+**Status (S6, 2026-04-21):** All originally blocking bugs now fixed by scrmlTS. UI work unblocked. One cosmetic issue (GITI-006) remains open.
 
-- **GITI-BLOCK-001** — `<request>` tag emits `fetch("", { method: "GET" })`; also: reactive receives unawaited Promise. Repro: `ui/repros/repro-01-request-minimal.scrml`
-- **GITI-BLOCK-002** — `E-SCOPE-001` false positive on `import { x } from '.js'` used in a `server function` body (the import IS preserved in `.server.js` — just rejected at compile). Repro: `ui/repros/repro-02-js-import.scrml`
-- **GITI-BLOCK-003** — server-only imports leak into `.client.js` (browser 500 on relative path)
-- **GITI-BLOCK-004** — `lift <bare-expr>` inside a server function lowers to `_scrml_lift(() => document.createTextNode(...))` (server has no `document`). `lift ?{SQL}.all()` works because SQL has its own lowering.
-- **GITI-BLOCK-005** — `${serverFn()}` in markup: fetch fires once at module top, result never wires to DOM. No working "render data from server function" idiom today.
+Batch 1 — sent 2026-04-20 12:10 → `scrmlTS/handOffs/incoming/2026-04-20-1210-giti-to-scrmlTS-server-function-codegen-bugs.md`. Compiler version at send: `acc56be` (S32 phase 3c). All 5 fixed by scrmlTS commits `881b411` / `e585dba` / `e5f5b22` / `d23fd54`; verified PASS against current tip.
 
-**Status:** UI work parked pending fix. giti pivots to non-scrml features (private scopes §12).
+- [x][x] **GITI-BLOCK-001** — `<request>` tag emitted empty-URL fetch + unawaited promise in reactive. Repro: `ui/repros/repro-01-request-minimal.scrml`
+- [x][x] **GITI-BLOCK-002** — `E-SCOPE-001` false positive on `import { x } from '.js'` inside server-function body. Repro: `ui/repros/repro-02-js-import.scrml`
+- [x][x] **GITI-BLOCK-003** — server-only imports leaked into `.client.js`
+- [x][x] **GITI-BLOCK-004** — `lift <bare-expr>` in server function lowered to `document.createTextNode` on the server
+- [x][x] **GITI-BLOCK-005** — `${serverFn()}` in markup fired once at module top, never re-wired to DOM
+
+Batch 2 — sent 2026-04-20 16:14 → `scrmlTS/handOffs/incoming/2026-04-20-1614-giti-to-scrmlTS-two-new-bugs-from-status-scrml.md`. Both fixed by scrmlTS commits `b8f3b51` + `3f79d71`.
+
+- [x][x] **GITI-007** — CSS bare-tag descendant combinator (`nav a { }`) misparsed as `prop: ; selector { }`. Repro: `ui/repros/repro-04-css-bare-tag-compound.scrml`
+- [x][x] **GITI-008** — lift-branch text tokens emitted as separate `createTextNode` calls, stripping whitespace ("Hello world" → "Helloworld"). Repro: `ui/repros/repro-03-lift-whitespace.scrml`
+
+**Open (cosmetic only):**
+- [ ][ ] **GITI-006** — markup `${@var.path}` emits a bare module-top `_scrml_reactive_get(...).value` that throws `undefined.path` before async reactive init resolves. Workaround: pre-seed `@state` with full default shapes. Applied in `ui/status.scrml`. Low-priority — filed as "ride or ticket, your call."
 
 
 ### Cleanup (post-split)
