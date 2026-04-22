@@ -159,6 +159,11 @@ export async function loadScrmlHandlers(distDir) {
   };
 
   for (const file of walk(distDir)) {
+    // Skip compiler-repro artifacts. `ui/repros/*.scrml` are bug reproducers
+    // that intentionally exhibit broken shapes; loading them as live routes
+    // would crash the server at import time.
+    const base = file.split("/").pop();
+    if (base.startsWith("repro-")) continue;
     const mod = await import(file);
     if (typeof mod.fetch === "function") handlers.push(mod.fetch);
   }

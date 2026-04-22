@@ -2,7 +2,7 @@
 
 **Purpose:** Live inventory of the giti collaboration platform.
 
-**Last updated:** 2026-04-22 (S7 — GITI-010 filed: compiler-generated CSRF scheme not bootstrappable)
+**Last updated:** 2026-04-22 (S7 — GITI-010 filed + fixed by scrmlTS (Option A) + verified live; GITI-009 confirmed at runtime)
 
 ---
 
@@ -118,8 +118,11 @@ Batch 2 — sent 2026-04-20 16:14 → `scrmlTS/handOffs/incoming/2026-04-20-1614
 - [ ][ ] **GITI-006** — markup `${@var.path}` emits a bare module-top `_scrml_reactive_get(...).value` that throws `undefined.path` before async reactive init resolves. Workaround: pre-seed `@state` with full default shapes. Applied in `ui/status.scrml`. Low-priority — filed as "ride or ticket, your call."
 
 **Open (UI-blocking):**
-- [ ][ ] **GITI-009** — scrmlTS forwards relative imports verbatim; source-relative paths don't resolve from compiled-output location. Workaround applied in `ui/status.scrml` with `../../src/...` prefix. Repro + send deferred.
-- [ ][ ] **GITI-010** — compiler-generated CSRF scheme is not bootstrappable. First browser POST to any `/_scrml/*` server fn returns 403 forever because: (a) 403 branch in generated `.server.js` does not `Set-Cookie`, (b) success path is the only place the `scrml_csrf` cookie gets minted, (c) nothing in the generated HTML or a bootstrap route plants the cookie before the first POST. Client reads `document.cookie` which is empty → sends empty `X-CSRF-Token` → 403 → still empty. Confirmed S7 via server-side request log on all three `ui/status.scrml` server fns against scrmlTS `ccae1f6`. Repro: `ui/repros/repro-05-csrf-bootstrap.scrml`. Sent to scrmlTS 2026-04-22.
+- [ ][ ] **GITI-009** — scrmlTS forwards relative imports verbatim; source-relative paths don't resolve from compiled-output location. Confirmed at runtime S7: `bun run src/cli.js serve` throws `Cannot find module './repro-06-relative-imports-helper.js' from 'dist/ui/repro-06-relative-imports.server.js'`. Workaround applied in `ui/status.scrml` with `../../src/...` prefix. Repro: `ui/repros/repro-06-relative-imports.scrml` + `ui/repros/repro-06-relative-imports-helper.js`. Send to scrmlTS pending.
+- [x][x] **GITI-010** — Compiler-emitted CSRF scheme was not bootstrappable. Filed S7 with live server-log trace + minimal repro (`ui/repros/repro-05-csrf-bootstrap.scrml`). scrmlTS shipped Option-A fix same session: server now `Set-Cookie`s on 403, client wraps every server-fn in `_scrml_fetch_with_csrf_retry` (single retry). Commit `40e162b`, scrmlTS HEAD `adbc30c`. Verified end-to-end via live `giti serve` browser trace S7: `403+Set-Cookie → 200` per call, three loaders complete on first page load. Out of scope: auth-middleware CSRF path (separate fix).
+
+### Lesson from GITI-010 (narrow)
+If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.
 
 
 ### Cleanup (post-split)

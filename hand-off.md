@@ -33,14 +33,13 @@
 
 ## Session 7 work log
 
-1. **Server instrumentation** — opt-in via `GITI_SERVER_LOG=1`. Wraps top-level dispatcher + every scrml handler (IN/OUT/THROW), logs CSRF cookie/header state, static hits, 404s. Silent in tests — 289 pass / 9 skip / 0 fail unchanged. Uncommitted on main.
-2. **GITI-010 diagnosed via live log trace** — compiler-generated CSRF scheme is not bootstrappable. First POST from cookie-less browser → 403 forever: 403 branch in generated `.server.js` omits `Set-Cookie`, success path is only minting site, nothing in emitted HTML plants a cookie. All three `ui/status.scrml` server fns 403 on first page load against scrmlTS `ccae1f6`.
-3. **Repro written** — `ui/repros/repro-05-csrf-bootstrap.scrml` (trivial `ping` server fn; compiler emits same CSRF template shape, confirming bug is body-independent).
-4. **Logged in master-list.md** — GITI-010 + GITI-009 added under new "Open (UI-blocking)" section; last-updated bumped to 2026-04-22 S7.
-5. **Sent bug report to scrmlTS** — `scrmlTS/handOffs/incoming/2026-04-22-0639-giti-to-scrmlTS-csrf-bootstrap-bug.md` + sidecar `.scrml` reproducer. Report includes live server log trace, emitted-code excerpts, three option sketches (mint-on-403 + retry / bootstrap route / HTML meta injection); flagged (A) as best fit for giti architecture.
+1. **Server instrumentation** — opt-in via `GITI_SERVER_LOG=1`. Wraps top-level dispatcher + every scrml handler (IN/OUT/THROW), logs CSRF cookie/header state, static hits, 404s. Silent in tests — 289 pass / 9 skip / 0 fail. Committed `186d820`.
+2. **GITI-010 filed → fixed by scrmlTS → verified live in browser** — Filed via `2026-04-22-0639-giti-to-scrmlTS-csrf-bootstrap-bug.md` with repro + log trace. scrmlTS shipped Option-A fix same session: commit `40e162b`, HEAD `adbc30c`. Fix-shipped ack at `incoming/read/2026-04-22-0812-scrmlTS-to-giti-giti-010-fix-shipped.md`. End-to-end verified via live `giti serve` browser trace: `403+Set-Cookie → retry → 200` per call; all three loaders complete on first page load. **Side error:** recompile+verify ran AFTER their fix pushed (timing unknown to me), so I wrote a 0805 "retraction" mis-framed as "bug never existed." Followed up with corrected ack at `2026-04-22-0814-...giti-010-acked-and-giti-009-filed.md`. scrmlTS pushed back with a timeline correction (`incoming/read/2026-04-22-0820-scrmlTS-to-giti-giti-010-timeline-correction.md`) explicitly noting the self-flagellation is over-tuned — dated SHA-stamped reports are adequate, stale-dist is normal, the real mistake was jumping to "bug was never there" rather than "fix may have just shipped upstream." Master-list lesson updated to match their narrower framing.
+3. **GITI-009 CONFIRMED at runtime** — `bun run src/cli.js serve` dies with `Cannot find module './repro-06-relative-imports-helper.js' from 'dist/ui/repro-06-relative-imports.server.js'`. Repro: `ui/repros/repro-06-relative-imports.scrml` + helper. Compiler forwards source-relative import paths unchanged into flattened dist — they don't resolve.
+4. **Server hardened** — `loadScrmlHandlers` now skips `repro-*` artifacts so intentionally-broken compiler-bug reproducers can't crash the server at import time.
+5. **Repro 05 (CSRF) retained** — still a useful compile-time shape demonstrator even though the bug it was written for is gone. Keeping it.
 
 ## Still open / next
-- **Instrumentation not committed yet** — awaiting user OK to commit (authorization needed per pa.md commit rules).
-- **Blocked on scrmlTS** for GITI-010 fix. Next UI screen can proceed in parallel only if it needs no server fn; otherwise blocked.
-- **GITI-009 repro still deferred** — write + send when convenient.
-- **Session-closing reply to scrmlTS covering S35 asks #1–3** — still pending (the original task before GITI-010 hijacked attention).
+- **Send GITI-009 report to scrmlTS** — real, reproduced at runtime; minimal repro ready. Need to verify current-HEAD behavior before filing (the lesson from GITI-010).
+- **Session-closing reply to scrmlTS covering S35 asks #1–3** — still pending; will bundle with GITI-009 message or send after.
+- **Verify in actual browser** — user should reload `http://127.0.0.1:3737/` against current compiler and confirm the three original errors are gone. If still present, diagnose further.
