@@ -1,0 +1,230 @@
+// giti — bookmarks
+//
+// Lists every named bookmark known to the engine, including remote-tracking
+// branches (jj `bookmark list --all-remotes`). Same shell + theme as
+// status.scrml and history.scrml.
+
+<program>
+
+${
+  // GITI-009 workaround: paths relative to compiled-output location.
+  import { getEngine } from '../../src/engine/index.js'
+
+  // Distinct fn name from status.scrml's loadBookmarks to avoid any
+  // per-file route ambiguity in composeScrmlFetch.
+  server function loadBookmarkList() {
+    const engine = getEngine()
+    const res = await engine.listBranches()
+    if (!res.ok) return { error: res.error, list: [] }
+    return { error: null, list: res.data }
+  }
+
+  @bookmarks = { error: null, list: [] }
+  @bookmarks = loadBookmarkList()
+}
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="title">
+      <span class="logo">giti</span>
+      <span class="muted">bookmarks</span>
+    </div>
+    <nav>
+      <a href="/">Status</a>
+      <a href="/history.html">History</a>
+      <a href="/bookmarks.html" class="active">Bookmarks</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <section class="panel">
+      <h2>Bookmarks</h2>
+      <p class="muted">All named bookmarks, including remote-tracking branches. Run <code>giti switch &lt;name&gt;</code> in the terminal to switch.</p>
+
+      ${
+        if (@bookmarks.error) {
+          lift <p class="error">Could not list bookmarks: ${@bookmarks.error}</p>
+        } else if (@bookmarks.list.length == 0) {
+          lift <p class="muted">No bookmarks yet. Try <code>giti save</code> to create your first.</p>
+        } else {
+          lift <ul class="bookmark-list">
+            ${
+              for (let b of @bookmarks.list) {
+                lift <li class="bookmark">
+                  <code class="name">${b.name}</code>
+                  <span class="info muted">${b.info}</span>
+                  ${
+                    if (b.active) {
+                      lift <span class="badge active">active</span>
+                    }
+                  }
+                </li>
+              }
+            }
+          </ul>
+        }
+      }
+    </section>
+
+  </main>
+
+  <footer class="bottombar">
+    <span class="muted">giti 0.1.0</span>
+    <span class="muted">·</span>
+    <span class="muted">local-dev</span>
+  </footer>
+
+</div>
+
+#{
+  /* Self-contained theme — mirrors status.css / history.css. */
+
+  :root {
+    --bg:        #0e1116;
+    --panel:     #161b22;
+    --border:    #30363d;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --accent:    #58a6ff;
+    --error:     #f85149;
+    --success:   #3fb950;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  code, .name {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+  }
+
+  .app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  .title .logo {
+    font-weight: 600;
+    color: var(--accent);
+    margin-right: 8px;
+  }
+
+  .muted { color: var(--muted); }
+
+  nav a {
+    color: var(--text);
+    text-decoration: none;
+    margin-left: 16px;
+    padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
+  }
+
+  nav a.active {
+    border-bottom-color: var(--accent);
+  }
+
+  main {
+    flex: 1;
+    padding: 24px;
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+
+  .panel h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .panel > p {
+    margin: 0 0 16px;
+  }
+
+  .error { color: var(--error); }
+
+  .bookmark-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .bookmark-list .bookmark {
+    display: grid;
+    grid-template-columns: 200px 1fr auto;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: baseline;
+  }
+
+  .bookmark-list .bookmark:last-child {
+    border-bottom: none;
+  }
+
+  .name {
+    color: var(--accent);
+  }
+
+  .info {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .badge.active {
+    background: var(--success);
+    color: var(--bg);
+    font-weight: 600;
+  }
+
+  .bottombar {
+    padding: 12px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    font-size: 12px;
+  }
+
+  .bottombar .muted {
+    margin-right: 4px;
+  }
+}
+
+</program>

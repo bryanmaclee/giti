@@ -40,10 +40,11 @@
 5. **Repro 05 (CSRF) retained** — still a useful compile-time shape demonstrator even though the bug it was written for is gone. Keeping it.
 
 6. **Browser verified** — user reloaded; the trace showed the full bootstrap+retry sequence (3× `403+Set-Cookie` then 3× `200` with matching cookie). `ui/status.scrml` renders correctly on first page load. Original three-errors-in-browser complaint resolved end-to-end.
-7. **Web UI — history timeline** — `ui/history.scrml` shipped. `loadTimeline` server fn returns 50 entries; route `/_scrml/__ri_route_loadTimeline_1`. CSRF bootstrap+retry verified via curl. Nav links between status/history live. 540→~240 new LOC.
+7. **Web UI — history timeline** — `ui/history.scrml` shipped. `loadTimeline` server fn returns 50 entries; route `/_scrml/__ri_route_loadTimeline_1`. CSRF bootstrap+retry verified via curl. Nav links between status/history live. ~240 LOC.
+8. **Web UI — bookmarks** — `ui/bookmarks.scrml` shipped. `loadBookmarkList` server fn → `engine.listBranches`; route `/_scrml/__ri_route_loadBookmarkList_1`. CSRF bootstrap+retry verified. Three-tab nav complete (Status / History / Bookmarks). ~210 LOC.
 
 ## Still open / next
-- **Bookmarks page** (`ui/bookmarks.scrml`) — nav links to `/bookmarks.html` but file doesn't exist. Next UI screen candidate.
-- **Diff viewer** (master-list §E next item).
-- **Landing dashboard** — compiler-gate + test results + queue.
+- **Diff viewer** — needs an engine primitive for `jj diff <change>` if not already present, then a two-pane scrml UI. Master-list §E next item.
+- **Landing dashboard** — compiler-gate + test results + queue per `giti land`.
+- **Theme refactor** — three pages now duplicate ~150 LOC of CSS chrome each. Next maintenance pass: factor into a shared file or scrml include if compiler supports.
 - **GITI-009** still open (scrmlTS queue, not blocking; workaround applied).
