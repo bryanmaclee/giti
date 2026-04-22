@@ -85,6 +85,56 @@ export function composeScrmlFetch(handlers) {
   };
 }
 
+// Opt-in request logger. Enable with GITI_SERVER_LOG=1. Silent in tests.
+const LOG = process.env.GITI_SERVER_LOG === "1";
+function logLine(...parts) { if (LOG) console.log("[giti-server]", ...parts); }
+
+function snapshotRequest(req) {
+  const url = new URL(req.url);
+  const cookie = req.headers.get("Cookie") || "";
+  const csrfCookie = cookie.match(/scrml_csrf=([^;]+)/)?.[1] || null;
+  const csrfHeader = req.headers.get("X-CSRF-Token") || null;
+  return {
+    method: req.method,
+    pathname: url.pathname,
+    search: url.search || "",
+    contentType: req.headers.get("Content-Type") || null,
+    cookiePresent: cookie.length > 0,
+    csrfCookie: csrfCookie ? `${csrfCookie.slice(0, 8)}…` : null,
+    csrfHeader: csrfHeader ? `${csrfHeader.slice(0, 8)}…` : null,
+    csrfMatch: !!(csrfCookie && csrfHeader && csrfCookie === csrfHeader),
+  };
+}
+
+function snapshotResponse(res) {
+  return {
+    status: res.status,
+    contentType: res.headers.get("Content-Type") || null,
+    setCookie: res.headers.get("Set-Cookie") || null,
+  };
+}
+
+// Wraps every scrml-generated handler with entry/exit/error logging.
+function instrumentScrmlHandlers(handlers) {
+  if (!LOG) return handlers;
+  return handlers.map((h, i) => async (req) => {
+    const tag = `scrml#${i}`;
+    logLine(tag, "IN ", snapshotRequest(req));
+    try {
+      const r = await h(req);
+      if (r === null || r === undefined) {
+        logLine(tag, "OUT null (falls through)");
+      } else {
+        logLine(tag, "OUT", snapshotResponse(r));
+      }
+      return r;
+    } catch (err) {
+      logLine(tag, "THROW", err?.stack || String(err));
+      throw err;
+    }
+  });
+}
+
 /**
  * Discover every `*.server.js` file under `distDir` and dynamically import
  * its `fetch` export (if present). Returns an array of fetch functions
@@ -128,7 +178,7 @@ export function createHandler({
   engine, localDev = false, distDir = null, scrmlHandlers = [],
 } = {}) {
   const eng = engine || getEngine();
-  const scrml = composeScrmlFetch(scrmlHandlers);
+  const scrml = composeScrmlFetch(instrumentScrmlHandlers(scrmlHandlers));
 
   async function handleGet(pathname, url) {
     if (pathname === "/health") return json({ ok: true, localDev });
@@ -190,10 +240,14 @@ export function createHandler({
   return async function handler(req) {
     const url = new URL(req.url);
     const { pathname } = url;
+    if (LOG) logLine("REQ", snapshotRequest(req));
 
     // scrml-generated /_scrml/* routes first (first-match wins, null falls through).
     const scrmlResponse = await scrml(req);
-    if (scrmlResponse) return scrmlResponse;
+    if (scrmlResponse) {
+      if (LOG) logLine("RES", pathname, snapshotResponse(scrmlResponse));
+      return scrmlResponse;
+    }
 
     if (pathname.startsWith("/api/")) {
       const apiPath = pathname.slice(4); // "/api/status" -> "/status"
@@ -214,12 +268,14 @@ export function createHandler({
     if (distDir && req.method === "GET") {
       const file = resolveStatic(pathname, distDir);
       if (file) {
+        if (LOG) logLine("STATIC", pathname, "->", file.replace(distDir, "<distDir>"));
         return new Response(Bun.file(file), {
           headers: { "content-type": mimeFor(file) },
         });
       }
     }
 
+    if (LOG) logLine("RES", pathname, "404");
     return json({ error: "not found" }, 404);
   };
 }

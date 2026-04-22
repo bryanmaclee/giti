@@ -2,7 +2,7 @@
 
 **Purpose:** Live inventory of the giti collaboration platform.
 
-**Last updated:** 2026-04-21 (S6 — compiler bugs 001–005/007/008 fixed by scrmlTS, scrml per-file fetch composition wired)
+**Last updated:** 2026-04-22 (S7 — GITI-010 filed: compiler-generated CSRF scheme not bootstrappable)
 
 ---
 
@@ -116,6 +116,10 @@ Batch 2 — sent 2026-04-20 16:14 → `scrmlTS/handOffs/incoming/2026-04-20-1614
 
 **Open (cosmetic only):**
 - [ ][ ] **GITI-006** — markup `${@var.path}` emits a bare module-top `_scrml_reactive_get(...).value` that throws `undefined.path` before async reactive init resolves. Workaround: pre-seed `@state` with full default shapes. Applied in `ui/status.scrml`. Low-priority — filed as "ride or ticket, your call."
+
+**Open (UI-blocking):**
+- [ ][ ] **GITI-009** — scrmlTS forwards relative imports verbatim; source-relative paths don't resolve from compiled-output location. Workaround applied in `ui/status.scrml` with `../../src/...` prefix. Repro + send deferred.
+- [ ][ ] **GITI-010** — compiler-generated CSRF scheme is not bootstrappable. First browser POST to any `/_scrml/*` server fn returns 403 forever because: (a) 403 branch in generated `.server.js` does not `Set-Cookie`, (b) success path is the only place the `scrml_csrf` cookie gets minted, (c) nothing in the generated HTML or a bootstrap route plants the cookie before the first POST. Client reads `document.cookie` which is empty → sends empty `X-CSRF-Token` → 403 → still empty. Confirmed S7 via server-side request log on all three `ui/status.scrml` server fns against scrmlTS `ccae1f6`. Repro: `ui/repros/repro-05-csrf-bootstrap.scrml`. Sent to scrmlTS 2026-04-22.
 
 
 ### Cleanup (post-split)
