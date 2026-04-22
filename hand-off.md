@@ -1,52 +1,74 @@
-# giti — Session 7 Hand-Off
+# giti — Session 8 Hand-Off
 
-**Date:** 2026-04-22
-**Previous session file:** `handOffs/hand-off-6.md`
-**Next hand-off filename:** `handOffs/hand-off-7.md`
+**Date:** TBD (next session)
+**Previous session file:** `handOffs/hand-off-7.md`
+**Next hand-off filename:** `handOffs/hand-off-8.md`
 
-## Caught-up state (through S6)
-- CLI: 10 commands, 1,079 LOC, jj-lib 0.40 wrapper; 289 pass / 9 skip / 0 fail
+## Caught-up state (through S7)
+
+- CLI: 10 commands, 1,079 LOC; 289 pass / 9 skip / 0 fail
 - Spec `giti-spec-v1.md` ratified (1,531 lines)
-- S3: Bun HTTP API + `land` compiler gate + compile-on-serve + static `ui/status.scrml` shell
-- S5: Private scopes §12 slices 1–5 shipped; `ui/status.scrml` iter 3 landed (536 LOC, clean compile); 5+2 compiler bugs filed, 5 fixed
-- S6: scrml per-file `fetch` composition wired into Bun server; status.scrml re-verified against scrmlTS `ccae1f6`; end-to-end `/_scrml/*` routing live; import-path fix (GITI-009) applied as workaround
+- Bun HTTP API + `land` compiler gate + compile-on-serve + scrml per-file `fetch` composition (S3 + S6)
+- **Web UI complete to the three-screen core**: Status / History / Bookmarks / Diff — all four pages live, CSRF bootstrap verified end-to-end, shared `theme.css` via HTML link injection (status keeps its own richer chrome)
+- Engine: `engine.diffChange(id)` added in S7 for the diff viewer per-change selection
+- Server instrumentation opt-in: `GITI_SERVER_LOG=1` on `giti serve` dumps request/response shapes
+
+## S7 summary (10 commits, `186d820..0372411`)
+
+1. `186d820` server instrumentation + GITI-010 first report
+2. `84b0583` GITI-010 thread (filed → fixed upstream → verified live) + GITI-009 filed to scrmlTS
+3. `bf92339` Web UI — history timeline (`ui/history.scrml`)
+4. `fa857f5` Web UI — bookmarks (`ui/bookmarks.scrml`); three-tab nav
+5. `f22662e` Shared `theme.css` + HTML `<link>` injection in `compileUi`
+6. `3f85ba9` GITI-011 filed (scrml CSS parser mangles at-rules)
+7. `0163915` Diff viewer v0 (`ui/diff.scrml`, working-copy diff)
+8. `0372411` Diff viewer v1 — per-change selection via URL `?change=<id>`; new `engine.diffChange`
+
+Compiler bugs outstanding in scrmlTS queue:
+- **GITI-009** — relative-import forwarding. Workaround applied; runtime-confirmed. Sent 2026-04-22 0814.
+- **GITI-011** — CSS at-rules mangled. Workaround only covers `@import` (HTML link injection); no workaround for `@media` / `@keyframes` / `@font-face`. Sent 2026-04-22 0841.
+- **GITI-006** (cosmetic, S5) — bare `${@var.path}` module-top read; workaround in place.
+
+Fixed this session (upstream, by scrmlTS):
+- **GITI-010** — CSRF bootstrap (`Set-Cookie` on 403 + client one-shot retry). Commit `40e162b`, HEAD `adbc30c`.
+
+Learned in S7 (scrml-author-facing, not yet documented anywhere):
+- Server-fn args work end-to-end: `server function foo(bar)` → client serializes as POST body `{"bar": …}`.
+- Compiler-internal `route.query` is NOT author-accessible (`E-SCOPE-001` on bare `route`). Read URL params client-side via `URLSearchParams(window.location.search)`.
+- scrml client-side code can use browser globals (`window`, `URLSearchParams`, etc.) at module-top.
+- `@import url(...)` inside a scrml `#{}` block mangles — workaround via HTML `<link>` injection in the host server.
 
 ## Inbox
-- Clear (only `read/` subdir present)
 
-## Parked from S6
-- **Three errors in browser** — `ui/status.scrml` shell loads but all three server-fn calls (`loadStatus` / `loadHistory` / `loadBookmarks`) error out. Candidates: client CSRF token, server-fn runtime crash, client-stub ↔ server-handler contract mismatch.
-- **GITI-009** — scrmlTS forwards relative imports verbatim; source-relative paths don't resolve from compiled-output location. Workaround applied with `../../` prefix. File repro + send when convenient.
-- **GITI-006** (cosmetic, S5) — bare `${@var.path}` in markup; workaround (pre-seed full defaults) in place.
-- **Session-closing reply to scrmlTS** covering S35 asks #1–3 (two fixes verified + composition live + GITI-009 filed)
+- Clear on entry. S7 archived three scrmlTS threads into `handOffs/incoming/read/`:
+  - `2026-04-22-0812-scrmlTS-to-giti-giti-010-fix-shipped.md`
+  - `2026-04-22-0820-scrmlTS-to-giti-giti-010-timeline-correction.md`
+- Three of our outbound messages still live in scrmlTS's inbox (their PA hasn't opened):
+  - GITI-009 file (0814)
+  - GITI-010 retraction (0805) — superseded but can't delete
+  - GITI-011 file (0841)
 
-## Session 7 priorities (suggested, pending user)
-1. Diagnose three browser errors (devtools console + network tab capture)
-2. File GITI-009 repro to scrmlTS
-3. Either fix in giti (wiring) or escalate to scrmlTS (codegen)
-4. Close S35 with session-end reply
-5. Next UI screen per master-list §E (history timeline / diff viewer)
+## Session 8 priorities (suggested)
+
+1. **Landing dashboard** — last `§E` web UI item. Reads from `giti land` flow: compiler gate results + test results + landing queue. Design choice: live-follow (websocket-ish) vs. poll on interval.
+2. **Tests for `compileUi`'s copy + inject behavior** — currently untested. The static-CSS copy and the HTML head injection are both load-bearing now.
+3. **GITI-009 / GITI-011 follow-up** — if scrmlTS replies, read + act. If no reply by mid-session, consider if a workaround PR in scrmlTS would unblock faster (probably not per per-repo PA rule).
+4. **Private scopes slice 6** (optional) — `giti private check <pattern>` dry-run / real-jj harness / fetch-side `_private` auto-tracking / OQ-9 retroactive privatization.
+5. **Theme maintenance** — status.scrml still has standalone chrome (~250 LOC of duplicated rules). Candidate for refactor once GITI-011 fix ships (so we can use `@media` responsive rules in theme.css).
+
+## Known open items
+
+- **GITI-006** (cosmetic) — workaround in place, no escalation planned.
+- **GITI-009** / **GITI-011** — filed, awaiting scrmlTS.
+- **Auth + multi-repo** (master-list §E) — blocks non-local hosting.
+- **GAP-1–11** — CLI items (content-loss detection, protected contexts, `giti check`, granular undo).
 
 ## Not in scope unless user pushes
-- Private scopes slice 6 (check / real-jj harness / OQ-9) — deferred
-- Auth + multi-repo (blocks non-local hosting)
 
-## Session 7 work log
+- Engine independence (§3.7 gate — stays jj-lib until scrml compiler does AST-level conflict resolution).
+- Responsive design in the UI (blocked on GITI-011 for `@media`).
+- Deploy target (blocked on auth).
 
-1. **Server instrumentation** — opt-in via `GITI_SERVER_LOG=1`. Wraps top-level dispatcher + every scrml handler (IN/OUT/THROW), logs CSRF cookie/header state, static hits, 404s. Silent in tests — 289 pass / 9 skip / 0 fail. Committed `186d820`.
-2. **GITI-010 filed → fixed by scrmlTS → verified live in browser** — Filed via `2026-04-22-0639-giti-to-scrmlTS-csrf-bootstrap-bug.md` with repro + log trace. scrmlTS shipped Option-A fix same session: commit `40e162b`, HEAD `adbc30c`. Fix-shipped ack at `incoming/read/2026-04-22-0812-scrmlTS-to-giti-giti-010-fix-shipped.md`. End-to-end verified via live `giti serve` browser trace: `403+Set-Cookie → retry → 200` per call; all three loaders complete on first page load. **Side error:** recompile+verify ran AFTER their fix pushed (timing unknown to me), so I wrote a 0805 "retraction" mis-framed as "bug never existed." Followed up with corrected ack at `2026-04-22-0814-...giti-010-acked-and-giti-009-filed.md`. scrmlTS pushed back with a timeline correction (`incoming/read/2026-04-22-0820-scrmlTS-to-giti-giti-010-timeline-correction.md`) explicitly noting the self-flagellation is over-tuned — dated SHA-stamped reports are adequate, stale-dist is normal, the real mistake was jumping to "bug was never there" rather than "fix may have just shipped upstream." Master-list lesson updated to match their narrower framing.
-3. **GITI-009 CONFIRMED at runtime** — `bun run src/cli.js serve` dies with `Cannot find module './repro-06-relative-imports-helper.js' from 'dist/ui/repro-06-relative-imports.server.js'`. Repro: `ui/repros/repro-06-relative-imports.scrml` + helper. Compiler forwards source-relative import paths unchanged into flattened dist — they don't resolve.
-4. **Server hardened** — `loadScrmlHandlers` now skips `repro-*` artifacts so intentionally-broken compiler-bug reproducers can't crash the server at import time.
-5. **Repro 05 (CSRF) retained** — still a useful compile-time shape demonstrator even though the bug it was written for is gone. Keeping it.
+## Session 8 work log
 
-6. **Browser verified** — user reloaded; the trace showed the full bootstrap+retry sequence (3× `403+Set-Cookie` then 3× `200` with matching cookie). `ui/status.scrml` renders correctly on first page load. Original three-errors-in-browser complaint resolved end-to-end.
-7. **Web UI — history timeline** — `ui/history.scrml` shipped. `loadTimeline` server fn returns 50 entries; route `/_scrml/__ri_route_loadTimeline_1`. CSRF bootstrap+retry verified via curl. Nav links between status/history live. ~240 LOC.
-8. **Web UI — bookmarks** — `ui/bookmarks.scrml` shipped. `loadBookmarkList` server fn → `engine.listBranches`; route `/_scrml/__ri_route_loadBookmarkList_1`. CSRF bootstrap+retry verified. Three-tab nav complete (Status / History / Bookmarks). ~210 LOC.
-
-## Still open / next
-- **Diff viewer** — needs an engine primitive for `jj diff <change>` if not already present, then a two-pane scrml UI. Master-list §E next item.
-- **Landing dashboard** — compiler-gate + test results + queue per `giti land`.
-- **Theme refactor done** — `ui/theme.css` hand-written, copied by `compileUi`, injected as `<link>` into every compiled HTML head before the per-page CSS. `@import` inside scrml `#{}` blocked by scrml CSS parser mangling at-rules (workaround: HTML link injection). history + bookmarks now 45% leaner; status kept standalone.
-- **GITI-011 filed** — scrml CSS parser has no at-rule handling (@import, @media, @keyframes, @font-face, @supports, @page all mangle). Confirmed via probe against scrmlTS `8691f75`. Blocks responsive design + animations. Repro: `ui/repros/repro-07-css-at-rules.scrml`. Report: `scrmlTS/handOffs/incoming/2026-04-22-0841-giti-to-scrmlTS-giti-011-css-at-rules.md` + sidecar.
-- **Diff viewer v0 + v1 shipped** — `ui/diff.scrml`. v0 shipped working-copy diff. v1 adds per-change selection: URL `?change=<id>` drives which change is shown. Left pane = history picker (each entry is `<a href="/diff.html?change=<id>">`), right pane = diff for selected change. New engine primitive `engine.diffChange(id)` wraps `jj diff -r <id>`. Client reads `URLSearchParams(location.search)` at module-top and passes it as a server-fn arg (compiler's internal `route.query` is NOT author-accessible — the compiler errors E-SCOPE-001 on bare `route` identifier; client-side URL read is the workable pattern). End-to-end verified: 403→200 retry with `{"changeId":"abc123"}` round-trips correctly; null changeId falls back to pending-diff path.
-- **GITI-009** still open (scrmlTS queue, not blocking; workaround applied).
+_(append as work completes)_
