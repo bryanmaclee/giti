@@ -79,97 +79,14 @@ ${
 </div>
 
 #{
-  /* Self-contained theme — mirrors status.css / history.css. */
+  /* Shared chrome lives in theme.css (injected as <link> by compileUi).
+     Only page-specific rules below. */
 
-  :root {
-    --bg:        #0e1116;
-    --panel:     #161b22;
-    --border:    #30363d;
-    --text:      #e6edf3;
-    --muted:     #8b949e;
-    --accent:    #58a6ff;
-    --error:     #f85149;
-    --success:   #3fb950;
-  }
-
-  * { box-sizing: border-box; }
-
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: system-ui, -apple-system, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  code, .name {
+  .name {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 13px;
-  }
-
-  .app {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-  }
-
-  .title .logo {
-    font-weight: 600;
     color: var(--accent);
-    margin-right: 8px;
   }
-
-  .muted { color: var(--muted); }
-
-  nav a {
-    color: var(--text);
-    text-decoration: none;
-    margin-left: 16px;
-    padding-bottom: 2px;
-    border-bottom: 2px solid transparent;
-  }
-
-  nav a.active {
-    border-bottom-color: var(--accent);
-  }
-
-  main {
-    flex: 1;
-    padding: 24px;
-    max-width: 960px;
-    width: 100%;
-    margin: 0 auto;
-  }
-
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
-  }
-
-  .panel h2 {
-    margin: 0 0 8px;
-    font-size: 16px;
-    font-weight: 600;
-  }
-
-  .panel > p {
-    margin: 0 0 16px;
-  }
-
-  .error { color: var(--error); }
 
   .bookmark-list {
     list-style: none;
@@ -188,10 +105,6 @@ ${
 
   .bookmark-list .bookmark:last-child {
     border-bottom: none;
-  }
-
-  .name {
-    color: var(--accent);
   }
 
   .info {
@@ -213,17 +126,6 @@ ${
     background: var(--success);
     color: var(--bg);
     font-weight: 600;
-  }
-
-  .bottombar {
-    padding: 12px 24px;
-    border-top: 1px solid var(--border);
-    background: var(--panel);
-    font-size: 12px;
-  }
-
-  .bottombar .muted {
-    margin-right: 4px;
   }
 }
 

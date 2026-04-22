@@ -78,6 +78,7 @@
 - [x][x] **Web UI — status dashboard** — `ui/status.scrml` (540 LOC) live end-to-end S7; CSRF bootstrap verified in browser after GITI-010 fix. All three loaders (status/history/bookmarks) render on first page load.
 - [x][x] **Web UI — history timeline** — `ui/history.scrml` ships dedicated timeline page. `loadTimeline` server fn fetches 50 entries; CSRF bootstrap+retry verified via curl (S7).
 - [x][x] **Web UI — bookmarks** — `ui/bookmarks.scrml` ships full bookmark listing including remote-tracking. `loadBookmarkList` server fn → `engine.listBranches`; CSRF bootstrap+retry verified (S7).
+- [x][x] **Web UI — shared theme** — `ui/theme.css` (hand-written) carries shared chrome. `compileUi` copies it into `dist/ui/` and post-injects `<link rel="stylesheet" href="theme.css">` into every compiled HTML head before the per-page CSS link (cascade: theme = base, page = overrides). history/bookmarks trimmed to page-specific CSS only. status.scrml retains its own standalone chrome — compatible via later-in-cascade override. (Tried `@import url('theme.css')` inside scrml `#{}` first; scrml's CSS parser mangles at-rules — HTML link injection is the workaround.)
 - [ ][ ] **Web UI — diff viewer + file browser**
 - [ ][ ] **Web UI — landing dashboard** — compiler gate results, test results, landing queue
 - [x][x] **Compile-on-serve pipeline** — Bun.serve compiles `ui/*.scrml` → dist, serves at `/` (S3)

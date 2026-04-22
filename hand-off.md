@@ -46,5 +46,5 @@
 ## Still open / next
 - **Diff viewer** — needs an engine primitive for `jj diff <change>` if not already present, then a two-pane scrml UI. Master-list §E next item.
 - **Landing dashboard** — compiler-gate + test results + queue per `giti land`.
-- **Theme refactor** — three pages now duplicate ~150 LOC of CSS chrome each. Next maintenance pass: factor into a shared file or scrml include if compiler supports.
+- **Theme refactor done** — `ui/theme.css` hand-written, copied by `compileUi`, injected as `<link>` into every compiled HTML head before the per-page CSS. `@import` inside scrml `#{}` blocked by scrml CSS parser mangling at-rules (workaround: HTML link injection). history + bookmarks now 45% leaner; status kept standalone.
 - **GITI-009** still open (scrmlTS queue, not blocking; workaround applied).

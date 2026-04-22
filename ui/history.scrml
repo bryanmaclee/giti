@@ -82,98 +82,19 @@ ${
 </div>
 
 #{
-  /* Minimal per-page CSS — the bulk of the theme lives in status.css and
-     is loaded by both pages via status.html / history.html <link>. For now
-     we re-emit the chrome selectors so the history page is standalone. */
+  /* Shared chrome lives in theme.css (injected as <link> into each HTML
+     head by compileUi's post-process step). Only page-specific rules
+     below.
 
-  :root {
-    --bg:        #0e1116;
-    --panel:     #161b22;
-    --border:    #30363d;
-    --text:      #e6edf3;
-    --muted:     #8b949e;
-    --accent:    #58a6ff;
-    --error:     #f85149;
-  }
+     (Tried `@import url('theme.css')` here first, but scrml's CSS parser
+     mangles at-rules — tracked as potential compiler UX bug. Using HTML
+     link injection instead.) */
 
-  * { box-sizing: border-box; }
-
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: system-ui, -apple-system, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  code, .change-id {
+  .change-id {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 13px;
-  }
-
-  .app {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-  }
-
-  .title .logo {
-    font-weight: 600;
     color: var(--accent);
-    margin-right: 8px;
   }
-
-  .muted { color: var(--muted); }
-
-  nav a {
-    color: var(--text);
-    text-decoration: none;
-    margin-left: 16px;
-    padding-bottom: 2px;
-    border-bottom: 2px solid transparent;
-  }
-
-  nav a.active {
-    border-bottom-color: var(--accent);
-  }
-
-  main {
-    flex: 1;
-    padding: 24px;
-    max-width: 960px;
-    width: 100%;
-    margin: 0 auto;
-  }
-
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
-  }
-
-  .panel h2 {
-    margin: 0 0 8px;
-    font-size: 16px;
-    font-weight: 600;
-  }
-
-  .panel > p {
-    margin: 0 0 16px;
-  }
-
-  .error { color: var(--error); }
 
   .history-list {
     list-style: none;
@@ -194,10 +115,6 @@ ${
     border-bottom: none;
   }
 
-  .change-id {
-    color: var(--accent);
-  }
-
   .desc {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -206,17 +123,6 @@ ${
 
   .author, .time {
     font-size: 12px;
-  }
-
-  .bottombar {
-    padding: 12px 24px;
-    border-top: 1px solid var(--border);
-    background: var(--panel);
-    font-size: 12px;
-  }
-
-  .bottombar .muted {
-    margin-right: 4px;
   }
 }
 
