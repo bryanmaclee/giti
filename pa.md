@@ -58,9 +58,12 @@ giti/
 ## What NOT to do
 
 - Do not import stale docs
-- Do not commit to main directly
 - Do not break the test suite without coordination
 - Do not change engine from jj without user approval (§3.7 gate)
+
+## Commit rules
+
+Commits to main are allowed only after explicit user authorization in the current session. Confirm with the user before the first commit of a session, and before any push. Authorization stands for the scope specified, not beyond. Pushes to origin remain gated on the master-PA push coordination flow. Force-push, destructive ops, and hook bypass (`--no-verify`) are explicitly-authorized-only.
 
 ## giti UI is written in scrml — compiler bug escalation path
 
@@ -137,10 +140,11 @@ when work is needed there. Cross-repo coordination happens through the user, not
 ### What NOT to do
 - Do not edit files in other repos (the user will open a different Claude instance). The single exception is dropping message files into `<sibling>/handOffs/incoming/` — see Cross-repo messaging below.
 - Do not modify scrml8 (frozen)
-- Do not commit to main directly
 - Do not bypass pre-commit hooks without explicit user authorization
 - Do not run resource-mapper in write mode on scrml8 (frozen)
 - Do not treat stale sources as authoritative — check currency flags
+
+(Commit / push policy lives in the "Commit rules" section above.)
 
 ---
 
@@ -194,6 +198,20 @@ When this PA needs to tell another project something (compiler bug repro filed, 
 1. Confirm with the user what to send and to whom
 2. Write the message file directly into the target's `handOffs/incoming/` (absolute path above)
 3. Log the send in this repo's `hand-off.md` so there's a local trail
+
+### Cross-repo bug reports — reproducer source required
+
+When this PA files a bug report into another repo's `handOffs/incoming/` — or when this PA receives one — the report MUST include a minimal scrml reproducer:
+- **Inline** as a ` ```scrml ` fenced block in the message body (preferred for ≤ ~200 lines), OR
+- **Sidecar file** dropped next to the message: `YYYY-MM-DD-HHMM-<slug>.scrml` (same stem as the `.md`)
+
+Reproducer must be:
+- **Self-contained** — runnable against the receiving repo's current compiler without external setup
+- **Minimal** — smallest scrml that still exhibits the bug
+- **Version-stamped** — exact command used and compiler SHA (e.g., `scrmltsc repro.scrml` against `scrmlTS@ccae1f6`)
+- **Expected vs actual** — state both in the report body
+
+As SENDER (giti's typical role): attach the offending scrml from your repo (or a minimized version of it) every time. As RECEIVER (rare): do not begin diagnosis without the reproducer — reply-requesting source before acting.
 
 ### Push coordination via master
 
