@@ -1,0 +1,223 @@
+// giti — history timeline
+//
+// Dedicated screen listing the recent save log. Parallel to status.scrml —
+// same shell chrome, different data focus. Uses the same hydration-with-
+// defaults pattern to dodge GITI-006.
+//
+// Engine: giti's jj-cli wrapper returns
+//   { changeId, description, author, timestamp }
+// per entry. No conflict handling here — that lives on the status screen.
+
+<program>
+
+${
+  // GITI-009 workaround: paths relative to compiled-output location
+  // (dist/ui/), not source location (ui/).
+  import { getEngine } from '../../src/engine/index.js'
+
+  // Distinct from status.scrml's loadHistory — this fetches a larger window.
+  // Different name also avoids any per-file route-collision ambiguity in
+  // composeScrmlFetch.
+  server function loadTimeline() {
+    const engine = getEngine()
+    const res = await engine.history(50)
+    if (!res.ok) return { error: res.error, entries: [] }
+    return { error: null, entries: res.data }
+  }
+
+  @timeline = { error: null, entries: [] }
+  @timeline = loadTimeline()
+}
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="title">
+      <span class="logo">giti</span>
+      <span class="muted">history</span>
+    </div>
+    <nav>
+      <a href="/">Status</a>
+      <a href="/history.html" class="active">History</a>
+      <a href="/bookmarks.html">Bookmarks</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <section class="panel">
+      <h2>Timeline</h2>
+      <p class="muted">Most recent 50 saves. Run <code>giti history</code> in the terminal for the full log.</p>
+
+      ${
+        if (@timeline.error) {
+          lift <p class="error">Could not read history: ${@timeline.error}</p>
+        } else if (@timeline.entries.length == 0) {
+          lift <p class="muted">No saves yet. Try <code>giti save "first"</code>.</p>
+        } else {
+          lift <ol class="history-list">
+            ${
+              for (let e of @timeline.entries) {
+                lift <li class="entry">
+                  <code class="change-id">${e.changeId}</code>
+                  <span class="desc">${e.description || "(no message)"}</span>
+                  <span class="author muted">${e.author}</span>
+                  <span class="time muted">${e.timestamp}</span>
+                </li>
+              }
+            }
+          </ol>
+        }
+      }
+    </section>
+
+  </main>
+
+  <footer class="bottombar">
+    <span class="muted">giti 0.1.0</span>
+    <span class="muted">·</span>
+    <span class="muted">local-dev</span>
+  </footer>
+
+</div>
+
+#{
+  /* Minimal per-page CSS — the bulk of the theme lives in status.css and
+     is loaded by both pages via status.html / history.html <link>. For now
+     we re-emit the chrome selectors so the history page is standalone. */
+
+  :root {
+    --bg:        #0e1116;
+    --panel:     #161b22;
+    --border:    #30363d;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --accent:    #58a6ff;
+    --error:     #f85149;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  code, .change-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+  }
+
+  .app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  .title .logo {
+    font-weight: 600;
+    color: var(--accent);
+    margin-right: 8px;
+  }
+
+  .muted { color: var(--muted); }
+
+  nav a {
+    color: var(--text);
+    text-decoration: none;
+    margin-left: 16px;
+    padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
+  }
+
+  nav a.active {
+    border-bottom-color: var(--accent);
+  }
+
+  main {
+    flex: 1;
+    padding: 24px;
+    max-width: 960px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+
+  .panel h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .panel > p {
+    margin: 0 0 16px;
+  }
+
+  .error { color: var(--error); }
+
+  .history-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .history-list .entry {
+    display: grid;
+    grid-template-columns: 80px 1fr auto auto;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: baseline;
+  }
+
+  .history-list .entry:last-child {
+    border-bottom: none;
+  }
+
+  .change-id {
+    color: var(--accent);
+  }
+
+  .desc {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .author, .time {
+    font-size: 12px;
+  }
+
+  .bottombar {
+    padding: 12px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    font-size: 12px;
+  }
+
+  .bottombar .muted {
+    margin-right: 4px;
+  }
+}
+
+</program>

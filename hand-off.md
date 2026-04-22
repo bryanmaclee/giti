@@ -39,7 +39,11 @@
 4. **Server hardened** — `loadScrmlHandlers` now skips `repro-*` artifacts so intentionally-broken compiler-bug reproducers can't crash the server at import time.
 5. **Repro 05 (CSRF) retained** — still a useful compile-time shape demonstrator even though the bug it was written for is gone. Keeping it.
 
+6. **Browser verified** — user reloaded; the trace showed the full bootstrap+retry sequence (3× `403+Set-Cookie` then 3× `200` with matching cookie). `ui/status.scrml` renders correctly on first page load. Original three-errors-in-browser complaint resolved end-to-end.
+7. **Web UI — history timeline** — `ui/history.scrml` shipped. `loadTimeline` server fn returns 50 entries; route `/_scrml/__ri_route_loadTimeline_1`. CSRF bootstrap+retry verified via curl. Nav links between status/history live. 540→~240 new LOC.
+
 ## Still open / next
-- **Send GITI-009 report to scrmlTS** — real, reproduced at runtime; minimal repro ready. Need to verify current-HEAD behavior before filing (the lesson from GITI-010).
-- **Session-closing reply to scrmlTS covering S35 asks #1–3** — still pending; will bundle with GITI-009 message or send after.
-- **Verify in actual browser** — user should reload `http://127.0.0.1:3737/` against current compiler and confirm the three original errors are gone. If still present, diagnose further.
+- **Bookmarks page** (`ui/bookmarks.scrml`) — nav links to `/bookmarks.html` but file doesn't exist. Next UI screen candidate.
+- **Diff viewer** (master-list §E next item).
+- **Landing dashboard** — compiler-gate + test results + queue.
+- **GITI-009** still open (scrmlTS queue, not blocking; workaround applied).

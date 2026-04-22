@@ -75,8 +75,8 @@
 - [x][x] **Bun HTTP API (read-only)** — `/api/health`, `/api/version`, `/api/status`, `/api/history` (S3)
 - [x][x] **Bun HTTP API (local-dev writes)** — `/api/save`, `/api/switch`, `/api/merge`, `/api/undo` gated on `--local-dev`, bound 127.0.0.1 (S3)
 - [x][x] **Compiler gate in `land`** — resolves `$SCRMLTS_PATH` or `../scrmlTS`, globs `.scrml`, skips when none (S3)
-- [~][ ] **Web UI — status dashboard** — scrml shell `ui/status.scrml` landed (536 LOC, compiles clean against `d23fd54`). Blocked on GITI-008 at S5; unblocked S6 — needs live verification + wire-up to `loadScrmlHandlers`
-- [ ][ ] **Web UI — history timeline**
+- [x][x] **Web UI — status dashboard** — `ui/status.scrml` (540 LOC) live end-to-end S7; CSRF bootstrap verified in browser after GITI-010 fix. All three loaders (status/history/bookmarks) render on first page load.
+- [x][x] **Web UI — history timeline** — `ui/history.scrml` ships dedicated timeline page. `loadTimeline` server fn fetches 50 entries; CSRF bootstrap+retry verified via curl (S7).
 - [ ][ ] **Web UI — diff viewer + file browser**
 - [ ][ ] **Web UI — landing dashboard** — compiler gate results, test results, landing queue
 - [x][x] **Compile-on-serve pipeline** — Bun.serve compiles `ui/*.scrml` → dist, serves at `/` (S3)
