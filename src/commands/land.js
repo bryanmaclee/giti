@@ -183,7 +183,13 @@ export async function land(args) {
  *   - Invokes `bun run <compiler-cli> compile <files...>` and reports stderr on failure
  *
  * Returns { ok: true, data: { skipped?: true, fileCount } } or { ok: false, error }.
+ *
+ * Exported as `runCompiler` for reuse by the landing dashboard server fn.
  */
+export async function runCompiler() {
+  return runCompilerDefault();
+}
+
 async function runCompilerDefault() {
   const compiler = resolveCompilerPath();
   if (!compiler.ok) {
@@ -216,7 +222,13 @@ async function runCompilerDefault() {
 
 /**
  * Run the project's test suite.
+ *
+ * Exported as `runTests` for reuse by the landing dashboard server fn.
  */
+export async function runTests() {
+  return runTestsDefault();
+}
+
 async function runTestsDefault() {
   try {
     const proc = Bun.spawn(["bun", "test"], {

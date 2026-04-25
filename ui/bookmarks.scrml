@@ -35,6 +35,7 @@ ${
       <a href="/history.html">History</a>
       <a href="/bookmarks.html" class="active">Bookmarks</a>
       <a href="/diff.html">Diff</a>
+      <a href="/land.html">Land</a>
     </nav>
   </header>
 

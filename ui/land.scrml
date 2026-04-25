@@ -1,0 +1,315 @@
+// giti — landing preflight dashboard
+//
+// Read-only "would `giti land` succeed right now?" view. Runs the same four
+// gates `giti land` runs, in order, on page load:
+//   1. Private-files gate  — landings must be public (spec §12.3)
+//   2. Conflicts gate      — refuse if working copy has conflicts
+//   3. Compiler gate       — all .scrml files must compile
+//   4. Tests gate          — `bun test` must be green
+//
+// The actual landing (save + merge to main) is a write op and is NOT
+// performed here. This page is the pre-flight; the user runs `giti land`
+// from the CLI when ready (and we may add a "Land" button in a later
+// slice once auth + dest gating exist).
+
+<program>
+
+${
+  // Source-relative paths (GITI-009 fixed upstream).
+  import { getEngine } from '../src/engine/index.js'
+  import { parseStatus } from '../src/commands/status.js'
+  import { runCompiler, runTests } from '../src/commands/land.js'
+  import { loadPrivateManifest, partitionByScope } from '../src/private/scope.js'
+
+  server function loadLandingPreflight() {
+    const engine = getEngine()
+
+    // Gate 1: private-files
+    const statusRes = await engine.status()
+    let privateGate = { ok: true, files: [] }
+    if (statusRes.ok && statusRes.data.raw) {
+      const parsed = parseStatus(statusRes.data.raw)
+      const globs = loadPrivateManifest(process.cwd())
+      const part = partitionByScope(parsed.changed, globs)
+      const privChanged = part.private
+      // Workaround for GITI-012: scrml codegen strips the parens around an
+      // arrow body that returns an object literal, emitting unparseable JS
+      // (`(f) => {path: ...}`). Use a function expression with explicit
+      // return until that fix lands.
+      const filesArr = []
+      for (let f of privChanged) {
+        filesArr.push({ path: f.path, kind: f.kind })
+      }
+      // Workaround for the structural-eq codegen bug (filed as GITI-012):
+      // scrml `==` emits `_scrml_structural_eq()` but the helper is not
+      // imported into `.server.js` modules. Use truthy/falsy checks
+      // instead of equality in server fn bodies.
+      privateGate = {
+        ok: !privChanged.length,
+        files: filesArr,
+      }
+    }
+
+    // Gate 2: conflicts
+    const conflictRes = await engine.conflicts()
+    const conflictsGate = conflictRes.ok
+      ? { ok: !conflictRes.data.hasConflicts, files: conflictRes.data.files || [] }
+      : { ok: false, error: conflictRes.error, files: [] }
+
+    // Gate 3: compiler (all .scrml files)
+    const compilerRes = await runCompiler()
+    const compilerGate = compilerRes.ok
+      ? {
+          ok: true,
+          fileCount: compilerRes.data.fileCount || 0,
+          // Boolean coerce — see GITI-012 workaround note above.
+          skipped: !!compilerRes.data.skipped,
+        }
+      : { ok: false, error: compilerRes.error }
+
+    // Gate 4: tests (full bun test)
+    const testRes = await runTests()
+    const testsGate = testRes.ok
+      ? { ok: true, count: testRes.data.count }
+      : { ok: false, error: testRes.error }
+
+    const allOk =
+      privateGate.ok && conflictsGate.ok && compilerGate.ok && testsGate.ok
+
+    return {
+      error: null,
+      allOk,
+      privateGate,
+      conflictsGate,
+      compilerGate,
+      testsGate,
+    }
+  }
+
+  // Defaults (GITI-006 dodge — same pattern as status.scrml).
+  // `running: true` keeps the spinner visible until the server fn lands.
+  @preflight = {
+    error: null,
+    running: true,
+    allOk: false,
+    privateGate: { ok: true, files: [] },
+    conflictsGate: { ok: true, files: [] },
+    compilerGate: { ok: true, fileCount: 0, skipped: false },
+    testsGate: { ok: true, count: "?" },
+  }
+
+  @preflight = loadLandingPreflight()
+}
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="title">
+      <span class="logo">giti</span>
+      <span class="muted">land</span>
+    </div>
+    <nav>
+      <a href="/">Status</a>
+      <a href="/history.html">History</a>
+      <a href="/bookmarks.html">Bookmarks</a>
+      <a href="/diff.html">Diff</a>
+      <a href="/land.html" class="active">Land</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Landing preflight</h2>
+      <p class="muted">
+        Same gates <code>giti land</code> runs. This view is read-only —
+        nothing is landed from the dashboard.
+      </p>
+
+      ${
+        if (@preflight.error) {
+          lift <p class="error">Engine error: ${@preflight.error}</p>
+        } else if (@preflight.running) {
+          lift <p class="muted">Running gates… (compile + tests can take a few seconds)</p>
+        } else if (@preflight.allOk) {
+          lift <p class="banner banner-ok">All gates pass — your work would land cleanly.</p>
+        } else {
+          lift <p class="banner banner-fail">One or more gates failed — see details below.</p>
+        }
+      }
+
+      <ul class="gates">
+
+        <!-- Gate 1: private files -->
+        <li class="gate">
+          <span class="gate-name">Private files</span>
+          ${
+            if (@preflight.privateGate.ok) {
+              lift <span class="badge badge-ok">pass</span>
+            } else {
+              lift <span class="badge badge-fail">fail</span>
+            }
+          }
+          ${
+            if (@preflight.privateGate.files.length > 0) {
+              lift <ul class="gate-detail">
+                ${
+                  for (let f of @preflight.privateGate.files) {
+                    lift <li><span class="tag tag-${f.kind}">${f.kind}</span> <code>${f.path}</code></li>
+                  }
+                }
+              </ul>
+            }
+          }
+        </li>
+
+        <!-- Gate 2: conflicts -->
+        <li class="gate">
+          <span class="gate-name">Conflicts</span>
+          ${
+            if (@preflight.conflictsGate.ok) {
+              lift <span class="badge badge-ok">pass</span>
+            } else {
+              lift <span class="badge badge-fail">fail</span>
+            }
+          }
+          ${
+            if (@preflight.conflictsGate.files.length > 0) {
+              lift <ul class="gate-detail">
+                ${
+                  for (let f of @preflight.conflictsGate.files) {
+                    lift <li><code>${f}</code></li>
+                  }
+                }
+              </ul>
+            }
+          }
+        </li>
+
+        <!-- Gate 3: compiler -->
+        <li class="gate">
+          <span class="gate-name">Compiler</span>
+          ${
+            if (@preflight.compilerGate.ok && @preflight.compilerGate.skipped) {
+              lift <span class="badge badge-skip">skipped — no .scrml files</span>
+            } else if (@preflight.compilerGate.ok) {
+              lift <span class="badge badge-ok">pass — ${@preflight.compilerGate.fileCount} file(s)</span>
+            } else {
+              lift <span class="badge badge-fail">fail</span>
+            }
+          }
+          ${
+            if (!@preflight.compilerGate.ok && @preflight.compilerGate.error) {
+              lift <pre class="gate-error">${@preflight.compilerGate.error}</pre>
+            }
+          }
+        </li>
+
+        <!-- Gate 4: tests -->
+        <li class="gate">
+          <span class="gate-name">Tests</span>
+          ${
+            if (@preflight.testsGate.ok) {
+              lift <span class="badge badge-ok">pass — ${@preflight.testsGate.count}</span>
+            } else {
+              lift <span class="badge badge-fail">fail</span>
+            }
+          }
+          ${
+            if (!@preflight.testsGate.ok && @preflight.testsGate.error) {
+              lift <pre class="gate-error">${@preflight.testsGate.error}</pre>
+            }
+          }
+        </li>
+
+      </ul>
+
+    </section>
+  </main>
+
+</div>
+
+#{
+  /* land.scrml — local chrome (theme.css covers app/header/nav baseline) */
+
+  .panel {
+    padding: 1.5rem;
+  }
+
+  .banner {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    margin: 1rem 0;
+  }
+  .banner-ok {
+    background: #1a3d1f;
+    color: #b3f5bc;
+    border: 1px solid #2d6a36;
+  }
+  .banner-fail {
+    background: #3d1a1a;
+    color: #f5b3b3;
+    border: 1px solid #6a2d2d;
+  }
+
+  .gates {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0 0;
+  }
+  .gate {
+    padding: 0.75rem 1rem;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    background: #161616;
+  }
+  .gate-name {
+    font-weight: 600;
+    margin-right: 0.75rem;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .badge-ok {
+    background: #1a3d1f;
+    color: #b3f5bc;
+  }
+  .badge-fail {
+    background: #3d1a1a;
+    color: #f5b3b3;
+  }
+  .badge-skip {
+    background: #2a2a2a;
+    color: #aaa;
+  }
+
+  .gate-detail {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.5rem;
+    color: #ccc;
+    font-size: 0.9rem;
+  }
+
+  .gate-error {
+    margin: 0.5rem 0 0 0;
+    padding: 0.5rem;
+    background: #1a1a1a;
+    color: #f5b3b3;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+
+  .error {
+    color: #f5b3b3;
+  }
+}
+
+</program>
