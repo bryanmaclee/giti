@@ -54,10 +54,31 @@ export async function compileUi({
     return { ok: false, error: msg };
   }
 
-  // Copy hand-written static CSS from ui/ into dist/ui/ so every scrml
-  // page can share a theme without duplicating chrome. Per-file CSS the
-  // compiler already emits (status.css, history.css, …) stays as-is;
-  // only copy files whose stem has no matching .scrml source.
+  const sharedCss = injectSharedCss({ uiAbs, distAbs });
+
+  return { ok: true, distDir: distAbs, stdout: stdout.trim(), sharedCss };
+}
+
+/**
+ * Copy hand-written static CSS from `uiAbs` into `distAbs`, then inject each
+ * as a `<link>` in every compiled HTML's head. Workaround for GITI-011: the
+ * scrml CSS parser mangles `@import url(...)`, so pages can't share a theme
+ * via `@import` — we link the static CSS into the HTML instead.
+ *
+ * Rules:
+ *  - A `*.css` in `uiAbs` is "shared" iff there is no matching `*.scrml`
+ *    next to it (per-page CSS that the compiler emits is left alone).
+ *  - Shared `<link>` is injected BEFORE the compiler-emitted per-page link
+ *    so per-page rules cascade on top of the theme.
+ *  - HTMLs that already have an injected matching `<link>` are not touched
+ *    twice (idempotent on string equality of the injected substring).
+ *
+ * Returns the list of shared CSS filenames that were copied (in directory
+ * iteration order).
+ */
+export function injectSharedCss({ uiAbs, distAbs }) {
+  if (!existsSync(uiAbs) || !existsSync(distAbs)) return [];
+
   const sharedCss = [];
   for (const name of readdirSync(uiAbs)) {
     if (!name.endsWith(".css")) continue;
@@ -67,25 +88,21 @@ export async function compileUi({
     sharedCss.push(name);
   }
 
-  // Inject each shared CSS as a <link> into every compiled HTML's <head>
-  // so pages pick up the theme without needing `@import` (scrml's CSS
-  // parser mangles at-rules — workaround via HTML linkage instead).
-  // Injected BEFORE the compiler-emitted per-page link so per-page rules
-  // cascade on top.
-  if (sharedCss.length > 0) {
-    for (const name of readdirSync(distAbs)) {
-      if (!name.endsWith(".html")) continue;
-      const p = join(distAbs, name);
-      const html = readFileSync(p, "utf8");
-      const links = sharedCss.map((c) => `  <link rel="stylesheet" href="${c}">`).join("\n");
-      // Insert before the scrml-emitted `<link rel="stylesheet" href="{stem}.css">`.
-      const injected = html.replace(
-        /(  <link rel="stylesheet"[^>]*>)/,
-        `${links}\n$1`,
-      );
-      if (injected !== html) writeFileSync(p, injected);
-    }
+  if (sharedCss.length === 0) return sharedCss;
+
+  for (const name of readdirSync(distAbs)) {
+    if (!name.endsWith(".html")) continue;
+    const p = join(distAbs, name);
+    const html = readFileSync(p, "utf8");
+    const missing = sharedCss.filter((c) => !html.includes(`href="${c}"`));
+    if (missing.length === 0) continue;
+    const links = missing.map((c) => `  <link rel="stylesheet" href="${c}">`).join("\n");
+    const injected = html.replace(
+      /(  <link rel="stylesheet"[^>]*>)/,
+      `${links}\n$1`,
+    );
+    if (injected !== html) writeFileSync(p, injected);
   }
 
-  return { ok: true, distDir: distAbs, stdout: stdout.trim() };
+  return sharedCss;
 }
