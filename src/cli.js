@@ -55,7 +55,7 @@ Commands:
   giti sync               Push and pull remote changes
   giti init               Initialize a new giti repository
   giti serve [--port N]   Start the HTTP API server
-  giti private <sub>      Manage private path scopes (add|remove|list)
+  giti private <sub>      Manage private path scopes (add|remove|check|list)
   giti remote <sub>       Manage remotes (add|remove|set-scope|list)
   giti link-private <url> Attach a private remote to this clone
 

@@ -103,4 +103,10 @@ export class EngineInterface {
    * Equivalent to `jj new` with no args.
    */
   async newChange() { throw new Error("not implemented"); }
+
+  /**
+   * List files tracked at the working-copy revision.
+   * Returns { ok: true, data: string[] } — repo-relative paths, sorted.
+   */
+  async files() { throw new Error("not implemented"); }
 }

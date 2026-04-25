@@ -11,6 +11,7 @@ import {
   addPrivatePattern,
   removePrivatePattern,
   loadPrivateManifest,
+  matchGlob,
   MANIFEST_PATH,
 } from "../private/scope.js";
 import { classifyFromStatus } from "../private/save-routing.js";
@@ -21,6 +22,8 @@ const USAGE = `Usage: giti private <subcommand> [args]
 Subcommands:
   add <pattern>     Mark paths matching <pattern> as private.
   remove <pattern>  Unmark a previously added pattern.
+  check <pattern>   Dry-run: show files that <pattern> would match.
+                    Manifest is not modified.
   list              Show the current private patterns.
   status            Show current changes annotated by scope.
 
@@ -111,6 +114,42 @@ export async function private_(args, opts) {
     // Idempotent: an already-present pattern is not a hard error.
     if (reason === "already present") return;
     process.exit(1);
+  }
+
+  if (sub === "check") {
+    const pattern = args[1];
+    if (!pattern) {
+      process.stderr.write("giti private check: pattern required\n");
+      process.exit(1);
+    }
+    const filesRes = await engine.files();
+    if (!filesRes.ok) {
+      process.stderr.write(`giti private check: ${filesRes.error}\n`);
+      process.exit(1);
+    }
+    const matches = filesRes.data.filter((p) => matchGlob(p, pattern));
+    const globs = loadPrivateManifest(repoRoot);
+    const alreadyPresent = globs.includes(pattern.trim());
+
+    if (matches.length === 0) {
+      process.stdout.write(
+        `No files match '${pattern}'.\n` +
+        "Tip: globs are anchored at the repo root. Use '**/' for nested matches.\n"
+      );
+      return;
+    }
+    process.stdout.write(
+      `${matches.length} file${matches.length === 1 ? "" : "s"} would match '${pattern}':\n`
+    );
+    for (const f of matches) {
+      process.stdout.write(`  ${f}\n`);
+    }
+    process.stdout.write(
+      alreadyPresent
+        ? `\nThis pattern is already in the manifest.\n`
+        : `\nThis is a dry run. Run 'giti private add ${pattern}' to apply.\n`
+    );
+    return;
   }
 
   if (sub === "remove") {

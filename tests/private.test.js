@@ -400,4 +400,83 @@ describe("giti private CLI", () => {
     expect(exitCode).toBe(1);
     expect(stderr()).toContain("not in manifest");
   });
+
+  // -------------------------------------------------------------------------
+  // private check — dry-run pattern preview
+  // -------------------------------------------------------------------------
+
+  function fakeEngine(files) {
+    return { files: async () => ({ ok: true, data: files }) };
+  }
+
+  test("check requires a pattern", async () => {
+    try {
+      await private_(["check"], { cwd: repoRoot, engine: fakeEngine([]) });
+    } catch (e) { /* swallow exit */ }
+    expect(exitCode).toBe(1);
+    expect(stderr()).toContain("pattern required");
+  });
+
+  test("check on a pattern that matches files lists them", async () => {
+    const engine = fakeEngine(["a.txt", "logs/x.log", "logs/y.log", "src/main.js"]);
+    await private_(["check", "logs/**"], { cwd: repoRoot, engine });
+    const out = stdout();
+    expect(out).toContain("2 files would match");
+    expect(out).toContain("logs/x.log");
+    expect(out).toContain("logs/y.log");
+    expect(out).not.toContain("a.txt");
+    expect(out).not.toContain("src/main.js");
+  });
+
+  test("check shows '1 file' singular form", async () => {
+    const engine = fakeEngine(["secrets.env", "README.md"]);
+    await private_(["check", "secrets.env"], { cwd: repoRoot, engine });
+    const out = stdout();
+    expect(out).toContain("1 file would match");
+    expect(out).toContain("secrets.env");
+  });
+
+  test("check on a pattern that matches nothing prints helpful tip", async () => {
+    const engine = fakeEngine(["a.txt", "b.txt"]);
+    await private_(["check", "logs/**"], { cwd: repoRoot, engine });
+    const out = stdout();
+    expect(out).toContain("No files match");
+    expect(out).toContain("anchored at the repo root");
+  });
+
+  test("check does NOT modify the manifest", async () => {
+    const engine = fakeEngine(["secrets.env"]);
+    await private_(["check", "secrets.env"], { cwd: repoRoot, engine });
+    const globs = loadPrivateManifest(repoRoot);
+    // Only the implicit manifest-self pattern should be present.
+    expect(globs.filter((g) => g !== MANIFEST_PATH)).toEqual([]);
+  });
+
+  test("check tells user when pattern is already in manifest", async () => {
+    await private_(["add", "secrets.env"], { cwd: repoRoot });
+    stdoutChunks.length = 0;
+    const engine = fakeEngine(["secrets.env", "README.md"]);
+    await private_(["check", "secrets.env"], { cwd: repoRoot, engine });
+    const out = stdout();
+    expect(out).toContain("1 file would match");
+    expect(out).toContain("already in the manifest");
+    expect(out).not.toContain("dry run");
+  });
+
+  test("check suggests 'giti private add' when not in manifest", async () => {
+    const engine = fakeEngine(["secrets.env"]);
+    await private_(["check", "secrets.env"], { cwd: repoRoot, engine });
+    const out = stdout();
+    expect(out).toContain("dry run");
+    expect(out).toContain("giti private add secrets.env");
+  });
+
+  test("check surfaces engine error on failure", async () => {
+    const engine = { files: async () => ({ ok: false, error: "no jj repo" }) };
+    try {
+      await private_(["check", "x"], { cwd: repoRoot, engine });
+    } catch (e) { /* swallow exit */ }
+    expect(exitCode).toBe(1);
+    expect(stderr()).toContain("no jj repo");
+  });
 });

@@ -488,6 +488,21 @@ export class JjCliEngine extends EngineInterface {
   async newChange() {
     return await this._run(["new"]);
   }
+
+  /**
+   * List tracked files at the working-copy revision.
+   * Wraps `jj file list`. Returns { ok: true, data: string[] } sorted asc.
+   */
+  async files() {
+    const result = await this._run(["file", "list"]);
+    if (!result.ok) return result;
+    const files = result.data
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+    files.sort();
+    return ok(files);
+  }
 }
 
 /**
