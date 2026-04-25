@@ -51,11 +51,22 @@ export function resolveCompilerPath({ cwd = process.cwd(), env = process.env, fs
 
 /**
  * Find .scrml files under cwd using Bun.Glob.
+ *
+ * Excludes:
+ *   - `docs/**`         spec illustrations and other prose-y .scrml that
+ *                       isn't meant to compile (e.g. docs/spec-types/*.scrml
+ *                       use future state-machine syntax not yet supported).
+ *   - `node_modules/**` package source we don't own.
+ *   - `dist/**`         compiled output (won't have .scrml but cheap to skip).
+ *
  * Returns an array of repo-relative paths (sorted for determinism).
  */
 export async function findScrmlFiles({ cwd = process.cwd(), glob = new Bun.Glob("**/*.scrml") } = {}) {
   const files = [];
   for await (const f of glob.scan({ cwd, onlyFiles: true })) {
+    if (f.startsWith("docs/")) continue;
+    if (f.startsWith("node_modules/")) continue;
+    if (f.startsWith("dist/")) continue;
     files.push(f);
   }
   files.sort();
@@ -236,13 +247,17 @@ async function runTestsDefault() {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const stdout = await new Response(proc.stdout).text();
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
     const exitCode = await proc.exited;
+    // bun test writes its summary to stderr, not stdout.
+    const combined = stdout + stderr;
     if (exitCode !== 0) {
-      return { ok: false, error: stdout.trim() };
+      return { ok: false, error: (stderr.trim() || stdout.trim()) };
     }
-    // Extract test count from output
-    const countMatch = stdout.match(/(\d+) pass/);
+    const countMatch = combined.match(/(\d+) pass/);
     const count = countMatch ? countMatch[1] : "?";
     return { ok: true, data: { count } };
   } catch (e) {

@@ -77,4 +77,36 @@ describe("findScrmlFiles", () => {
     expect(files).toEqual(["a.scrml", "src/b.scrml"]);
     rmSync(dir, { recursive: true });
   });
+
+  test("excludes docs/ (spec illustrations don't compile)", async () => {
+    dir = mkdtempSync(join(tmpdir(), "giti-land-"));
+    mkdirSync(join(dir, "ui"), { recursive: true });
+    mkdirSync(join(dir, "docs", "spec-types"), { recursive: true });
+    writeFileSync(join(dir, "ui", "page.scrml"), "");
+    writeFileSync(join(dir, "docs", "spec-types", "branch.scrml"), "");
+    writeFileSync(join(dir, "docs", "notes.scrml"), "");
+    const files = await findScrmlFiles({ cwd: dir });
+    expect(files).toEqual(["ui/page.scrml"]);
+    rmSync(dir, { recursive: true });
+  });
+
+  test("excludes node_modules/", async () => {
+    dir = mkdtempSync(join(tmpdir(), "giti-land-"));
+    mkdirSync(join(dir, "node_modules", "pkg"), { recursive: true });
+    writeFileSync(join(dir, "a.scrml"), "");
+    writeFileSync(join(dir, "node_modules", "pkg", "skip.scrml"), "");
+    const files = await findScrmlFiles({ cwd: dir });
+    expect(files).toEqual(["a.scrml"]);
+    rmSync(dir, { recursive: true });
+  });
+
+  test("excludes dist/", async () => {
+    dir = mkdtempSync(join(tmpdir(), "giti-land-"));
+    mkdirSync(join(dir, "dist", "ui"), { recursive: true });
+    writeFileSync(join(dir, "page.scrml"), "");
+    writeFileSync(join(dir, "dist", "ui", "compiled.scrml"), "");
+    const files = await findScrmlFiles({ cwd: dir });
+    expect(files).toEqual(["page.scrml"]);
+    rmSync(dir, { recursive: true });
+  });
 });
