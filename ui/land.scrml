@@ -229,6 +229,8 @@ ${
 </div>
 
 #{
+  @import url('theme.css');
+
   /* land.scrml — local chrome (theme.css covers app/header/nav baseline) */
 
   .panel {

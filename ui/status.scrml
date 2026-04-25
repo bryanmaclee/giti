@@ -255,7 +255,11 @@ ${
 </div>
 
 #{
+  @import url('theme.css');
+
   /* ================= THEME ================= */
+  /* (status.scrml carries its own richer chrome — overrides on top of theme.css.
+     A dedupe pass is a separate cleanup slice.) */
 
   :root {
     --bg:        #0e1116;

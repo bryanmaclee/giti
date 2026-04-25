@@ -83,9 +83,9 @@ ${
 </div>
 
 #{
-  /* Shared chrome lives in theme.css (injected as <link> into each HTML
-     head by compileUi's post-process step). Only page-specific rules
-     below.
+  @import url('theme.css');
+
+  /* Shared chrome lives in theme.css. Only page-specific rules below.
 
      (Tried `@import url('theme.css')` here first, but scrml's CSS parser
      mangles at-rules — tracked as potential compiler UX bug. Using HTML

@@ -81,8 +81,9 @@ ${
 </div>
 
 #{
-  /* Shared chrome lives in theme.css (injected as <link> by compileUi).
-     Only page-specific rules below. */
+  @import url('theme.css');
+
+  /* Shared chrome lives in theme.css. Only page-specific rules below. */
 
   .name {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

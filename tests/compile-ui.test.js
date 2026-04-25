@@ -1,11 +1,11 @@
 /**
  * Tests for src/server/compile-ui.js — covers the post-compile step
- * (`injectSharedCss`) that copies hand-written CSS into dist/ui/ and
- * injects <link> tags into compiled HTML.
+ * (`copySharedCss`) that copies hand-written CSS into dist/ui/ so that
+ * each compiled page's `@import url('theme.css')` resolves at runtime.
  *
- * Workaround context (GITI-011): scrml's CSS parser mangles `@import url(...)`,
- * so pages can't share a theme via @import. We compensate by linking the
- * shared CSS into the HTML <head> at server-startup compile time.
+ * (Pre-S8 these tests covered an HTML <link>-injection workaround for
+ * GITI-011. With GITI-011 fixed in scrmlTS, the inject step was removed
+ * — pages now use native @import. Only the copy step remains.)
  */
 
 import { describe, test, expect } from "bun:test";
@@ -13,10 +13,10 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { injectSharedCss } from "../src/server/compile-ui.js";
+import { copySharedCss } from "../src/server/compile-ui.js";
 
 function mkPair() {
-  const root = mkdtempSync(join(tmpdir(), "giti-inject-"));
+  const root = mkdtempSync(join(tmpdir(), "giti-copy-css-"));
   const uiAbs = join(root, "ui");
   const distAbs = join(root, "dist");
   mkdirSync(uiAbs);
@@ -24,24 +24,12 @@ function mkPair() {
   return { root, uiAbs, distAbs };
 }
 
-function pageHtml(stem) {
-  return [
-    "<!DOCTYPE html>",
-    "<html>",
-    "<head>",
-    `  <link rel="stylesheet" href="${stem}.css">`,
-    "</head>",
-    "<body></body>",
-    "</html>",
-  ].join("\n");
-}
-
-describe("injectSharedCss", () => {
+describe("copySharedCss", () => {
   test("copies shared CSS into dist (no matching .scrml)", () => {
     const { root, uiAbs, distAbs } = mkPair();
     writeFileSync(join(uiAbs, "theme.css"), ":root { --x: 1px; }");
 
-    const shared = injectSharedCss({ uiAbs, distAbs });
+    const shared = copySharedCss({ uiAbs, distAbs });
 
     expect(shared).toEqual(["theme.css"]);
     expect(existsSync(join(distAbs, "theme.css"))).toBe(true);
@@ -55,7 +43,7 @@ describe("injectSharedCss", () => {
     writeFileSync(join(uiAbs, "status.scrml"), "/* source */");
     writeFileSync(join(uiAbs, "status.css"), ".per-page {}");
 
-    const shared = injectSharedCss({ uiAbs, distAbs });
+    const shared = copySharedCss({ uiAbs, distAbs });
 
     expect(shared).toEqual([]);
     expect(existsSync(join(distAbs, "status.css"))).toBe(false);
@@ -63,108 +51,69 @@ describe("injectSharedCss", () => {
     rmSync(root, { recursive: true });
   });
 
-  test("injects <link> for shared CSS BEFORE the per-page <link>", () => {
+  test("copies multiple shared CSS files (sorted, deterministic)", () => {
     const { root, uiAbs, distAbs } = mkPair();
     writeFileSync(join(uiAbs, "theme.css"), "");
-    writeFileSync(join(distAbs, "status.html"), pageHtml("status"));
+    writeFileSync(join(uiAbs, "reset.css"), "");
+    writeFileSync(join(uiAbs, "tokens.css"), "");
 
-    injectSharedCss({ uiAbs, distAbs });
+    const shared = copySharedCss({ uiAbs, distAbs });
 
-    const out = readFileSync(join(distAbs, "status.html"), "utf8");
-    const themeIdx = out.indexOf('href="theme.css"');
-    const pageIdx = out.indexOf('href="status.css"');
-    expect(themeIdx).toBeGreaterThan(0);
-    expect(pageIdx).toBeGreaterThan(themeIdx);
-
-    rmSync(root, { recursive: true });
-  });
-
-  test("injects into every compiled HTML page", () => {
-    const { root, uiAbs, distAbs } = mkPair();
-    writeFileSync(join(uiAbs, "theme.css"), "");
-    writeFileSync(join(distAbs, "status.html"), pageHtml("status"));
-    writeFileSync(join(distAbs, "history.html"), pageHtml("history"));
-    writeFileSync(join(distAbs, "bookmarks.html"), pageHtml("bookmarks"));
-
-    injectSharedCss({ uiAbs, distAbs });
-
-    for (const name of ["status.html", "history.html", "bookmarks.html"]) {
-      const html = readFileSync(join(distAbs, name), "utf8");
-      expect(html).toContain('href="theme.css"');
+    expect(shared).toEqual(["reset.css", "theme.css", "tokens.css"]);
+    for (const f of shared) {
+      expect(existsSync(join(distAbs, f))).toBe(true);
     }
 
     rmSync(root, { recursive: true });
   });
 
-  test("injects multiple shared CSS files in directory order", () => {
+  test("mixed: shared and per-page CSS together", () => {
     const { root, uiAbs, distAbs } = mkPair();
-    writeFileSync(join(uiAbs, "theme.css"), "");
-    writeFileSync(join(uiAbs, "reset.css"), "");
-    writeFileSync(join(distAbs, "status.html"), pageHtml("status"));
+    writeFileSync(join(uiAbs, "theme.css"), "");                  // shared
+    writeFileSync(join(uiAbs, "status.scrml"), "");
+    writeFileSync(join(uiAbs, "status.css"), "");                 // per-page (skipped)
+    writeFileSync(join(uiAbs, "history.scrml"), "");
+    writeFileSync(join(uiAbs, "history.css"), "");                // per-page (skipped)
 
-    const shared = injectSharedCss({ uiAbs, distAbs });
+    const shared = copySharedCss({ uiAbs, distAbs });
 
-    expect(shared).toContain("theme.css");
-    expect(shared).toContain("reset.css");
-    expect(shared.length).toBe(2);
-
-    const html = readFileSync(join(distAbs, "status.html"), "utf8");
-    expect(html).toContain('href="theme.css"');
-    expect(html).toContain('href="reset.css"');
+    expect(shared).toEqual(["theme.css"]);
+    expect(existsSync(join(distAbs, "theme.css"))).toBe(true);
+    expect(existsSync(join(distAbs, "status.css"))).toBe(false);
+    expect(existsSync(join(distAbs, "history.css"))).toBe(false);
 
     rmSync(root, { recursive: true });
   });
 
-  test("noop when no shared CSS exists (HTML untouched)", () => {
+  test("returns [] when no shared CSS exists", () => {
     const { root, uiAbs, distAbs } = mkPair();
     writeFileSync(join(uiAbs, "status.scrml"), "");
-    writeFileSync(join(uiAbs, "status.css"), ""); // per-page, skipped
-    const original = pageHtml("status");
-    writeFileSync(join(distAbs, "status.html"), original);
+    writeFileSync(join(uiAbs, "status.css"), ""); // per-page only
 
-    const shared = injectSharedCss({ uiAbs, distAbs });
+    const shared = copySharedCss({ uiAbs, distAbs });
 
     expect(shared).toEqual([]);
-    expect(readFileSync(join(distAbs, "status.html"), "utf8")).toBe(original);
+    expect(readdirOrEmpty(distAbs)).toEqual([]);
 
     rmSync(root, { recursive: true });
   });
 
-  test("idempotent: injecting twice doesn't duplicate the <link>", () => {
+  test("idempotent: copying twice yields the same result", () => {
     const { root, uiAbs, distAbs } = mkPair();
-    writeFileSync(join(uiAbs, "theme.css"), "");
-    writeFileSync(join(distAbs, "status.html"), pageHtml("status"));
+    writeFileSync(join(uiAbs, "theme.css"), "body{}");
 
-    injectSharedCss({ uiAbs, distAbs });
-    const after1 = readFileSync(join(distAbs, "status.html"), "utf8");
-    injectSharedCss({ uiAbs, distAbs });
-    const after2 = readFileSync(join(distAbs, "status.html"), "utf8");
+    const r1 = copySharedCss({ uiAbs, distAbs });
+    const r2 = copySharedCss({ uiAbs, distAbs });
 
-    expect(after2).toBe(after1);
-    const matches = after2.match(/href="theme\.css"/g);
-    expect(matches).toHaveLength(1);
-
-    rmSync(root, { recursive: true });
-  });
-
-  test("ignores non-html and non-css files in dist", () => {
-    const { root, uiAbs, distAbs } = mkPair();
-    writeFileSync(join(uiAbs, "theme.css"), "");
-    writeFileSync(join(distAbs, "status.html"), pageHtml("status"));
-    writeFileSync(join(distAbs, "status.client.js"), "console.log('x')");
-    writeFileSync(join(distAbs, "status.css"), ".x{}");
-
-    injectSharedCss({ uiAbs, distAbs });
-
-    expect(readFileSync(join(distAbs, "status.client.js"), "utf8")).toBe("console.log('x')");
-    expect(readFileSync(join(distAbs, "status.css"), "utf8")).toBe(".x{}");
+    expect(r2).toEqual(r1);
+    expect(readFileSync(join(distAbs, "theme.css"), "utf8")).toBe("body{}");
 
     rmSync(root, { recursive: true });
   });
 
   test("returns [] when uiAbs missing", () => {
     const { root, distAbs } = mkPair();
-    const shared = injectSharedCss({
+    const shared = copySharedCss({
       uiAbs: join(root, "no-such-ui"),
       distAbs,
     });
@@ -175,7 +124,7 @@ describe("injectSharedCss", () => {
   test("returns [] when distAbs missing", () => {
     const { root, uiAbs } = mkPair();
     writeFileSync(join(uiAbs, "theme.css"), "");
-    const shared = injectSharedCss({
+    const shared = copySharedCss({
       uiAbs,
       distAbs: join(root, "no-such-dist"),
     });
@@ -183,16 +132,26 @@ describe("injectSharedCss", () => {
     rmSync(root, { recursive: true });
   });
 
-  test("HTML without an existing <link> is left alone (no insertion point)", () => {
+  test("ignores non-css files in ui/", () => {
     const { root, uiAbs, distAbs } = mkPair();
     writeFileSync(join(uiAbs, "theme.css"), "");
-    const noLink = "<!DOCTYPE html><html><head></head><body></body></html>";
-    writeFileSync(join(distAbs, "status.html"), noLink);
+    writeFileSync(join(uiAbs, "README.md"), "hi");
+    writeFileSync(join(uiAbs, "config.json"), "{}");
 
-    injectSharedCss({ uiAbs, distAbs });
+    const shared = copySharedCss({ uiAbs, distAbs });
 
-    expect(readFileSync(join(distAbs, "status.html"), "utf8")).toBe(noLink);
+    expect(shared).toEqual(["theme.css"]);
+    expect(existsSync(join(distAbs, "README.md"))).toBe(false);
+    expect(existsSync(join(distAbs, "config.json"))).toBe(false);
 
     rmSync(root, { recursive: true });
   });
 });
+
+function readdirOrEmpty(dir) {
+  try {
+    return require("node:fs").readdirSync(dir);
+  } catch {
+    return [];
+  }
+}
