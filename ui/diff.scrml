@@ -13,8 +13,8 @@
 <program>
 
 ${
-  // GITI-009 workaround: paths relative to compiled-output location.
-  import { getEngine } from '../../src/engine/index.js'
+  // GITI-009 fixed upstream: scrmlTS rewrites relative-import paths for dist/ui/.
+  import { getEngine } from '../src/engine/index.js'
 
   server function loadHistory() {
     const engine = getEngine()

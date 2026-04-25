@@ -13,12 +13,11 @@
 <program>
 
 ${
-  // NOTE: paths are relative to the compiled output location (dist/ui/),
-  // not the source location (ui/). scrmlTS forwards relative imports
-  // verbatim — tracked as GITI-009 (compiler UX) for a future rewrite.
-  import { getEngine } from '../../src/engine/index.js'
-  import { parseStatus } from '../../src/commands/status.js'
-  import { classifyFromStatus } from '../../src/private/save-routing.js'
+  // GITI-009 fixed upstream: scrmlTS now rewrites relative-import paths
+  // for the compiled output location, so source-relative paths are correct.
+  import { getEngine } from '../src/engine/index.js'
+  import { parseStatus } from '../src/commands/status.js'
+  import { classifyFromStatus } from '../src/private/save-routing.js'
 
   // ---------- Server functions: wrap the engine ----------
 

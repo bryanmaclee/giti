@@ -11,9 +11,8 @@
 <program>
 
 ${
-  // GITI-009 workaround: paths relative to compiled-output location
-  // (dist/ui/), not source location (ui/).
-  import { getEngine } from '../../src/engine/index.js'
+  // GITI-009 fixed upstream: scrmlTS rewrites relative-import paths for dist/ui/.
+  import { getEngine } from '../src/engine/index.js'
 
   // Distinct from status.scrml's loadHistory — this fetches a larger window.
   // Different name also avoids any per-file route-collision ambiguity in
