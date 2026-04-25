@@ -71,4 +71,10 @@ Learned in S7 (scrml-author-facing, not yet documented anywhere):
 
 ## Session 8 work log
 
-_(append as work completes)_
+- **2026-04-25 — slice 1 (commit `1eb143d`):** `compileUi` shared-CSS test coverage. Extracted `injectSharedCss({uiAbs, distAbs})` from `compileUi`; added `tests/compile-ui.test.js` (11 tests) covering copy rules, link order, multi-file, multi-page, missing dirs. Idempotency test caught real bug: re-running `compile-ui` (e.g. on every `giti serve` restart) prepended a duplicate `<link>`. Fixed by gating on substring presence. 296 → 307 pass.
+
+- **2026-04-25 — incoming `2026-04-24-2245-scrmlTS-to-giti-s40-sql-and-lsp-landings.md`** archived to `read/`. `needs: fyi`. Summary: SQL codegen identifier rename `_scrml_db` → `_scrml_sql`, `.prepare()` removed (E-SQL-006), 3 placeholder fixes, LSP L1+L2+L3 live. **giti has zero SQL blocks, zero `.prepare()` — no impact.** But message-trigger recompile surfaced GITI-009 silently fixed upstream.
+
+- **2026-04-25 — slice 2 (commit `2f84289`):** GITI-009 verified fixed; workaround removed. scrmlTS S40 silently shipped Option A (path rewrite) from the GITI-009 repro. Our four UI pages still carried the dist-relative workaround; the new rewrite double-shifted to `'../../../src/engine/index.js'` and crashed the server on bookmarks. Reverted source paths to true source-relative; emit now correct (`'../../src/engine/index.js'`). All 4 pages return 200 live. Verified against scrmlTS HEAD `7a91068`.
+
+- **2026-04-25 — sent `2026-04-25-0706-giti-to-scrmlTS-giti-009-verified-fixed-and-s40-impact.md`** into scrmlTS inbox. `needs: fyi`. Confirmed GITI-009 fix verified, workaround removed, S40 SQL/LSP changes are no-ops for giti.
