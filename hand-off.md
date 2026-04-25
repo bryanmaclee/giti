@@ -78,3 +78,19 @@ Learned in S7 (scrml-author-facing, not yet documented anywhere):
 - **2026-04-25 — slice 2 (commit `2f84289`):** GITI-009 verified fixed; workaround removed. scrmlTS S40 silently shipped Option A (path rewrite) from the GITI-009 repro. Our four UI pages still carried the dist-relative workaround; the new rewrite double-shifted to `'../../../src/engine/index.js'` and crashed the server on bookmarks. Reverted source paths to true source-relative; emit now correct (`'../../src/engine/index.js'`). All 4 pages return 200 live. Verified against scrmlTS HEAD `7a91068`.
 
 - **2026-04-25 — sent `2026-04-25-0706-giti-to-scrmlTS-giti-009-verified-fixed-and-s40-impact.md`** into scrmlTS inbox. `needs: fyi`. Confirmed GITI-009 fix verified, workaround removed, S40 SQL/LSP changes are no-ops for giti.
+
+- **2026-04-25 — slice 3 (commit `bb9b885`):** Landing preflight dashboard. New `ui/land.scrml` reading the four `giti land` gates (private files, conflicts, compiler, tests) and rendering pass/fail per row + summary banner. Reuses `runCompiler` / `runTests` (newly exported from `src/commands/land.js`). "Land" tab added to nav across all 5 pages. Live HTTP smoke verified end-to-end (5 pages 200, server fn returns structured JSON). Two scrml codegen workarounds applied inline (filed as GITI-012 + GITI-013 in slice 4).
+
+- **2026-04-25 — slice 4: GITI-011 verified fixed; GITI-012 + GITI-013 filed.**
+  - Compiled `repro-07-css-at-rules.scrml` against `7a91068`: at-rules emit correctly. Workaround in `compileUi` (HTML link inject) is no longer required but kept as load-bearing infra; its removal is parked as a follow-up cleanup slice.
+  - Filed **GITI-012**: `==` in server fn body emits `_scrml_structural_eq()` but the helper is not imported into `.server.js`. Repro at `ui/repros/repro-08-server-fn-eq.scrml`. Workaround: truthy/falsy checks (`!arr.length`, `!!flag`).
+  - Filed **GITI-013**: Arrow body returning object literal (`f => ({...})`) loses wrapping parens in emit. Repro at `ui/repros/repro-09-arrow-object-literal.scrml`. Workaround: explicit for-loop + push.
+  - Sent `2026-04-25-0728-giti-to-scrmlTS-giti-011-verified-fixed-and-two-new-bugs.md` + 2 sidecar repros into scrmlTS inbox.
+
+- **2026-04-25 — incoming `2026-04-25-2310-...giti-009-acked-giti-011-already-fixed.md`** archived to `read/`. `needs: action` (acted by the slice 4 verification + repros). Disk copy was deleted out-of-band before I could process; staged the deletion since 2315 supersedes it.
+
+- **2026-04-25 — incoming `2026-04-25-2315-...giti-009-011-acked-012-013-need-sidecars.md`** archived to `read/`. `needs: action`. They asked for sidecars but had crossed them in flight — sidecars were already in their `read/`. Sent confirmation: `2026-04-25-0732-giti-to-scrmlTS-sidecars-already-landed.md` (`needs: fyi`).
+
+- **GITI-009 + GITI-011 are now CLOSED on scrmlTS side.** Outstanding: GITI-012, GITI-013 (filed, awaiting scrmlTS triage); GITI-006 (cosmetic, unchanged).
+
+- **giti-side TODO surfaced**: `src/types/{branch,change,landing,repository,stack,typed-change}.scrml` use spec-illustrative future-syntax that current scrml doesn't accept — break the compiler gate of `giti land`. Heads-up sent to scrmlTS in 0728 message. Real fix on giti side: add a compiler-gate file filter or rewrite/remove the type files.
