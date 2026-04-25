@@ -74,4 +74,18 @@
 
 ## Session 9 work log
 
-_(append as work completes)_
+### S9.6.2 — real-jj harness for the private flow
+
+`tests/private-jj-integration.test.js` (new): drives `save()` through a real
+`JjCliEngine` against a fresh `jj git init` repo per test. 6 tests, all green:
+
+1. public-only save → both `main` and `_private` land at the same change
+2. private-only save → `_private` advances, `main` stays put
+3. mixed save without `--split` → exit 1, no commit, both bookmarks unchanged, WC intact
+4. mixed save `--split` → main holds the `[public]` commit (only `src.js`), `_private` holds the `[private]` commit (only `user-voice.md` + manifest)
+5. `changedFilesInRange("bookmarks(main)")` → real diff entries against jj history
+6. `private check` against real `engine.files()` from a tracked-files repo
+
+Skips cleanly when jj is absent (`describeIf` guard).
+
+**Suite:** 322 pass / 0 fail (316 → 322).
