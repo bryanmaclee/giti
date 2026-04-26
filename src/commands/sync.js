@@ -175,6 +175,25 @@ export async function sync(args, opts) {
       process.stderr.write(`giti: pull failed: ${fetchResult.error}\n`);
       process.exit(1);
     }
+
+    // Spec §12.5: bootstrap onto an existing private overlay. After a fetch
+    // from a private-scoped remote, set up local _private to track the
+    // remote's _private so subsequent saves and syncs route correctly.
+    if (target.remote && target.remote.scope === "private" &&
+        typeof engine.remoteBookmarkExists === "function" &&
+        typeof engine.trackRemoteBookmark === "function") {
+      const presence = await engine.remoteBookmarkExists(PRIVATE_BOOKMARK, remoteName);
+      if (presence.ok && presence.data) {
+        const track = await engine.trackRemoteBookmark(PRIVATE_BOOKMARK, remoteName);
+        if (track.ok) {
+          process.stdout.write(`Tracked ${PRIVATE_BOOKMARK} from ${remoteName}.\n`);
+        } else if (!/already tracked/i.test(track.error || "")) {
+          process.stderr.write(
+            `giti: note: could not track ${PRIVATE_BOOKMARK} from ${remoteName} (${track.error}).\n`
+          );
+        }
+      }
+    }
   }
 
   // Push with scope-aware safety + scope-aware bookmark targeting.

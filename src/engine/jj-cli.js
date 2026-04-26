@@ -490,6 +490,40 @@ export class JjCliEngine extends EngineInterface {
   }
 
   /**
+   * Set up local-bookmark tracking of a remote-tracking bookmark.
+   * Wraps `jj bookmark track <name>@<remoteName>`. After tracking, the local
+   * bookmark mirrors the remote on each fetch (spec §12.5: bootstrap a
+   * machine onto an existing private overlay).
+   *
+   * Idempotent on the jj side: tracking an already-tracked bookmark errors
+   * with "already tracked"; the caller can match that and treat it as a no-op.
+   */
+  async trackRemoteBookmark(name, remoteName) {
+    if (!name || !remoteName) return err("name and remoteName required");
+    return await this._run(["bookmark", "track", `${name}@${remoteName}`]);
+  }
+
+  /**
+   * Check whether a remote-tracking bookmark `<name>@<remoteName>` exists.
+   *
+   * Implementation: `jj bookmark list <name> --all-remotes` filters to the
+   * given bookmark and prints an indented `  @<remoteName>: ...` line for
+   * each remote that has a copy. Returns ok=true with data:bool, or ok:false
+   * if the underlying call errored.
+   */
+  async remoteBookmarkExists(name, remoteName) {
+    if (!name || !remoteName) return ok(false);
+    const result = await this._run(["bookmark", "list", name, "--all-remotes"]);
+    if (!result.ok) return ok(false);
+
+    const needle = `@${remoteName}:`;
+    for (const line of result.data.split("\n")) {
+      if (line.trim().startsWith(needle)) return ok(true);
+    }
+    return ok(false);
+  }
+
+  /**
    * List tracked files at the working-copy revision.
    * Wraps `jj file list`. Returns { ok: true, data: string[] } sorted asc.
    */

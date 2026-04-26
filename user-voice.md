@@ -10,3 +10,7 @@ Historical entries (pre-2026-04-14, when user-voice was shared across all repos)
 
 > whatever makes more sense for now
 
+## Session 9 — 2026-04-25
+
+> as long as i can charge for using giti according to what the license says we're good. keep going
+

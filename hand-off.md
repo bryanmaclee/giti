@@ -89,3 +89,29 @@
 Skips cleanly when jj is absent (`describeIf` guard).
 
 **Suite:** 322 pass / 0 fail (316 → 322).
+
+### S9.6.3 — fetch-side `_private` auto-tracking (spec §12.5)
+
+When `giti sync --pull` runs against a private-scoped remote that already
+carries a `_private` bookmark, the local `_private` should pick it up
+automatically. Without this, `giti clone` + `link-private` + `sync --pull`
+left `_private` dangling at main, and the next private save would diverge
+from the remote.
+
+**Engine** (`src/engine/jj-cli.js`):
+- `trackRemoteBookmark(name, remoteName)` → `jj bookmark track <name>@<remote>`
+- `remoteBookmarkExists(name, remoteName)` → parses indented `  @<remote>:` lines from `jj bookmark list <name> --all-remotes` (matches jj 0.40 output verified locally)
+
+**Sync** (`src/commands/sync.js`):
+- After a successful pull from a private-scoped remote, if `_private@<remote>` exists, call `trackRemoteBookmark`. "already tracked" → silent (idempotent). Other errors → non-fatal note. Engines lacking the methods fall through unchanged (legacy compat).
+
+**Tests** (`tests/sync-pull.test.js`, +15): engine primitives (3+5), sync scenarios (7) — private+present, private+absent, public, already-tracked silent, other-error noted, default pull+push, legacy engine.
+
+**Suite:** 337 pass / 0 fail (322 → 337).
+
+### License note (FYI)
+
+User confirmed monetization intent: "as long as I can charge for using giti
+according to what the license says we're good." Currently no LICENSE file
+or `license` field in `package.json` — default copyright (all rights
+reserved) leaves all options open. License selection is a future decision.
