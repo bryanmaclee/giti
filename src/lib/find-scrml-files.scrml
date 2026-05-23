@@ -1,0 +1,55 @@
+// find-scrml-files.scrml — discover .scrml files under cwd.
+// S10 slice 18 dogfood. Port of findScrmlFiles from src/commands/land.js
+// using scrml:fs + recursion instead of Bun.Glob (Bun-specific, not in
+// scrml stdlib).
+//
+// Behavior matches the JS original:
+//   - Excludes docs/, node_modules/, dist/ at the top level
+//   - Returns repo-relative paths sorted for determinism
+//
+// New surface tested:
+//   - Function recursion (a scrml function calling itself)
+//   - scrml:fs.readdirSync + statSync.isDirectory() chain
+
+${
+    import { join } from "scrml:path"
+    import { readdirSync, statSync } from "./_scrml/fs.js"
+
+    const SKIP_DIRS = ["docs", "node_modules", "dist"]
+
+    function shouldSkipDir(relPath) {
+        for (const skip of SKIP_DIRS) {
+            if (relPath == skip) return true
+        }
+        return false
+    }
+
+    function walk(dir, relPath, files) {
+        const entries = readdirSync(dir)
+        for (const entry of entries) {
+            const full = join(dir, entry)
+            const rel = relPath == "" ? entry : relPath + "/" + entry
+            const stats = statSync(full)
+            // DF-11: scrml:fs.statSync returns booleans `isFile`/`isDirectory`
+            // as already-resolved properties, NOT methods like Node's fs.Stats.
+            // Also returns `not` on ENOENT — skip if no stat.
+            if (stats is not) continue
+            if (stats.isDirectory) {
+                // Skip excluded directories at any depth.
+                if (shouldSkipDir(rel)) continue
+                walk(full, rel, files)
+            } else if (entry.endsWith(".scrml")) {
+                files.push(rel)
+            }
+        }
+    }
+
+    export function findScrmlFiles(opts) {
+        const o = opts is some ? opts : {}
+        const myCwd = o.cwd is some ? o.cwd : "."
+        const files = []
+        walk(myCwd, "", files)
+        files.sort()
+        return files
+    }
+}

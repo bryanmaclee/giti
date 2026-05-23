@@ -161,9 +161,13 @@ For dogfood purposes, the warning is informational — port functions kept the J
 **NEW finding (language design, not a bug)**:
 - **DF-10** — `I-ASYNC-USER-SOURCE` info warning. Per §13.1, scrml user source SHALL NOT use the `async` keyword — the compiler auto-awaits statically-known `Promise<T>` callees per §13.2.1. The `async` modifier is reserved for stdlib (`scrml:*` namespace). User code is expected to read "flat and synchronous." For Promise<T> boundary wrapping at JS-host edges (untyped callees like `engine.setBookmark`), the spec idiom is `safeCallAsync` from `scrml:host` + `!{ ... }` failable pattern matching. Confirmed via experiment that auto-await ONLY fires when the compiler can statically prove the callee returns Promise<T> — for arbitrary JS-host objects with no scrml type info (giti's `engine`), the compiler doesn't insert awaits, so removing `async/await` from the source breaks the runtime. Kept explicit `async`/`await` in this port; accepted the info warning. Future port could refactor to the values-not-exceptions idiom (`safeCallAsync` + `!{ }`).
 
-**Dogfood scoreboard end S10 slice 17**:
-- 13 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes, scope-manifest, save-routing-async
-- ~745 LOC of scrml shipping
+**Slice 18** — `findScrmlFiles` → `src/lib/find-scrml-files.scrml`. Replaced Bun.Glob (Bun-specific, not in scrml stdlib) with `scrml:fs.readdirSync + statSync` recursion. Function returns sync (the JS API was async because of Bun.Glob's async iterator) — JS callers using `await` keep working since `await` on a non-Promise returns the value.
+
+**NEW finding — DF-11**: `scrml:fs.statSync(path)` returns `{ isFile, isDirectory, size, mtime } | not` where `isFile` and `isDirectory` are **booleans, not method calls** — a values-not-imperative API divergence from Node's `fs.Stats`. Also returns `not` (null) on ENOENT, so callers should `is not` guard before dereferencing. The scrml shim docs this in `_scrml/fs.js`. Discoverability issue, not a bug.
+
+**Dogfood scoreboard end S10 slice 18**:
+- 14 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes, scope-manifest, save-routing-async, find-scrml-files
+- ~795 LOC of scrml shipping
 - 5 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution), GITI-018 (multi-stdlib import)
 - All Dogfood-Friction items DF-1 through DF-7 still catalogued; DF-6 downgraded (scrml:path stdlib)
 - 371 pass / 0 fail throughout

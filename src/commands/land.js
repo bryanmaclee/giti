@@ -21,29 +21,11 @@ import { loadPrivateManifest, partitionByScope } from "../private/scope.js";
 import { resolveCompilerPath } from "../lib/resolve-compiler.js";
 export { resolveCompilerPath };
 
-/**
- * Find .scrml files under cwd using Bun.Glob.
- *
- * Excludes:
- *   - `docs/**`         spec illustrations and other prose-y .scrml that
- *                       isn't meant to compile (e.g. docs/spec-types/*.scrml
- *                       use future state-machine syntax not yet supported).
- *   - `node_modules/**` package source we don't own.
- *   - `dist/**`         compiled output (won't have .scrml but cheap to skip).
- *
- * Returns an array of repo-relative paths (sorted for determinism).
- */
-export async function findScrmlFiles({ cwd = process.cwd(), glob = new Bun.Glob("**/*.scrml") } = {}) {
-  const files = [];
-  for await (const f of glob.scan({ cwd, onlyFiles: true })) {
-    if (f.startsWith("docs/")) continue;
-    if (f.startsWith("node_modules/")) continue;
-    if (f.startsWith("dist/")) continue;
-    files.push(f);
-  }
-  files.sort();
-  return files;
-}
+// findScrmlFiles authored in scrml at ../lib/find-scrml-files.scrml
+// (S10 slice 18). Uses scrml:fs.readdirSync + statSync recursion
+// instead of Bun.Glob (Bun-specific, not in scrml stdlib).
+import { findScrmlFiles } from "../lib/find-scrml-files.js";
+export { findScrmlFiles };
 
 /**
  * Injectable runners for compiler and tests — allows test mocking.
