@@ -1,0 +1,24 @@
+// result.scrml — tiny ok/err discriminated-result builders + the
+// parseTestSummary parser. S10 slice 21 dogfood.
+//
+// The Result tuple `{ ok: boolean, data | error }` is giti's canonical
+// return shape across the engine, server, and commands. Scrml's spec
+// idiom is `!{ }` failable functions returning value-typed errors —
+// for now, we keep the JS-style tuple so this layer is interop-friendly.
+
+${
+    export function ok(data) {
+        return { ok: true, data }
+    }
+
+    export function err(error) {
+        return { ok: false, error }
+    }
+
+    // parseTestSummary — extract the "N pass" count from `bun test` output.
+    // Returns the count as a string, or "?" if not parseable.
+    export function parseTestSummary(combined) {
+        const m = combined.match(/(\d+) pass/)
+        return m is some ? m[1] : "?"
+    }
+}

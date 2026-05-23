@@ -18,8 +18,9 @@
 import { EngineInterface } from "./interface.js";
 import { friendlyError } from "../lib/friendly-error.js";
 
-function ok(data) { return { ok: true, data }; }
-function err(error) { return { ok: false, error }; }
+// ok/err Result-tuple builders authored in scrml at ../lib/result.scrml
+// (S10 slice 21 dogfood).
+import { ok, err } from "../lib/result.js";
 
 // friendlyError now authored in scrml at ../lib/friendly-error.scrml
 // (S10 slice 12 dogfood). Re-imported at the top of this file.

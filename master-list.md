@@ -169,9 +169,11 @@ For dogfood purposes, the warning is informational — port functions kept the J
 
 **Slice 20** — `classifyFromStatus` → `src/lib/classify-from-status.scrml`. First scrml module **composing from multiple OTHER scrml modules** (`parse-status` + `save-routing-pure` + `scope-manifest`). 11 LOC of pure scrml. Tests spread `{ ...obj, key: val }` in return position. No new holes. `src/private/save-routing.js` is now down to **20 lines of pure re-export shims** (was 240 LOC of JS).
 
-**Dogfood scoreboard end S10 slice 20**:
-- 16 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes, scope-manifest, save-routing-async, find-scrml-files, server-helpers, classify-from-status
-- ~845 LOC of scrml shipping
+**Slice 21** — `ok`, `err`, `parseTestSummary` → `src/lib/result.scrml`. The Result-tuple builders are tiny (2 LOC each) but used throughout the engine layer (~30+ callsites). `parseTestSummary` extracts the "N pass" count from `bun test` output. Wired into `jj-cli.js` (ok/err) and `land.js` (parseTestSummary). No new holes.
+
+**Dogfood scoreboard end S10 slice 21**:
+- 17 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes, scope-manifest, save-routing-async, find-scrml-files, server-helpers, classify-from-status, result
+- ~865 LOC of scrml shipping
 - 5 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution), GITI-018 (multi-stdlib import)
 - All Dogfood-Friction items DF-1 through DF-7 still catalogued; DF-6 downgraded (scrml:path stdlib)
 - 371 pass / 0 fail throughout

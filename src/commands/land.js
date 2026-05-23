@@ -27,6 +27,9 @@ export { resolveCompilerPath };
 import { findScrmlFiles } from "../lib/find-scrml-files.js";
 export { findScrmlFiles };
 
+// parseTestSummary authored in scrml at ../lib/result.scrml (slice 21).
+import { parseTestSummary } from "../lib/result.js";
+
 /**
  * Injectable runners for compiler and tests — allows test mocking.
  * Call land.setRunners({ runCompiler, runTests }) to override.
@@ -211,8 +214,8 @@ async function runTestsDefault() {
     if (exitCode !== 0) {
       return { ok: false, error: (stderr.trim() || stdout.trim()) };
     }
-    const countMatch = combined.match(/(\d+) pass/);
-    const count = countMatch ? countMatch[1] : "?";
+    // parseTestSummary authored in scrml at ../lib/result.scrml (slice 21).
+    const count = parseTestSummary(combined);
     return { ok: true, data: { count } };
   } catch (e) {
     return { ok: false, error: e.message };
