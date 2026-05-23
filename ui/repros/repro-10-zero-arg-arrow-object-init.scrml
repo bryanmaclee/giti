@@ -1,0 +1,42 @@
+// Repro 10 — GITI-014: zero-arg arrow returning an object literal loses
+// its wrapping parens in client-side emit of reactive-state defaults.
+//
+// Source: `@var = { ... }` declares a reactive variable with an object
+// initializer (spec §6.6).
+//
+// The compiler emits a paired init:
+//   _scrml_reactive_set("var", _scrml_deep_reactive({...}));   // OK
+//   _scrml_init_set("var", () => {...});                       // BROKEN — needs ({...})
+//
+// The 2nd line is a zero-arg arrow whose body is meant to be the object
+// literal. Without wrapping parens, JS parses `{ error: null, ... }` as
+// a block statement with labelled statements, not as an expression
+// returning an object.
+//
+// This is the same structural defect that GITI-013 closed for the
+// single-arg case `f => ({...})` (commit `0af4eaf`). The zero-arg path
+// `() => ({...})` wasn't covered.
+//
+// To reproduce:
+//   bun run compiler/src/cli.js compile ui/repros/repro-10-zero-arg-arrow-object-init.scrml -o /tmp/r10
+//   grep "_scrml_init_set" /tmp/r10/repro-10-zero-arg-arrow-object-init.client.js
+//     -> shows `_scrml_init_set("probe", () => {error: not, count: 0});`
+//   bun --check /tmp/r10/repro-10-zero-arg-arrow-object-init.client.js
+//     -> SyntaxError: Expected ";" but found ":"
+//
+// Runtime impact: every page that declares a reactive variable with an
+// object initializer fails to parse its client bundle. All five giti UI
+// pages currently regress — no reactive state ever initializes, awaited
+// fetches never wire to the DOM, pages render as empty defaults forever.
+
+<program>
+
+${
+  @probe = { error: not, count: 0 }
+}
+
+<div>
+  <p>zero-arg arrow probe — error=${@probe.error}, count=${@probe.count}</p>
+</div>
+
+</program>

@@ -130,6 +130,9 @@ Batch 2 — sent 2026-04-20 16:14 → `scrmlTS/handOffs/incoming/2026-04-20-1614
 **Compile drift (closed S10):**
 - [x][x] **DRIFT-1** — CLOSED S10 (scrmlTS `cbfefef`). All 5 UI pages had `null` literals (carryover from before scrml tightened §42.7 to require `not` for absence). Mechanical sed substitution `: null` → `: not` across `status`, `history`, `bookmarks`, `diff`, `land`. All 5 now compile clean; tests still 324/0.
 
+**Open (UI-blocking, filed S10):**
+- [ ][ ] **GITI-014** — Residual of GITI-013: the **zero-arg** arrow shape `() => ({...})` returning an object literal still loses parens in client-emit. Compiles fine, parses fails at runtime (`Uncaught SyntaxError: Unexpected token ':'`). Affects every reactive-state declaration with an object initializer (`@var = { ... }`). All 5 giti UI pages currently regress — pages render empty defaults; awaited fetches never wire to DOM because reactive init throws. Repro: `ui/repros/repro-10-zero-arg-arrow-object-init.scrml`. Filed to scrmlTS 2026-05-23 (`giti-to-scrmlTS-giti-014-zero-arg-arrow-object-init.md`).
+
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.
 

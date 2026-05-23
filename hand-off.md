@@ -28,6 +28,7 @@
 | GITI-011 | CLOSED upstream (S8) | CSS at-rules; workaround removed |
 | GITI-012 | **CLOSED (S10, verified against scrmlTS `cbfefef`)** | repro-08 compiles clean; `arr.length == 0` lowered to `===` (primitive shortcut); `bun --check` exits 0. Workarounds removed from `ui/land.scrml`. |
 | GITI-013 | **CLOSED (S10, verified against scrmlTS `cbfefef`)** | repro-09 compiles clean; `items.map(f => ({...}))` emits `(f) => ({...})` with parens preserved; `bun --check` exits 0. Workaround (explicit for-loop + push) replaced with natural `.map()` form in `ui/land.scrml`. |
+| GITI-014 | **OPEN — filed to scrmlTS S10** | Residual of GITI-013: zero-arg arrow `() => ({...})` returning object literal loses parens in **client-emit**. Compiler emits `_scrml_init_set("var", () => {obj})` instead of `() => ({obj})`. Affects every `@var = { ... }` reactive declaration. All 5 UI pages currently regress to empty defaults — `Uncaught SyntaxError: Unexpected token ':'` on every `.client.js`. Repro: `ui/repros/repro-10-zero-arg-arrow-object-init.scrml`. No author-level workaround. |
 
 ## Inbox
 
@@ -99,4 +100,11 @@ All 5 UI pages (`status`, `history`, `bookmarks`, `diff`, `land`) currently FAIL
 ### Slice 2 — DRIFT-1 sweep
 
 Mechanical sed substitution `: null` → `: not` across all 5 UI files (18 sites). All 5 now compile clean against scrmlTS `cbfefef`. JS tests unchanged: 324 pass / 15 skip / 0 fail. Only residual `null` is in a JSDoc comment describing a JS-side URL-param type (`string | null`) — left as-is since it documents the JS-side `URLSearchParams.get()` return value, not a scrml token.
+
+### Slice 3 — end-to-end serve verification + GITI-014 discovery
+
+1. Installed jj 0.41.0 via homebrew (giti's wrapper built against 0.40 — minor bump). `jj git init --colocate` on the giti repo.
+2. `giti serve` boots clean across 14 .scrml files. Probed all 5 page server-fns via curl with CSRF flow — all return well-formed JSON with real jj data (history shows commits, bookmarks shows main + @git + @origin, etc.).
+3. **Browser verification REGRESSED**: all 5 pages show empty defaults. Console error: `Uncaught SyntaxError: Unexpected token ':'` on every `.client.js`. Root cause: residual of GITI-013 — zero-arg arrow `() => ({...})` for reactive-state init lambdas loses parens in client-emit. Filed as GITI-014 with minimal repro `ui/repros/repro-10-zero-arg-arrow-object-init.scrml`. Sent to scrmlTS as `2026-05-23-0600-giti-to-scrmlTS-giti-014-zero-arg-arrow-object-init.md`.
+4. **State while waiting on fix**: server-side is fully functional (curl confirms real data); only the client bundle parse fails. Pages will hang on empty defaults until GITI-014 lands upstream.
 
