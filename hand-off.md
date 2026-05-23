@@ -108,3 +108,18 @@ Mechanical sed substitution `: null` → `: not` across all 5 UI files (18 sites
 3. **Browser verification REGRESSED**: all 5 pages show empty defaults. Console error: `Uncaught SyntaxError: Unexpected token ':'` on every `.client.js`. Root cause: residual of GITI-013 — zero-arg arrow `() => ({...})` for reactive-state init lambdas loses parens in client-emit. Filed as GITI-014 with minimal repro `ui/repros/repro-10-zero-arg-arrow-object-init.scrml`. Sent to scrmlTS as `2026-05-23-0600-giti-to-scrmlTS-giti-014-zero-arg-arrow-object-init.md`.
 4. **State while waiting on fix**: server-side is fully functional (curl confirms real data); only the client bundle parse fails. Pages will hang on empty defaults until GITI-014 lands upstream.
 
+### Slice 4 — GAP-6 `giti check` shipped
+
+New CLI command per spec §9.6, dry-run validation for `giti land`. User direction: continue non-UI work while waiting on GITI-014; we're dogfooding scrml + building the ecosystem.
+
+- `src/commands/check.js` (new, 90 LOC). Reuses `runCompiler` + `runTests` from `land.js` (no pipeline duplication) and `parseStatus` for `--diff`.
+- Flags: default = compiler + tests; `--quick` = compiler only; `--diff` = list .scrml files changed in WC (no compile/test).
+- Exit codes per spec normative #4: 0 on pass, 1 on failure.
+- Injectable runners (`check.setRunners({ runCompiler, runTests, getEngine })`) for testability — same pattern as `land`.
+- Wired into `src/cli.js` (15th command); help text updated.
+- Tests: `tests/check.test.js` — 13 tests covering 4 happy paths, 4 failure paths, --quick path-isolation, --diff filtering + kind labels.
+- Smoke-tested end-to-end:
+  - `giti check --diff` → "No .scrml files changed." (matches WC state)
+  - `giti check --quick` → "Compiler: pass (15 files) — Check passed (compiler only…)" against scrmlTS `cbfefef`. Exit 0.
+- **Test count**: 350 pass / 0 fail / 0 skip (up from 324 / 15 skip — +13 new check tests + jj-integration tests now running since jj is installed).
+

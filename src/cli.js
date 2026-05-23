@@ -23,6 +23,7 @@ import { serve } from "./commands/serve.js";
 import { private_ } from "./commands/private.js";
 import { remote } from "./commands/remote.js";
 import { linkPrivate } from "./commands/link-private.js";
+import { check } from "./commands/check.js";
 
 const COMMANDS = {
   save,
@@ -39,6 +40,7 @@ const COMMANDS = {
   private: private_,
   remote,
   "link-private": linkPrivate,
+  check,
 };
 
 const HELP = `giti — version control for humans
@@ -50,6 +52,8 @@ Commands:
   giti undo               Undo the last operation
   giti history            Show what happened
   giti land               Ship your work (compiler + tests must pass)
+  giti check [--quick|--diff]
+                          Dry-run validation (compiler + tests, no landing)
   giti status             Show what's changed
   giti describe <h> msg   Update a save's description
   giti sync               Push and pull remote changes
