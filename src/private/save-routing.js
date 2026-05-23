@@ -15,7 +15,7 @@
  */
 
 import { parseStatus } from "../commands/status.js";
-import { loadPrivateManifest, partitionByScope } from "./scope.js";
+import { loadPrivateManifest } from "./scope.js";
 
 // Bookmark name constants authored in scrml at ../lib/bookmarks.scrml
 // (S10 slice 11). Re-exported here for back-compat with existing
@@ -23,23 +23,10 @@ import { loadPrivateManifest, partitionByScope } from "./scope.js";
 import { PRIVATE_BOOKMARK, PUBLIC_BOOKMARK } from "../lib/bookmarks.js";
 export { PRIVATE_BOOKMARK, PUBLIC_BOOKMARK };
 
-/**
- * Classify a working-copy status into a routing decision.
- *
- * @param {Array<{kind, path}>} changed
- * @param {string[]} globs
- * @returns {{ scope: 'public'|'private'|'mixed'|'empty',
- *             publicFiles: Array, privateFiles: Array }}
- */
-export function classifyChanges(changed, globs) {
-  if (!changed || changed.length === 0) {
-    return { scope: "empty", publicFiles: [], privateFiles: [] };
-  }
-  const { public: publicFiles, private: privateFiles } = partitionByScope(changed, globs);
-  if (privateFiles.length === 0) return { scope: "public", publicFiles, privateFiles };
-  if (publicFiles.length === 0) return { scope: "private", publicFiles, privateFiles };
-  return { scope: "mixed", publicFiles, privateFiles };
-}
+// classifyChanges authored in scrml at ../lib/save-routing-pure.scrml
+// (S10 slice 13 dogfood).
+import { classifyChanges } from "../lib/save-routing-pure.js";
+export { classifyChanges };
 
 /**
  * Same as classifyChanges but reads from raw jj status output + repo root.
@@ -53,17 +40,9 @@ export function classifyFromStatus(rawStatus, repoRoot) {
   };
 }
 
-/**
- * Plan: given a classification, which bookmarks should advance to @-
- * (the just-saved change) after `engine.save` returns?
- *
- * Returns an array of bookmark names. Empty if none should move.
- */
-export function planBookmarkMoves(scope) {
-  if (scope === "public") return [PUBLIC_BOOKMARK, PRIVATE_BOOKMARK];
-  if (scope === "private") return [PRIVATE_BOOKMARK];
-  return []; // "mixed" and "empty" → no moves
-}
+// planBookmarkMoves authored in scrml at ../lib/save-routing-pure.scrml.
+import { planBookmarkMoves } from "../lib/save-routing-pure.js";
+export { planBookmarkMoves };
 
 /**
  * Apply bookmark moves via the engine. Non-fatal: a failure to move one
@@ -148,23 +127,6 @@ export async function autoSplitSave(engine, plan) {
   return { ok: true, bookmarkMoves };
 }
 
-/**
- * Derive a pair of (publicMsg, privateMsg) commit messages from a single
- * user-supplied message plus per-bucket auto-generated descriptions.
- *
- * If the user provided a message, tag each scope: "<msg> [public]" /
- * "<msg> [private]". Otherwise, callers should use generateMessage() to
- * auto-describe each bucket.
- */
-export function splitMessages(userMessage, autoPublic, autoPrivate) {
-  if (userMessage && userMessage.trim()) {
-    return {
-      publicMessage: `${userMessage.trim()} [public]`,
-      privateMessage: `${userMessage.trim()} [private]`,
-    };
-  }
-  return {
-    publicMessage: autoPublic,
-    privateMessage: autoPrivate,
-  };
-}
+// splitMessages authored in scrml at ../lib/save-routing-pure.scrml.
+import { splitMessages } from "../lib/save-routing-pure.js";
+export { splitMessages };

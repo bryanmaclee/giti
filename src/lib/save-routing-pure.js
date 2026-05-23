@@ -1,0 +1,46 @@
+// Generated library module — scrml compiler output
+// ES module: import { name } from './this-file.js'
+
+// DF-8 workaround: cross-scrml `.scrml` imports aren't rewritten to
+    // `.js` in library-mode emit. Use `.js` directly.
+    import { partitionByScope } from "./scope-match.js"
+    import { PUBLIC_BOOKMARK, PRIVATE_BOOKMARK } from "./bookmarks.js"
+
+    // classifyChanges — split a status into a routing decision.
+    // Returns { scope, publicFiles, privateFiles }.
+    export function classifyChanges(changed, globs) {
+        if (!changed || changed.length == 0) {
+            return { scope: "empty", publicFiles: [], privateFiles: [] }
+        }
+        const { public: publicFiles, private: privateFiles } = partitionByScope(changed, globs)
+        if (privateFiles.length == 0) {
+            return { scope: "public", publicFiles, privateFiles }
+        }
+        if (publicFiles.length == 0) {
+            return { scope: "private", publicFiles, privateFiles }
+        }
+        return { scope: "mixed", publicFiles, privateFiles }
+    }
+
+    // planBookmarkMoves — given a classification scope, return which
+    // bookmarks should advance.
+    export function planBookmarkMoves(scope) {
+        if (scope == "public") return [PUBLIC_BOOKMARK, PRIVATE_BOOKMARK]
+        if (scope == "private") return [PRIVATE_BOOKMARK]
+        return []
+    }
+
+    // splitMessages — derive (publicMsg, privateMsg) from a single user
+    // message plus per-bucket auto-generated descriptions.
+    export function splitMessages(userMessage, autoPublic, autoPrivate) {
+        if (userMessage && userMessage.trim()) {
+            return {
+                publicMessage: `${userMessage.trim()} [public]`,
+                privateMessage: `${userMessage.trim()} [private]`,
+            }
+        }
+        return {
+            publicMessage: autoPublic,
+            privateMessage: autoPrivate,
+        }
+    }

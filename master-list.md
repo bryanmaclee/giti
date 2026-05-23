@@ -133,10 +133,14 @@ User direction: "scrml is not just for ui … if it can be written in js, it sho
 - **GITI-016 (open)**: variable name `match` triggers `E-SCOPE-001: Undeclared identifier is` when combined with surrounding context (still resists single-construct minimization; reliable repro at `ui/repros/repro-12-match-identifier-parse-confusion.scrml`). Workaround: rename `match` → `m`. Hypothesis: `match` is also a scrml markup keyword (`<match>` for if-else lowering) and the parser gets confused about which token to expect.
 - **GITI-017 (filed)**: SILENT CORRUPTION class — `not` keyword substitution is applied INSIDE regex literals. `/not a jj repo/i` → `/!a jj repo/i` (boolean-negation lowering). `/(not) ...` → `/(null) .../` (absence-sentinel lowering). Compiles clean, parses clean, runs the wrong regex. In friendlyError, 3 patterns were corrupted; only 1 was caught by tests. Repro at `ui/repros/repro-13-not-keyword-replaced-inside-regex.scrml`. Workaround: split the token via a one-char class — `/n[o]t a jj repo/i` survives.
 
-**Dogfood scoreboard end S10 slice 12**:
-- 8 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error
-- ~365 LOC of scrml shipping
-- 3 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution)
+**Slice 13** — `classifyChanges`, `planBookmarkMoves`, `splitMessages` → `src/lib/save-routing-pure.scrml`. New surface verified: object destructure with renaming `{ public: pub, private: priv }`, spread in object literal `{ ...obj, x }` (tested separately). NEW HOLE:
+
+- **DF-8: cross-scrml imports not rewritten in library mode.** `import { x } from "./foo.scrml"` is emitted literally to the .js output. Bun tries to load the `.scrml` file as JS and fails with "Export named 'x' not found". Workaround: use `.js` extension directly in scrml source — `import { x } from "./foo.js"`. Compiles AND runs. scrml's own internal import-graph analysis doesn't track the cross-file dep this way, but for library-mode emit where each file compiles independently and the .js exists at import-time, this is fine. Discoverability concern: scrml's own scrmlTS native parser uses `.scrml` imports (`./cursor.scrml`) — those probably go through scrmlTS's own build pipeline that does the rewrite, not the public compile path.
+
+**Dogfood scoreboard end S10 slice 13**:
+- 9 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure
+- ~410 LOC of scrml shipping
+- 4 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution)
 - All Dogfood-Friction items DF-1 through DF-7 still catalogued; DF-6 downgraded (scrml:path stdlib)
 - 371 pass / 0 fail throughout
 - [x][x] **Private scopes slice 1** (spec §12) — `.giti/private` manifest I/O, glob matching, `giti private {add,remove,list}` commands, `land` refusal on private diff, 40 tests
