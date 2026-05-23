@@ -1,0 +1,24 @@
+// classify-from-status.scrml — combine parseStatus + classifyChanges
+// with a manifest load. S10 slice 20 dogfood.
+//
+// All three dependencies are now scrml modules — this is the first
+// scrml file in giti that composes from multiple OTHER scrml modules.
+//
+// Tests: spread `{ ...obj, key: val }` in object literal — confirmed
+// works (verified in /tmp/spread-test earlier).
+
+${
+    import { parseStatus } from "./parse-status.js"
+    import { classifyChanges } from "./save-routing-pure.js"
+    import { loadPrivateManifest } from "./scope-manifest.js"
+
+    // classifyFromStatus — raw jj status output + repo root → routing decision.
+    export function classifyFromStatus(rawStatus, repoRoot) {
+        const parsed = parseStatus(rawStatus is some ? rawStatus : "")
+        const globs = loadPrivateManifest(repoRoot)
+        return {
+            ...classifyChanges(parsed.changed, globs),
+            parsed,
+        }
+    }
+}
