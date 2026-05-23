@@ -10,39 +10,15 @@
  */
 
 import { getEngine } from "../engine/index.js";
+// parseDuration / parseTimestamp authored in scrml at ../lib/duration.scrml
+// (S10 dogfood experiment). Library-mode compile output is the .js
+// sibling; regen with:
+//   bun run ../scrmlTS/compiler/src/cli.js compile src/lib/duration.scrml \
+//     -o src/lib --mode library
+import { parseDuration, parseTimestamp } from "../lib/duration.js";
+export { parseDuration, parseTimestamp };
 
 const SINCE_FETCH_CAP = 1000;
-
-export function parseDuration(s) {
-  if (typeof s !== "string") {
-    return { ok: false, error: "duration is required" };
-  }
-  const m = s.match(/^(\d+)(m|h|d)$/);
-  if (!m) {
-    return {
-      ok: false,
-      error: `invalid duration '${s}'. Use forms like 30m, 2h, 1d, 7d.`,
-    };
-  }
-  const n = parseInt(m[1], 10);
-  if (n === 0) {
-    return { ok: false, error: "duration must be positive (e.g. 30m, 2h, 1d)" };
-  }
-  const unitMs = { m: 60_000, h: 3_600_000, d: 86_400_000 }[m[2]];
-  return { ok: true, ms: n * unitMs };
-}
-
-/**
- * Parse a "YYYY-MM-DD HH:MM" timestamp (as emitted by the jj engine
- * template using .local().format()) into epoch ms. Returns NaN on
- * unparseable input.
- */
-export function parseTimestamp(s) {
-  if (typeof s !== "string") return NaN;
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/);
-  if (!m) return NaN;
-  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
-}
 
 function extractSince(args) {
   const i = args.indexOf("--since");

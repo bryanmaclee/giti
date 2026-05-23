@@ -89,6 +89,27 @@
 - [ ][ ] **GAP-1–11 implementations** — content-loss detection, protected contexts, granular undo (remaining)
   - [x][x] **GAP-6 `giti check`** — Spec §9.6. CLI dry-run for landing. Default = compiler + tests. `--quick` = compiler only. `--diff` = list .scrml files changed in working copy (no compile/test). Exit 0/1. `src/commands/check.js`. 13 tests pass.
   - [x][x] **GAP-8 `giti history --since`** — Spec §2.5 normative #6. Time-window filter. Durations: `30m`/`2h`/`1d`/`7d` (positive integer + `m|h|d`). Filters client-side after engine fetch (cap 1000). `parseDuration` + `parseTimestamp` exported helpers. 21 tests pass (parseDuration / parseTimestamp / CLI integration).
+
+### G. Dogfood findings — scrml-as-logic (S10)
+
+User direction: "scrml is not just for ui … if it can be written in js, it should be writeable in scrml. we need to dogfood the whole language."
+
+**First experiment (S10 slice 6):** Ported `parseDuration` + `parseTimestamp` from `src/commands/history.js` to `src/lib/duration.scrml`. Compiled with `scrml compile … --mode library`. Re-imported into history.js via `import { parseDuration, parseTimestamp } from "../lib/duration.js"`. All 21 history tests pass against the scrml-authored implementation.
+
+**What worked unmodified:** `typeof`, regex literals, `s.match(/.../) `, `parseInt`, object index `{...}[key]`, unary `+` coerce, `new Date(...)`, `.getTime()`, string `+` concat, `is not` absence check (lowered correctly to `(x === null || x === undefined)`), early returns, comments.
+
+**Holes / friction surfaced (not bugs):**
+
+- **DF-1: `--mode library` is opt-in.** Default `browser` mode mangles function names (`_scrml_makeCursor_1`) and emits no `export`, so .scrml output is unimportable from existing JS. Library mode emits proper ESM with names preserved. Discoverability + ergonomics: a `// @scrml-mode library` directive (or a `<library>` marker) would let the compile-gate pick the right mode automatically.
+- **DF-2: Compile-gate uses browser mode.** `giti check` / `giti land` invoke `scrml compile <file>` with no mode flag → browser default for every file, including pure-logic files. So the gate validates the file COMPILES but produces output we don't use. We manually re-run with `--mode library` to get the import-target. Friction; fix is automation, not language work.
+- **DF-3: `${ }` indent overhead.** Canonical shape for pure-logic files puts everything inside a single `${ ... }` block, so all top-level code lives at 4-space indent. Compiles fine; cosmetic.
+- **DF-4: Re-export shim needed.** Existing JS tests import `parseDuration` from `history.js`. To keep tests untouched, history.js does `export { parseDuration, parseTimestamp }` re-export of the scrml-compiled module. Minor; an `export *` form would shrink it. Probably already supported — untested.
+- **DF-5: Numeric separators untested.** Original JS used `60_000` / `3_600_000`. I removed underscores in scrml (used `60000`). Unknown whether scrml accepts numeric separators in literals.
+
+**Not-bug behavioral note:**
+- In library mode, `==` is left as `==` in output (not lowered to `===` per GITI-012's primitive shortcut). Either library mode skips the lowering, or `parseInt(...)` return type couldn't be proven primitive. JS semantics of `==` for the values in play are identical to `===` here; no behavioral change.
+
+**Status:** First scrml-authored module shipped in giti's runtime path. Dogfood pipeline functional.
 - [x][x] **Private scopes slice 1** (spec §12) — `.giti/private` manifest I/O, glob matching, `giti private {add,remove,list}` commands, `land` refusal on private diff, 40 tests
 - [x][x] **Private scopes slice 2** — remote scope config (`.giti/remotes.json`), `giti remote {add,remove,set-scope,list}`, `giti link-private`, `giti sync --remote NAME`, push refusal on public remote when working copy has private changes, private→public scope flip requires `--unsafe`. 48 tests.
 - [x][x] **Private scopes slice 3** — engine primitives (`setBookmark` with create-fallback, `bookmarkExists`, `changedFilesInRange`); save-time scope classification + bookmark routing (`main` + `_private`); mixed-commit refusal with clear error; commit-range-aware push safety. 33 new tests (22 routing + 11 engine).

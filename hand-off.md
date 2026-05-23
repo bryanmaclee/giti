@@ -135,3 +135,19 @@ Spec §2.5 normative #6 — time-window filter for history.
 - Smoke-test against the live giti repo: `--since 1h` drops the S9 hand-off entry from 2026-04-26, keeps all 6 of today's S10 saves.
 - **Test count**: 371 pass / 0 fail (up from 350; +21 history tests).
 
+### Slice 6 — dogfood scrml-as-logic (FIRST scrml authored in giti's runtime path)
+
+User direction: "scrml is not just for ui. take a good look at the recent native parser. we can do logic. we need to know where the holes are. if it can be written in js, it should be writeable in scrml."
+
+Pivot from CLI-feature JS into scrml-as-logic dogfood. Took the smallest viable target — `parseDuration` from slice 5 — and authored it in scrml.
+
+- **`src/lib/duration.scrml` (new, ~35 LOC)** — `parseDuration` + `parseTimestamp` in pure scrml, single `${ }` logic block, no markup, no UI. Patterned after scrmlTS's `compiler/native-parser/cursor.scrml`.
+- **Compile**: `scrml compile src/lib/duration.scrml -o src/lib --mode library` produces `src/lib/duration.js` as standard ESM with `export function parseDuration(...)` / `export function parseTimestamp(...)` — names preserved.
+- **`src/commands/history.js`**: dropped the inline JS implementations; now `import { parseDuration, parseTimestamp } from "../lib/duration.js"` + re-export.
+- **Tests**: all 21 history tests pass against the scrml-authored module. No code changes in test file.
+- **giti check --quick**: now compiles 16 files (was 15), all pass.
+
+**Holes catalogued under master-list §G "Dogfood findings"**: DF-1 (library-mode opt-in friction), DF-2 (compile-gate uses browser mode), DF-3 (`${}` indent overhead — cosmetic), DF-4 (re-export shim), DF-5 (numeric separators untested). No compiler bugs — every scrml feature exercised worked.
+
+**Status**: dogfood pipeline functional. First scrml module shipping in giti's runtime path. Patterns ready to reapply: any pure-logic JS helper (e.g., `extractSince`, `findScrmlFiles`, `resolveCompilerPath`, `parseStatus`) is a candidate for the same treatment.
+
