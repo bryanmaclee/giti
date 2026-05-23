@@ -115,12 +115,16 @@ User direction: "scrml is not just for ui … if it can be written in js, it sho
 
 **Third port (S10 slice 8):** glob-matching helpers (`normalizeRelPath`, `matchGlob`, `isPrivatePath`, `partitionByScope`, internal `globToRegExp`) → `src/lib/scope-match.scrml`. ~100 LOC. Exercises while-loop with hand-managed `i = i + 1`, string concat with `+=`-style accumulator, dynamic `new RegExp(...)`, multi-branch `if`/`else if`/`else`, `String.indexOf(needle, from)` two-arg form. Re-export shim in `src/private/scope.js` retains 7 callsites.
 
-**Two NEW holes found in slice 8:**
+**Holes found in slice 8 — DOWNGRADED in slice 9:**
 
-- **DF-6: bare npm-style imports rejected.** `import { sep } from "node:path"` → `E-IMPORT-005`. scrml requires `scrml:` (stdlib), `./...scrml` (relative), or `vendor:...` (shim'd). Friction for any port that needs Node stdlib.
-- **DF-7: vendor: requires a physical shim file.** `import { sep } from "vendor:node:path"` → `E-IMPORT-006: no file found at src/vendor/node:path.scrml`. The "vendor" prefix is not auto-resolution; the adopter must hand-author a vendor shim per package. For dogfooding pre-existing JS, this is a per-stdlib-module setup tax.
+- **DF-6 (downgraded → discoverability)**: bare `node:path` rejected with `E-IMPORT-005`. scrml requires `scrml:` (stdlib), `./...scrml` (relative), or `vendor:...` (shim'd). BUT scrml's stdlib is broad — `scrml:path` exists and exposes `sep`, `join`, `resolve`, `dirname`, `basename`, `extname`, `relative`, `normalize`. Original "hole" was just me not surveying stdlib. `scrml:path` import in slice 8's `scope-match.scrml` compiles cleanly and produces a `_scrml/path.js` sibling at runtime. Catalogued scrml stdlib coverage: `fs`, `path`, `regex`, `crypto`, `http`, `time`, `host`, `process`, `format`, `data`, `auth`, `oauth`, `cron`, `redis`, `router`, `store`, `test`, `compiler`.
+- **DF-7 (still real but scoped)**: `vendor:foo` requires a hand-authored `src/vendor/foo.scrml` shim. Per-package setup tax — only matters for npm packages NOT in scrml stdlib.
 
-**Sidestep used in slice 8**: skipped `sep` entirely (jj paths are always forward-slash) — `p.replace(/\\/g, "/")` is portable enough.
+**Fourth port (S10 slice 9):** `extractSince` + `parseSyncArgs` → `src/lib/cli-args.scrml`.
+
+**First REAL compiler bug found in dogfood — GITI-015**: `x is some ? a : b` in TERNARY position fails to lower when LHS is a computed member access (`args[i + 1] is some ? ... : ...`). The same `is some` in if-predicate position (even with computed access) lowers correctly. Author workaround: hoist the computed access into a `const next = args[i + 1]` local first. Filed to scrmlTS as `2026-05-23-0703-giti-to-scrmlTS-giti-015-is-some-ternary-with-computed-lhs.md` with sidecar repro `ui/repros/repro-11-is-some-ternary.scrml`.
+
+**Slice 9 also incidentally surfaced a JS-module-semantics gotcha** (not a scrml bug): `export { foo } from "./bar.js"` is re-export ONLY — it doesn't bind the name locally. If the module also *uses* the imported name, you need `import { foo } from "..."; export { foo };`. Caught fast (test red within seconds); fixed in the same slice.
 - [x][x] **Private scopes slice 1** (spec §12) — `.giti/private` manifest I/O, glob matching, `giti private {add,remove,list}` commands, `land` refusal on private diff, 40 tests
 - [x][x] **Private scopes slice 2** — remote scope config (`.giti/remotes.json`), `giti remote {add,remove,set-scope,list}`, `giti link-private`, `giti sync --remote NAME`, push refusal on public remote when working copy has private changes, private→public scope flip requires `--unsafe`. 48 tests.
 - [x][x] **Private scopes slice 3** — engine primitives (`setBookmark` with create-fallback, `bookmarkExists`, `changedFilesInRange`); save-time scope classification + bookmark routing (`main` + `_private`); mixed-commit refusal with clear error; commit-range-aware push safety. 33 new tests (22 routing + 11 engine).

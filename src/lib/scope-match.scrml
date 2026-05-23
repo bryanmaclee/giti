@@ -11,18 +11,14 @@
 //   - `.indexOf(needle, fromIndex)` two-arg form
 
 ${
+    import { sep } from "scrml:path"
+
     // normalizeRelPath — repo-relative path to forward-slash form for
     // glob matching. Strips leading "./" and "/" segments.
-    //
-    // DF-6/DF-7: the original JS imported `sep` from node:path. scrml
-    // requires either a `vendor:` shim file or a `scrml:`-stdlib import,
-    // so we side-step here by normalizing any backslash to forward-slash
-    // directly. (jj/giti paths are always forward-slash; the JS path
-    // was defensive against native-separator inputs that giti itself
-    // doesn't currently produce.)
     export function normalizeRelPath(p) {
         if (!p) return ""
-        let out = p.replace(/\\/g, "/")
+        const sepRegex = sep == "\\" ? new RegExp("\\\\", "g") : new RegExp(sep, "g")
+        let out = p.replace(sepRegex, "/")
         while (out.startsWith("./")) out = out.slice(2)
         while (out.startsWith("/")) out = out.slice(1)
         return out

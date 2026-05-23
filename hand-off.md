@@ -179,3 +179,17 @@ Ported 5 functions from `src/private/scope.js` (the pure-logic core, excluding t
 
 **Dogfood scoreboard (S10)**: 3 scrml-authored modules in giti's runtime, ~185 LOC of scrml. 7 new holes catalogued in master-list §G. Zero compiler bugs (everything that compiles, runs correctly).
 
+### Slice 9 — fourth dogfood port: extractSince + parseSyncArgs; GITI-015 discovered
+
+User question on DF-6: "is the node package not covered by bun or scrml stdlib?" Answer: **scrml stdlib has it.** `scrml:path` exposes `sep`/`join`/`resolve`/`dirname`/`basename`/`extname`/`relative`/`normalize`. Original DF-6 hole downgraded to "discoverability friction" — author should have surveyed `scrmlTS/stdlib/` before reaching for `node:`.
+
+**Retrofitted slice 8**: scope-match.scrml now uses `import { sep } from "scrml:path"`. Compiles cleanly, generates `_scrml/path.js` sibling in `src/lib/_scrml/`. Cleaner than the sidestep.
+
+**New port (slice 9)**: `extractSince` (history.js, 7 LOC) + `parseSyncArgs` (sync.js, ~22 LOC) → `src/lib/cli-args.scrml`. Both wired back via import + export.
+
+**First REAL compiler bug from dogfooding — GITI-015**: `args[i + 1] is some ? args[i + 1] : not` (ternary + computed-member LHS) fails to lower. Same `is some` lowers fine with plain identifier LHS, or in if-predicate position even with computed access. Sidecar repro filed. Workaround: hoist computed access to a const local first.
+
+**JS module-semantics gotcha (not a scrml bug)**: `export { foo } from "./bar.js"` does NOT bind `foo` into the module scope, only re-exports. If the module also USES the imported name, need `import { foo } from "..."; export { foo };`. Caught fast (sync tests went red), fixed same slice.
+
+**Dogfood scoreboard updated (end S10 slice 9)**: 4 scrml-authored modules in giti's runtime (`duration`, `parse-status`, `scope-match`, `cli-args`). ~210 LOC of scrml. 8 catalogued items: DF-1 through DF-7 (mostly friction/ergonomics) + GITI-015 (real compiler bug, filed). 371 pass / 0 fail.
+

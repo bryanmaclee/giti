@@ -13,33 +13,10 @@ import { loadPrivateManifest, partitionByScope } from "../private/scope.js";
 import { listRemotes, getRemote } from "../private/remotes.js";
 import { PUBLIC_BOOKMARK, PRIVATE_BOOKMARK } from "../private/save-routing.js";
 
-/**
- * Parse CLI args for sync.
- * Returns { remote: string|null, push: bool, pull: bool }.
- * If neither --push nor --pull is given, both are true (default full sync).
- */
-export function parseSyncArgs(args) {
-  let remote = null;
-  let push = false;
-  let pull = false;
-
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i];
-    if (a === "--remote") {
-      remote = args[i + 1] || null;
-      i++;
-    } else if (a.startsWith("--remote=")) {
-      remote = a.slice("--remote=".length);
-    } else if (a === "--push") {
-      push = true;
-    } else if (a === "--pull") {
-      pull = true;
-    }
-  }
-
-  if (!push && !pull) { push = true; pull = true; }
-  return { remote, push, pull };
-}
+// parseSyncArgs authored in scrml at ../lib/cli-args.scrml (S10 slice 9
+// dogfood). Library-mode compile output is the .js sibling.
+import { parseSyncArgs } from "../lib/cli-args.js";
+export { parseSyncArgs };
 
 /**
  * Compute which bookmarks to push, given a resolved target remote.

@@ -18,17 +18,10 @@ import { getEngine } from "../engine/index.js";
 import { parseDuration, parseTimestamp } from "../lib/duration.js";
 export { parseDuration, parseTimestamp };
 
-const SINCE_FETCH_CAP = 1000;
+// extractSince also lives in scrml at ../lib/cli-args.scrml (S10 slice 9).
+import { extractSince } from "../lib/cli-args.js";
 
-function extractSince(args) {
-  const i = args.indexOf("--since");
-  if (i === -1) return { since: null, rest: args };
-  const value = args[i + 1];
-  return {
-    since: value,
-    rest: args.slice(0, i).concat(args.slice(i + 2)),
-  };
-}
+const SINCE_FETCH_CAP = 1000;
 
 export async function history(args, { now = Date.now, getEngine: _getEngine = getEngine } = {}) {
   const { since, rest } = extractSince(args);
