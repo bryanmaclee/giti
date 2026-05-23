@@ -110,6 +110,17 @@ User direction: "scrml is not just for ui … if it can be written in js, it sho
 - In library mode, `==` is left as `==` in output (not lowered to `===` per GITI-012's primitive shortcut). Either library mode skips the lowering, or `parseInt(...)` return type couldn't be proven primitive. JS semantics of `==` for the values in play are identical to `===` here; no behavioral change.
 
 **Status:** First scrml-authored module shipped in giti's runtime path. Dogfood pipeline functional.
+
+**Second port (S10 slice 7):** `parseStatus` (jj-status parser, ~50 LOC) → `src/lib/parse-status.scrml`. New surface exercised cleanly: for-of, `continue`, ternary chain, `let` + `not` (lowered to `null`), regex `.match` with capture groups + `is some` check, regex `.test(...)/i` case-insensitive, `!str.startsWith(...)` negation, short-circuit `&&`, object shorthand. No holes. Re-export shim in `src/commands/status.js` keeps all 17 callers unchanged.
+
+**Third port (S10 slice 8):** glob-matching helpers (`normalizeRelPath`, `matchGlob`, `isPrivatePath`, `partitionByScope`, internal `globToRegExp`) → `src/lib/scope-match.scrml`. ~100 LOC. Exercises while-loop with hand-managed `i = i + 1`, string concat with `+=`-style accumulator, dynamic `new RegExp(...)`, multi-branch `if`/`else if`/`else`, `String.indexOf(needle, from)` two-arg form. Re-export shim in `src/private/scope.js` retains 7 callsites.
+
+**Two NEW holes found in slice 8:**
+
+- **DF-6: bare npm-style imports rejected.** `import { sep } from "node:path"` → `E-IMPORT-005`. scrml requires `scrml:` (stdlib), `./...scrml` (relative), or `vendor:...` (shim'd). Friction for any port that needs Node stdlib.
+- **DF-7: vendor: requires a physical shim file.** `import { sep } from "vendor:node:path"` → `E-IMPORT-006: no file found at src/vendor/node:path.scrml`. The "vendor" prefix is not auto-resolution; the adopter must hand-author a vendor shim per package. For dogfooding pre-existing JS, this is a per-stdlib-module setup tax.
+
+**Sidestep used in slice 8**: skipped `sep` entirely (jj paths are always forward-slash) — `p.replace(/\\/g, "/")` is portable enough.
 - [x][x] **Private scopes slice 1** (spec §12) — `.giti/private` manifest I/O, glob matching, `giti private {add,remove,list}` commands, `land` refusal on private diff, 40 tests
 - [x][x] **Private scopes slice 2** — remote scope config (`.giti/remotes.json`), `giti remote {add,remove,set-scope,list}`, `giti link-private`, `giti sync --remote NAME`, push refusal on public remote when working copy has private changes, private→public scope flip requires `--unsafe`. 48 tests.
 - [x][x] **Private scopes slice 3** — engine primitives (`setBookmark` with create-fallback, `bookmarkExists`, `changedFilesInRange`); save-time scope classification + bookmark routing (`main` + `_private`); mixed-commit refusal with clear error; commit-range-aware push safety. 33 new tests (22 routing + 11 engine).

@@ -151,3 +151,31 @@ Pivot from CLI-feature JS into scrml-as-logic dogfood. Took the smallest viable 
 
 **Status**: dogfood pipeline functional. First scrml module shipping in giti's runtime path. Patterns ready to reapply: any pure-logic JS helper (e.g., `extractSince`, `findScrmlFiles`, `resolveCompilerPath`, `parseStatus`) is a candidate for the same treatment.
 
+### Slice 7 — second dogfood port: parseStatus
+
+`parseStatus` from `src/commands/status.js` (~50 LOC) → `src/lib/parse-status.scrml`. Wired via re-export shim. 17 callsites across src/ ui/ tests/ untouched. All 371 tests pass.
+
+New language surface verified cleanly (no holes): for-of with `continue`, ternary chain, `let` + `not` default, regex `.match` + `is some`, regex `.test(...)/i`, `!str.startsWith(...)` negation, `&&` short-circuit, object shorthand.
+
+### Slice 8 — third dogfood port: glob-matching helpers (~100 LOC)
+
+Ported 5 functions from `src/private/scope.js` (the pure-logic core, excluding the manifest I/O):
+- `normalizeRelPath`
+- `globToRegExp` (internal)
+- `matchGlob`
+- `isPrivatePath`
+- `partitionByScope`
+
+→ `src/lib/scope-match.scrml`. Re-export shim in `src/private/scope.js` (also dropped now-dead `sep`/`posix` imports + the dead JS `globToRegExp`). 371 tests pass.
+
+**New surface exercised**: while-loop with hand-managed counter, string concat with `+`-style accumulator, dynamic `new RegExp(...)`, multi-branch `if`/`else if`/`else`, `String.indexOf(needle, from)` two-arg form, character class `[...]` regex test on single char.
+
+**TWO new holes found:**
+
+- **DF-6** — bare `node:path` rejected (`E-IMPORT-005`). scrml requires `scrml:`/`./...scrml`/`vendor:...` import shapes.
+- **DF-7** — `vendor:node:path` requires a hand-authored shim file at `src/vendor/node:path.scrml`. Not auto-resolution; per-package setup tax for dogfooding existing JS.
+
+**Sidestep**: skipped `sep` entirely (jj paths are forward-slash; `p.replace(/\\/g, "/")` covers the defensive case the JS original handled).
+
+**Dogfood scoreboard (S10)**: 3 scrml-authored modules in giti's runtime, ~185 LOC of scrml. 7 new holes catalogued in master-list §G. Zero compiler bugs (everything that compiles, runs correctly).
+

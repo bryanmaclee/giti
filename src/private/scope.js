@@ -10,7 +10,7 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { dirname, join, sep, posix } from "node:path";
+import { dirname, join } from "node:path";
 
 export const MANIFEST_PATH = ".giti/private";
 export const MANIFEST_FILE_NAME = "private";
@@ -71,86 +71,17 @@ export function savePrivateManifest(repoRoot, globs) {
   writeFileSync(abs, header + body, "utf8");
 }
 
-/**
- * Normalize a repo-relative path to forward-slash form for glob matching.
- *
- * @param {string} p
- * @returns {string}
- */
-export function normalizeRelPath(p) {
-  if (!p) return "";
-  let out = p.replace(new RegExp(sep === "\\" ? "\\\\" : sep, "g"), "/");
-  while (out.startsWith("./")) out = out.slice(2);
-  while (out.startsWith("/")) out = out.slice(1);
-  return out;
-}
-
-/**
- * Match a repo-relative path against a single glob.
- *
- * Supported: `*`, `**`, `?`, character classes `[abc]`. Patterns are anchored
- * at the repo root; they do NOT automatically match nested occurrences
- * (use `**` prefix for that). A trailing `/` or a bare directory name like
- * `foo/` matches any path inside that directory.
- *
- * @param {string} relPath
- * @param {string} glob
- * @returns {boolean}
- */
-export function matchGlob(relPath, glob) {
-  const p = normalizeRelPath(relPath);
-  let g = glob.trim();
-  if (!g) return false;
-
-  // Directory pattern: `dir/` or `dir` with no glob metachar means everything under it.
-  const hasMeta = /[*?\[]/.test(g);
-  if (g.endsWith("/")) {
-    const prefix = g.slice(0, -1);
-    return p === prefix || p.startsWith(prefix + "/");
-  }
-  if (!hasMeta) {
-    // Plain path: exact match OR directory-prefix match for safety.
-    if (p === g) return true;
-    return p.startsWith(g + "/");
-  }
-
-  // Compile glob to regex.
-  const re = globToRegExp(g);
-  return re.test(p);
-}
-
-/**
- * Decide whether a path is private according to the manifest globs.
- *
- * @param {string} relPath
- * @param {string[]} globs
- * @returns {boolean}
- */
-export function isPrivatePath(relPath, globs) {
-  if (!relPath) return false;
-  for (const g of globs) {
-    if (matchGlob(relPath, g)) return true;
-  }
-  return false;
-}
-
-/**
- * Partition a list of file change records (as produced by parseStatus)
- * into public and private lists.
- *
- * @param {Array<{path: string, kind?: string}>} files
- * @param {string[]} globs
- * @returns {{ public: typeof files, private: typeof files }}
- */
-export function partitionByScope(files, globs) {
-  const pub = [];
-  const priv = [];
-  for (const f of files) {
-    if (isPrivatePath(f.path, globs)) priv.push(f);
-    else pub.push(f);
-  }
-  return { public: pub, private: priv };
-}
+// Pure glob-matching helpers authored in scrml at ../lib/scope-match.scrml
+// (S10 slice 8 dogfood). Library-mode compile output is the .js sibling;
+// regen with:
+//   bun run ../scrmlTS/compiler/src/cli.js compile src/lib/scope-match.scrml \
+//     -o src/lib --mode library
+export {
+  normalizeRelPath,
+  matchGlob,
+  isPrivatePath,
+  partitionByScope,
+} from "../lib/scope-match.js";
 
 /**
  * Add a pattern to the manifest.
@@ -195,46 +126,3 @@ export function removePrivatePattern(repoRoot, pattern) {
   return { removed: true, globs: loadPrivateManifest(repoRoot) };
 }
 
-/**
- * Compile a glob pattern to a RegExp anchored at the start and end.
- * Shared between matchGlob and future callers.
- *
- * @param {string} glob
- * @returns {RegExp}
- */
-function globToRegExp(glob) {
-  let re = "^";
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
-    if (c === "*") {
-      if (glob[i + 1] === "*") {
-        // `**` matches any sequence including `/`.
-        re += ".*";
-        i++;
-        // Consume a following `/` so `**/foo` matches `foo` too.
-        if (glob[i + 1] === "/") i++;
-      } else {
-        // Single `*` matches any sequence except `/`.
-        re += "[^/]*";
-      }
-    } else if (c === "?") {
-      re += "[^/]";
-    } else if (c === "[") {
-      const close = glob.indexOf("]", i + 1);
-      if (close === -1) {
-        re += "\\[";
-      } else {
-        re += glob.slice(i, close + 1);
-        i = close;
-      }
-    } else if (/[.+^$(){}|\\]/.test(c)) {
-      re += "\\" + c;
-    } else {
-      re += c;
-    }
-  }
-  re += "$";
-  return new RegExp(re);
-}
-
-export { globToRegExp };
