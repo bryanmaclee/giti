@@ -154,9 +154,11 @@ For dogfood purposes, the warning is informational — port functions kept the J
 
 **Note**: I briefly applied the GITI-017 char-class workaround `n[o]t` to a STRING literal by mistake — strings are NOT affected by the corruption, only regex literals. Fix reverted, scoreboard amended.
 
-**Dogfood scoreboard end S10 slice 15**:
-- 11 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes
-- ~580 LOC of scrml shipping
+**Slice 16** — `scope.js` manifest I/O → `src/lib/scope-manifest.scrml`. 4 functions + 2 constants. `src/private/scope.js` is now a 24-line shim re-exporting from scope-manifest + scope-match. New surface verified clean: array spread `[...arr, x]`, `new Set(iterable)`, `Array.from()`, multi-line string concatenation with `+`. No new holes.
+
+**Dogfood scoreboard end S10 slice 16**:
+- 12 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes, scope-manifest
+- ~670 LOC of scrml shipping
 - 5 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution), GITI-018 (multi-stdlib import)
 - All Dogfood-Friction items DF-1 through DF-7 still catalogued; DF-6 downgraded (scrml:path stdlib)
 - 371 pass / 0 fail throughout
