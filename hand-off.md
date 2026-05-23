@@ -26,13 +26,15 @@
 | GITI-006 | open (cosmetic) | bare `${@var.path}` module-top read; workaround in place; no escalation |
 | GITI-009 | CLOSED upstream (S8) | relative-import path rewriting; workaround removed |
 | GITI-011 | CLOSED upstream (S8) | CSS at-rules; workaround removed |
-| GITI-012 | **FIX SHIPPED upstream (scrmlTS S41)** — verify next session | server-fn `==` helper missing. Repro at `ui/repros/repro-08-server-fn-eq.scrml`. Workaround: truthy/falsy checks. scrmlTS `6ba84be` lands two-layer fix (primitive shortcut in `emit-expr.ts` + helper inlining in `emit-server.ts`). Sidecar confirmed PASS upstream. |
-| GITI-013 | **FIX SHIPPED upstream (scrmlTS S41)** — verify next session | Arrow body `f => ({...})` loses wrapping parens in emit. Repro at `ui/repros/repro-09-arrow-object-literal.scrml`. Workaround: explicit for-loop + push. scrmlTS `0af4eaf` (single-file fix in `emitLambda`). Sidecar confirmed PASS upstream. |
+| GITI-012 | **CLOSED (S10, verified against scrmlTS `cbfefef`)** | repro-08 compiles clean; `arr.length == 0` lowered to `===` (primitive shortcut); `bun --check` exits 0. Workarounds removed from `ui/land.scrml`. |
+| GITI-013 | **CLOSED (S10, verified against scrmlTS `cbfefef`)** | repro-09 compiles clean; `items.map(f => ({...}))` emits `(f) => ({...})` with parens preserved; `bun --check` exits 0. Workaround (explicit for-loop + push) replaced with natural `.map()` form in `ui/land.scrml`. |
 
 ## Inbox
 
+**Processed in S10:**
+- ~~`2026-04-25-1100-scrmlTS-to-giti-s41-fixes-and-kickstarter.md`~~ — action complete; moved to `incoming/read/`. FYI sent back to scrmlTS as `2026-05-23-0543-giti-to-scrmlTS-giti-012-013-verified-closed.md`.
+
 **Unread on entry:**
-- `2026-04-25-1100-scrmlTS-to-giti-s41-fixes-and-kickstarter.md` (`needs: action`) — GITI-012/013 fixes, requests retest + workaround removal.
 - `2026-04-26-0919-scrmlTS-to-giti-s42-close-fixes-and-kickstarter-v1.md` (`needs: fyi`) — scrmlTS S42 close at `b6eb0c3`. Five things affecting giti:
   1. **Kickstarter v1 supersedes v0** — v0 had 10 verified-wrong claims (real-time `room=`/`onmessage` invented, derived-decl `~name=`, `<if>`/`<for>` markup tags, `protect=` separator wrong, `signJwt` arity, `<request>` attrs, `.debounced(ms)` postfix, component `prop:Type` annotation). **Use v1 only**: `scrmlTS/docs/articles/llm-kickstarter-v1-2026-04-25.md`. Verification matrix at `scrmlTS/docs/audits/kickstarter-v0-verification-matrix.md`.
   2. **6 compiler bugs fixed** (A1–A6). **A5 in particular** had a silent-corruption mode: markup text starting with `function`/`fn` (e.g. `<p>function adds.</p>`) was auto-promoted to a logic block — paragraph text vanished from output with NO error. If any giti UI page ever seemed to render blank paragraphs that should have had text, re-pull and recompile.
@@ -78,4 +80,19 @@ No outbound messages sent in S9. **No push request sent yet** for the two S9 com
 
 ## Session 10 work log
 
-_(append as work completes)_
+### Slice 1 — GITI-012 / GITI-013 verification + workaround removal
+
+Verified against scrmlTS `cbfefef` (current main, ~S122).
+
+- `repro-08-server-fn-eq.scrml` compiles clean; emitted server-fn shows `arr.length === 0` (primitive `==` lowered per S41 fix layer-a). `bun --check` exits 0. No `_scrml_structural_eq` reference at all.
+- `repro-09-arrow-object-literal.scrml` compiles clean; arrow body emits as `(f) => ({path: f.path, kind: f.kind})` with parens preserved (S41 fix `0af4eaf`). `bun --check` exits 0.
+- `ui/land.scrml` workarounds removed:
+  - For-loop + push → natural `privChanged.map(f => ({ path: f.path, kind: f.kind }))`
+  - Stale workaround comments deleted; `!privChanged.length` and `!!skipped` kept (idiomatic JS, not workarounds per se)
+- `npm test` after edit: 324 pass / 15 skip / 0 fail (no regressions; JS tests don't depend on scrml recompile)
+- Bug ledger updated above
+
+### Finding: pre-existing UI compile drift
+
+All 5 UI pages (`status`, `history`, `bookmarks`, `diff`, `land`) currently FAIL to compile against scrmlTS `cbfefef` due to `E-SYNTAX-042: null is not a scrml token` — scrml tightened the spec to require `not` for absence (§42.7) during the ~80-session gap between giti S9 and now. Each page has 2–3 `null` literals (`error: null` defaults, `return { error: null }` in server fns). **Not introduced by today's edit** — surfaced because today's recompile is the first since S8. Filed as **DRIFT-1** in master-list; separate slice.
+

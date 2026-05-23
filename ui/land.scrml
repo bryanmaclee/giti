@@ -32,21 +32,9 @@ ${
       const globs = loadPrivateManifest(process.cwd())
       const part = partitionByScope(parsed.changed, globs)
       const privChanged = part.private
-      // Workaround for GITI-012: scrml codegen strips the parens around an
-      // arrow body that returns an object literal, emitting unparseable JS
-      // (`(f) => {path: ...}`). Use a function expression with explicit
-      // return until that fix lands.
-      const filesArr = []
-      for (let f of privChanged) {
-        filesArr.push({ path: f.path, kind: f.kind })
-      }
-      // Workaround for the structural-eq codegen bug (filed as GITI-012):
-      // scrml `==` emits `_scrml_structural_eq()` but the helper is not
-      // imported into `.server.js` modules. Use truthy/falsy checks
-      // instead of equality in server fn bodies.
       privateGate = {
         ok: !privChanged.length,
-        files: filesArr,
+        files: privChanged.map(f => ({ path: f.path, kind: f.kind })),
       }
     }
 
@@ -62,7 +50,6 @@ ${
       ? {
           ok: true,
           fileCount: compilerRes.data.fileCount || 0,
-          // Boolean coerce — see GITI-012 workaround note above.
           skipped: !!compilerRes.data.skipped,
         }
       : { ok: false, error: compilerRes.error }
