@@ -20,20 +20,9 @@ import { compileUi, DEFAULT_DIST_DIR } from "./compile-ui.js";
 
 export const VERSION = "0.1.0";
 
-const MIME = {
-  ".html": "text/html; charset=utf-8",
-  ".js":   "application/javascript; charset=utf-8",
-  ".css":  "text/css; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".svg":  "image/svg+xml",
-  ".png":  "image/png",
-  ".ico":  "image/x-icon",
-};
-
-function mimeFor(path) {
-  const dot = path.lastIndexOf(".");
-  return dot >= 0 ? (MIME[path.slice(dot)] || "application/octet-stream") : "application/octet-stream";
-}
+// mimeFor + MIME table authored in scrml at ../lib/server-helpers.scrml
+// (S10 slice 19 dogfood).
+import { mimeFor } from "../lib/server-helpers.js";
 
 /**
  * Resolve a request path against the UI dist directory. Returns the
@@ -68,22 +57,9 @@ async function readJson(req) {
   }
 }
 
-/**
- * Compose a chain of scrml-generated WinterCG fetch handlers into a single
- * dispatcher that tries each in order and returns the first non-null
- * Response. Matches the verdict in scrmlTS design-insight 22: each
- * `.server.js` exports `fetch(request): Response | null`; the `null` return
- * is the composition seam.
- */
-export function composeScrmlFetch(handlers) {
-  return async function scrmlDispatch(req) {
-    for (const h of handlers) {
-      const r = await h(req);
-      if (r !== null && r !== undefined) return r;
-    }
-    return null;
-  };
-}
+// composeScrmlFetch authored in scrml at ../lib/server-helpers.scrml (slice 19).
+import { composeScrmlFetch } from "../lib/server-helpers.js";
+export { composeScrmlFetch };
 
 // Opt-in request logger. Enable with GITI_SERVER_LOG=1. Silent in tests.
 const LOG = process.env.GITI_SERVER_LOG === "1";

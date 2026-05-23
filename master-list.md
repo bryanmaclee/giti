@@ -165,9 +165,11 @@ For dogfood purposes, the warning is informational — port functions kept the J
 
 **NEW finding — DF-11**: `scrml:fs.statSync(path)` returns `{ isFile, isDirectory, size, mtime } | not` where `isFile` and `isDirectory` are **booleans, not method calls** — a values-not-imperative API divergence from Node's `fs.Stats`. Also returns `not` (null) on ENOENT, so callers should `is not` guard before dereferencing. The scrml shim docs this in `_scrml/fs.js`. Discoverability issue, not a bug.
 
-**Dogfood scoreboard end S10 slice 18**:
-- 14 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes, scope-manifest, save-routing-async, find-scrml-files
-- ~795 LOC of scrml shipping
+**Slice 19** — `mimeFor` + `composeScrmlFetch` + the MIME table → `src/lib/server-helpers.scrml`. Tests closures (a sync function returning an async closure) + MIME object lookup. Attempted to port `json` but `Response` constructor isn't in scrml's logic scope (no scrml stdlib exposes it; `scrml:host` only has `safeCall`/`safeCallAsync`). Left `json` in JS. Hit GITI-015 once on `MIME[ext] is some ? ...` — hoisted to `const hit = MIME[ext]; hit is some ? hit : ...`. Also hit the same module-semantics gotcha from slice 9 (re-export `export { x } from "..."` doesn't bind locally) when the server uses `composeScrmlFetch` internally — fixed with import + export pair.
+
+**Dogfood scoreboard end S10 slice 19**:
+- 15 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes, scope-manifest, save-routing-async, find-scrml-files, server-helpers
+- ~830 LOC of scrml shipping
 - 5 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution), GITI-018 (multi-stdlib import)
 - All Dogfood-Friction items DF-1 through DF-7 still catalogued; DF-6 downgraded (scrml:path stdlib)
 - 371 pass / 0 fail throughout
