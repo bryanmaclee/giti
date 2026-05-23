@@ -64,7 +64,7 @@ ${
       privateGate.ok && conflictsGate.ok && compilerGate.ok && testsGate.ok
 
     return {
-      error: null,
+      error: not,
       allOk,
       privateGate,
       conflictsGate,
@@ -76,7 +76,7 @@ ${
   // Defaults (GITI-006 dodge — same pattern as status.scrml).
   // `running: true` keeps the spinner visible until the server fn lands.
   @preflight = {
-    error: null,
+    error: not,
     running: true,
     allOk: false,
     privateGate: { ok: true, files: [] },

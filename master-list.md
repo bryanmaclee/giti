@@ -127,8 +127,8 @@ Batch 2 — sent 2026-04-20 16:14 → `scrmlTS/handOffs/incoming/2026-04-20-1614
 - [x][x] **GITI-012** — CLOSED S10 (verified against scrmlTS `cbfefef`). server-fn `==` helper missing → fix landed scrmlTS `6ba84be` (S41). repro-08 compiles clean, lowers `==` on primitives to `===`. Workaround removed from `ui/land.scrml`.
 - [x][x] **GITI-013** — CLOSED S10 (verified against scrmlTS `cbfefef`). Arrow body `f => ({...})` paren-stripping → fix landed scrmlTS `0af4eaf` (S41). repro-09 compiles clean. Workaround (explicit for-loop+push) replaced with natural `.map()` form in `ui/land.scrml`.
 
-**Open (compile drift — filed S10):**
-- [ ][ ] **DRIFT-1** — All 5 UI pages (`status`, `history`, `bookmarks`, `diff`, `land`) fail compile against current scrmlTS with `E-SYNTAX-042: null is not a scrml token`. scrml tightened §42.7 to require `not` instead of `null` during the ~80-session compiler gap between giti S9 (2026-04-26) and S10 (2026-05-23). Each page has 2–3 `null` literals (`error: null` defaults, `return { error: null }` in server fns). Mechanical fix; not a compiler bug.
+**Compile drift (closed S10):**
+- [x][x] **DRIFT-1** — CLOSED S10 (scrmlTS `cbfefef`). All 5 UI pages had `null` literals (carryover from before scrml tightened §42.7 to require `not` for absence). Mechanical sed substitution `: null` → `: not` across `status`, `history`, `bookmarks`, `diff`, `land`. All 5 now compile clean; tests still 324/0.
 
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.

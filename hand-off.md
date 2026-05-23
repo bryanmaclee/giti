@@ -96,3 +96,7 @@ Verified against scrmlTS `cbfefef` (current main, ~S122).
 
 All 5 UI pages (`status`, `history`, `bookmarks`, `diff`, `land`) currently FAIL to compile against scrmlTS `cbfefef` due to `E-SYNTAX-042: null is not a scrml token` — scrml tightened the spec to require `not` for absence (§42.7) during the ~80-session gap between giti S9 and now. Each page has 2–3 `null` literals (`error: null` defaults, `return { error: null }` in server fns). **Not introduced by today's edit** — surfaced because today's recompile is the first since S8. Filed as **DRIFT-1** in master-list; separate slice.
 
+### Slice 2 — DRIFT-1 sweep
+
+Mechanical sed substitution `: null` → `: not` across all 5 UI files (18 sites). All 5 now compile clean against scrmlTS `cbfefef`. JS tests unchanged: 324 pass / 15 skip / 0 fail. Only residual `null` is in a JSDoc comment describing a JS-side URL-param type (`string | null`) — left as-is since it documents the JS-side `URLSearchParams.get()` return value, not a scrml token.
+

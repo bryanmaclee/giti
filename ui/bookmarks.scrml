@@ -16,10 +16,10 @@ ${
     const engine = getEngine()
     const res = await engine.listBranches()
     if (!res.ok) return { error: res.error, list: [] }
-    return { error: null, list: res.data }
+    return { error: not, list: res.data }
   }
 
-  @bookmarks = { error: null, list: [] }
+  @bookmarks = { error: not, list: [] }
   @bookmarks = loadBookmarkList()
 }
 
