@@ -123,3 +123,15 @@ New CLI command per spec §9.6, dry-run validation for `giti land`. User directi
   - `giti check --quick` → "Compiler: pass (15 files) — Check passed (compiler only…)" against scrmlTS `cbfefef`. Exit 0.
 - **Test count**: 350 pass / 0 fail / 0 skip (up from 324 / 15 skip — +13 new check tests + jj-integration tests now running since jj is installed).
 
+### Slice 5 — GAP-8 `giti history --since`
+
+Spec §2.5 normative #6 — time-window filter for history.
+
+- `src/commands/history.js` extended with `parseDuration` + `parseTimestamp` exports (pure helpers, no engine dep) and a `--since <duration>` flag on the CLI.
+- Durations: `30m` / `2h` / `1d` / `7d` (regex `^(\d+)(m|h|d)$`, must be positive). Other units rejected with examples in the error.
+- When `--since` is set: fetch up to 1000 entries from engine (`SINCE_FETCH_CAP`), filter client-side using `parseTimestamp` on the `YYYY-MM-DD HH:MM` strings the jj template emits. Entries with unparseable timestamps drop silently.
+- Friendly empty-result: `"No saves in the last 2h."` (vs the unfiltered default's "No history yet.").
+- `tests/history.test.js` (new) — 21 tests: 10 parseDuration cases, 2 parseTimestamp cases, 9 CLI integration cases (window inclusion, day-boundary, bad input, empty result, fetch cap, garbage-timestamp handling).
+- Smoke-test against the live giti repo: `--since 1h` drops the S9 hand-off entry from 2026-04-26, keeps all 6 of today's S10 saves.
+- **Test count**: 371 pass / 0 fail (up from 350; +21 history tests).
+

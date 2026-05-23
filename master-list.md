@@ -88,6 +88,7 @@
 - [ ][ ] **Deploy** — Fly.io or VPS (blocked on auth)
 - [ ][ ] **GAP-1–11 implementations** — content-loss detection, protected contexts, granular undo (remaining)
   - [x][x] **GAP-6 `giti check`** — Spec §9.6. CLI dry-run for landing. Default = compiler + tests. `--quick` = compiler only. `--diff` = list .scrml files changed in working copy (no compile/test). Exit 0/1. `src/commands/check.js`. 13 tests pass.
+  - [x][x] **GAP-8 `giti history --since`** — Spec §2.5 normative #6. Time-window filter. Durations: `30m`/`2h`/`1d`/`7d` (positive integer + `m|h|d`). Filters client-side after engine fetch (cap 1000). `parseDuration` + `parseTimestamp` exported helpers. 21 tests pass (parseDuration / parseTimestamp / CLI integration).
 - [x][x] **Private scopes slice 1** (spec §12) — `.giti/private` manifest I/O, glob matching, `giti private {add,remove,list}` commands, `land` refusal on private diff, 40 tests
 - [x][x] **Private scopes slice 2** — remote scope config (`.giti/remotes.json`), `giti remote {add,remove,set-scope,list}`, `giti link-private`, `giti sync --remote NAME`, push refusal on public remote when working copy has private changes, private→public scope flip requires `--unsafe`. 48 tests.
 - [x][x] **Private scopes slice 3** — engine primitives (`setBookmark` with create-fallback, `bookmarkExists`, `changedFilesInRange`); save-time scope classification + bookmark routing (`main` + `_private`); mixed-commit refusal with clear error; commit-range-aware push safety. 33 new tests (22 routing + 11 engine).
