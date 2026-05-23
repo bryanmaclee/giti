@@ -44,88 +44,10 @@ export function classifyFromStatus(rawStatus, repoRoot) {
 import { planBookmarkMoves } from "../lib/save-routing-pure.js";
 export { planBookmarkMoves };
 
-/**
- * Apply bookmark moves via the engine. Non-fatal: a failure to move one
- * bookmark does not prevent the others from being moved. Collects the
- * per-bookmark results.
- *
- * @param {{setBookmark: Function}} engine
- * @param {string[]} bookmarks
- * @param {string} target - revset for where to point them, typically "@-"
- */
-export async function advanceBookmarks(engine, bookmarks, target = "@-") {
-  const results = [];
-  for (const name of bookmarks) {
-    const r = await engine.setBookmark(name, target);
-    results.push({ name, ok: r.ok, error: r.ok ? null : r.error });
-  }
-  return results;
-}
-
-/**
- * Auto-split a mixed working copy into a public commit and a private commit.
- *
- * Workflow:
- *   1. `jj split <publicPaths> -m "<publicMessage>"` — split-out public
- *      content into a new commit; @ becomes the remainder (private).
- *   2. Redescribe @ with `<privateMessage>` so the remainder's commit
- *      message reflects its private content (jj would otherwise inherit
- *      the pre-split description).
- *   3. `jj new` — create a fresh working change above the private commit.
- *   4. Advance bookmarks:
- *        main     → @-- (the public commit, two back from the new WC)
- *        _private → @-  (the private commit, one back from the new WC)
- *
- * The caller is responsible for having already classified the working
- * copy as `mixed` and supplied both file lists.
- *
- * @param {object} engine
- * @param {{ publicFiles: Array, privateFiles: Array,
- *           publicMessage: string, privateMessage: string }} plan
- * @returns {{ ok: boolean, stage?: string, error?: string,
- *              bookmarkMoves?: Array }}
- */
-export async function autoSplitSave(engine, plan) {
-  const publicPaths = plan.publicFiles.map((f) => f.path);
-  if (publicPaths.length === 0) {
-    return { ok: false, stage: "precondition", error: "no public paths to split" };
-  }
-  if ((plan.privateFiles || []).length === 0) {
-    return { ok: false, stage: "precondition", error: "no private paths to split" };
-  }
-
-  // 1. Split out the public subset.
-  const splitResult = await engine.split({
-    paths: publicPaths,
-    message: plan.publicMessage,
-  });
-  if (!splitResult.ok) return { ok: false, stage: "split", error: splitResult.error };
-
-  // 2. Redescribe the remainder (now @) with the private message.
-  if (typeof engine._rawDescribe === "function") {
-    const descResult = await engine._rawDescribe("@", plan.privateMessage);
-    if (!descResult.ok) return { ok: false, stage: "describe", error: descResult.error };
-  }
-
-  // 3. Fresh working change above the private commit.
-  if (typeof engine.newChange === "function") {
-    const newResult = await engine.newChange();
-    if (!newResult.ok) return { ok: false, stage: "new", error: newResult.error };
-  }
-
-  // 4. Advance bookmarks to their respective commits.
-  //    After split + describe + new:
-  //      @   = empty WC
-  //      @-  = private commit (remainder)
-  //      @-- = public commit (split-out)
-  const bookmarkMoves = [];
-  const mainMove = await engine.setBookmark(PUBLIC_BOOKMARK, "@--");
-  bookmarkMoves.push({ name: PUBLIC_BOOKMARK, ok: mainMove.ok, error: mainMove.ok ? null : mainMove.error });
-  const privMove = await engine.setBookmark(PRIVATE_BOOKMARK, "@-");
-  bookmarkMoves.push({ name: PRIVATE_BOOKMARK, ok: privMove.ok, error: privMove.ok ? null : privMove.error });
-
-  return { ok: true, bookmarkMoves };
-}
+// advanceBookmarks + autoSplitSave authored in scrml at
+// ../lib/save-routing-async.scrml (S10 slice 17).
+import { advanceBookmarks, autoSplitSave } from "../lib/save-routing-async.js";
+export { advanceBookmarks, autoSplitSave };
 
 // splitMessages authored in scrml at ../lib/save-routing-pure.scrml.
 import { splitMessages } from "../lib/save-routing-pure.js";

@@ -156,9 +156,14 @@ For dogfood purposes, the warning is informational — port functions kept the J
 
 **Slice 16** — `scope.js` manifest I/O → `src/lib/scope-manifest.scrml`. 4 functions + 2 constants. `src/private/scope.js` is now a 24-line shim re-exporting from scope-manifest + scope-match. New surface verified clean: array spread `[...arr, x]`, `new Set(iterable)`, `Array.from()`, multi-line string concatenation with `+`. No new holes.
 
-**Dogfood scoreboard end S10 slice 16**:
-- 12 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes, scope-manifest
-- ~670 LOC of scrml shipping
+**Slice 17** — async save-routing helpers (`advanceBookmarks` + `autoSplitSave`) → `src/lib/save-routing-async.scrml`. Tests `async function` + explicit `await` in library mode.
+
+**NEW finding (language design, not a bug)**:
+- **DF-10** — `I-ASYNC-USER-SOURCE` info warning. Per §13.1, scrml user source SHALL NOT use the `async` keyword — the compiler auto-awaits statically-known `Promise<T>` callees per §13.2.1. The `async` modifier is reserved for stdlib (`scrml:*` namespace). User code is expected to read "flat and synchronous." For Promise<T> boundary wrapping at JS-host edges (untyped callees like `engine.setBookmark`), the spec idiom is `safeCallAsync` from `scrml:host` + `!{ ... }` failable pattern matching. Confirmed via experiment that auto-await ONLY fires when the compiler can statically prove the callee returns Promise<T> — for arbitrary JS-host objects with no scrml type info (giti's `engine`), the compiler doesn't insert awaits, so removing `async/await` from the source breaks the runtime. Kept explicit `async`/`await` in this port; accepted the info warning. Future port could refactor to the values-not-exceptions idiom (`safeCallAsync` + `!{ }`).
+
+**Dogfood scoreboard end S10 slice 17**:
+- 13 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes, scope-manifest, save-routing-async
+- ~745 LOC of scrml shipping
 - 5 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution), GITI-018 (multi-stdlib import)
 - All Dogfood-Friction items DF-1 through DF-7 still catalogued; DF-6 downgraded (scrml:path stdlib)
 - 371 pass / 0 fail throughout
