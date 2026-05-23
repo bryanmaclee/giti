@@ -17,50 +17,11 @@ import {
   splitMessages,
 } from "../private/save-routing.js";
 
-/**
- * Generate a save message from changed files when none is provided.
- * Returns a short human-readable description of what changed.
- */
-export function generateMessage(changed) {
-  if (!changed || changed.length === 0) {
-    return "save";
-  }
-
-  if (changed.length === 1) {
-    const f = changed[0];
-    const filename = f.path.split("/").pop();
-    const verb = f.kind === "added" ? "Add"
-      : f.kind === "deleted" ? "Remove"
-      : "Update";
-    return `${verb} ${filename}`;
-  }
-
-  // Multiple files — summarize by count
-  const added = changed.filter(f => f.kind === "added").length;
-  const deleted = changed.filter(f => f.kind === "deleted").length;
-  const modified = changed.filter(f => f.kind === "modified").length;
-
-  const parts = [];
-  if (added > 0) parts.push(`add ${added}`);
-  if (modified > 0) parts.push(`update ${modified}`);
-  if (deleted > 0) parts.push(`remove ${deleted}`);
-
-  return `${parts.join(", ")} file${changed.length !== 1 ? "s" : ""}`;
-}
-
-/**
- * Extract the --split flag (and remove it from the message args).
- * Returns { split: boolean, messageArgs: string[] }.
- */
-export function parseSaveFlags(args) {
-  const out = [];
-  let split = false;
-  for (const a of args) {
-    if (a === "--split") { split = true; continue; }
-    out.push(a);
-  }
-  return { split, messageArgs: out };
-}
+// generateMessage authored in scrml at ../lib/save-message.scrml,
+// parseSaveFlags in ../lib/cli-args.scrml (S10 slice 10 dogfood).
+import { generateMessage } from "../lib/save-message.js";
+import { parseSaveFlags } from "../lib/cli-args.js";
+export { generateMessage, parseSaveFlags };
 
 export async function save(args, opts) {
   const engine = opts?.engine || getEngine();

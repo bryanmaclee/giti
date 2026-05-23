@@ -1,7 +1,23 @@
 // Generated library module — scrml compiler output
 // ES module: import { name } from './this-file.js'
 
-// extractSince — pull `--since <duration>` out of an args array.
+// parseSaveFlags — pull `--split` out, return { split, messageArgs }.
+    // Everything that isn't `--split` is kept in order in messageArgs so
+    // the caller can `.join(" ")` it back into a save message.
+    export function parseSaveFlags(args) {
+        const out = []
+        let split = false
+        for (const a of args) {
+            if (a == "--split") {
+                split = true
+                continue
+            }
+            out.push(a)
+        }
+        return { split, messageArgs: out }
+    }
+
+    // extractSince — pull `--since <duration>` out of an args array.
     // Returns { since: string | not, rest: string[] }.
     export function extractSince(args) {
         const i = args.indexOf("--since")

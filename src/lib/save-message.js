@@ -1,0 +1,31 @@
+// Generated library module — scrml compiler output
+// ES module: import { name } from './this-file.js'
+
+// generateMessage — synthesize a "save" message from the changed-files
+    // list when the author hasn't supplied one.
+    export function generateMessage(changed) {
+        if (!changed || changed.length == 0) {
+            return "save"
+        }
+
+        if (changed.length == 1) {
+            const f = changed[0]
+            const filename = f.path.split("/").pop()
+            const verb = f.kind == "added" ? "Add"
+                : f.kind == "deleted" ? "Remove"
+                : "Update"
+            return `${verb} ${filename}`
+        }
+
+        // Multiple files — summarize by count.
+        const added = changed.filter(f => f.kind == "added").length
+        const deleted = changed.filter(f => f.kind == "deleted").length
+        const modified = changed.filter(f => f.kind == "modified").length
+
+        const parts = []
+        if (added > 0) parts.push(`add ${added}`)
+        if (modified > 0) parts.push(`update ${modified}`)
+        if (deleted > 0) parts.push(`remove ${deleted}`)
+
+        return `${parts.join(", ")} file${changed.length != 1 ? "s" : ""}`
+    }
