@@ -1,0 +1,46 @@
+// Generated library module — scrml compiler output
+// ES module: import { name } from './this-file.js'
+
+// formatStatus — render a parsed status object as readable text.
+    // Input shape: { changed, conflicts, bookmark, hasConflictMessage }
+    // Output: a single string with embedded newlines (no trailing \n).
+    export function formatStatus({ changed, conflicts, bookmark, hasConflictMessage }) {
+        const parts = []
+
+        // Conflict display (highest priority).
+        const hasConflicts = conflicts.length > 0 || hasConflictMessage
+        if (hasConflicts) {
+            const count = conflicts.length > 0 ? conflicts.length : "some"
+            parts.push(`⚠ Conflicts in ${count} file${conflicts.length != 1 ? "s" : ""}:`)
+            for (const f of conflicts) {
+                parts.push(`  ${f}`)
+            }
+            parts.push("")
+            parts.push("Resolve these files then run `giti save`.")
+            parts.push("")
+        }
+
+        // Changed files.
+        if (changed.length > 0) {
+            parts.push("You have unsaved changes:")
+            for (const f of changed) {
+                const label = f.kind == "added" ? "new"
+                    : f.kind == "deleted" ? "deleted"
+                    : "modified"
+                parts.push(`  ${label}: ${f.path}`)
+            }
+            parts.push("")
+        }
+
+        // Bookmark / working context.
+        if (bookmark) {
+            parts.push(`You're working on: ${bookmark}`)
+        }
+
+        // Clean state.
+        if (!hasConflicts && changed.length == 0) {
+            parts.push("Everything is clean.")
+        }
+
+        return parts.join("\n")
+    }

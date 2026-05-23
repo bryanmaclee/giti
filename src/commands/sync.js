@@ -18,20 +18,9 @@ import { PUBLIC_BOOKMARK, PRIVATE_BOOKMARK } from "../private/save-routing.js";
 import { parseSyncArgs } from "../lib/cli-args.js";
 export { parseSyncArgs };
 
-/**
- * Compute which bookmarks to push, given a resolved target remote.
- *
- *   - no target remote    → empty (let engine default)
- *   - public remote       → [main]
- *   - private remote      → [main, _private]
- *
- * Spec §12.3 normative #1/#2.
- */
-export function bookmarksForPush(targetRemote) {
-  if (!targetRemote) return [];
-  if (targetRemote.scope === "private") return [PUBLIC_BOOKMARK, PRIVATE_BOOKMARK];
-  return [PUBLIC_BOOKMARK];
-}
+// bookmarksForPush authored in scrml at ../lib/bookmarks.scrml.
+import { bookmarksForPush } from "../lib/bookmarks.js";
+export { bookmarksForPush };
 
 /**
  * Resolve the target remote:

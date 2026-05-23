@@ -15,49 +15,9 @@ import { getEngine } from "../engine/index.js";
 import { parseStatus } from "../lib/parse-status.js";
 export { parseStatus };
 
-/**
- * Format parsed status into human-friendly output.
- */
-export function formatStatus({ changed, conflicts, bookmark, hasConflictMessage }) {
-  const parts = [];
-
-  // Conflict display (highest priority)
-  const hasConflicts = conflicts.length > 0 || hasConflictMessage;
-  if (hasConflicts) {
-    const count = conflicts.length || "some";
-    parts.push(`\u26a0 Conflicts in ${count} file${conflicts.length !== 1 ? "s" : ""}:`);
-    for (const f of conflicts) {
-      parts.push(`  ${f}`);
-    }
-    parts.push("");
-    parts.push("Resolve these files then run `giti save`.");
-    parts.push("");
-  }
-
-  // Changed files
-  if (changed.length > 0) {
-    parts.push("You have unsaved changes:");
-    for (const f of changed) {
-      const label = f.kind === "added" ? "new"
-        : f.kind === "deleted" ? "deleted"
-        : "modified";
-      parts.push(`  ${label}: ${f.path}`);
-    }
-    parts.push("");
-  }
-
-  // Bookmark / working context
-  if (bookmark) {
-    parts.push(`You're working on: ${bookmark}`);
-  }
-
-  // Clean state
-  if (!hasConflicts && changed.length === 0) {
-    parts.push("Everything is clean.");
-  }
-
-  return parts.join("\n");
-}
+// formatStatus authored in scrml at ../lib/format-status.scrml.
+import { formatStatus } from "../lib/format-status.js";
+export { formatStatus };
 
 export async function status(args) {
   const engine = getEngine();

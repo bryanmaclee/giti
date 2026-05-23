@@ -17,8 +17,11 @@
 import { parseStatus } from "../commands/status.js";
 import { loadPrivateManifest, partitionByScope } from "./scope.js";
 
-export const PRIVATE_BOOKMARK = "_private";
-export const PUBLIC_BOOKMARK = "main";
+// Bookmark name constants authored in scrml at ../lib/bookmarks.scrml
+// (S10 slice 11). Re-exported here for back-compat with existing
+// import paths.
+import { PRIVATE_BOOKMARK, PUBLIC_BOOKMARK } from "../lib/bookmarks.js";
+export { PRIVATE_BOOKMARK, PUBLIC_BOOKMARK };
 
 /**
  * Classify a working-copy status into a routing decision.
