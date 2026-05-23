@@ -8,63 +8,12 @@
  */
 
 import { getEngine } from "../engine/index.js";
-
-/**
- * Parse jj status output into structured data.
- *
- * jj status output typically looks like:
- *   Working copy changes:
- *   M src/main.js
- *   A src/new.js
- *   D src/old.js
- *   C src/conflict.js
- *   Working copy : abc123 (no description set)
- *   Parent commit: def456 "some message"
- *
- * Or with a bookmark:
- *   Working copy : abc123 feature-x
- */
-export function parseStatus(raw) {
-  const lines = raw.split("\n");
-  const changed = [];
-  const conflicts = [];
-  let bookmark = null;
-
-  for (const line of lines) {
-    // Changed files: "M path", "A path", "D path"
-    const fileMatch = line.match(/^([MAD])\s+(.+)$/);
-    if (fileMatch) {
-      const kind = fileMatch[1] === "M" ? "modified"
-        : fileMatch[1] === "A" ? "added"
-        : "deleted";
-      changed.push({ kind, path: fileMatch[2].trim() });
-      continue;
-    }
-
-    // Conflicted files: "C path"
-    const conflictMatch = line.match(/^C\s+(.+)$/);
-    if (conflictMatch) {
-      conflicts.push(conflictMatch[1].trim());
-      continue;
-    }
-
-    // Bookmark detection from Working copy line
-    // e.g. "Working copy : abc123 feature-x"
-    const bookmarkMatch = line.match(/^Working copy\s*:\s*\S+\s+(.+)/);
-    if (bookmarkMatch) {
-      const rest = bookmarkMatch[1].trim();
-      // Ignore "(no description set)" and similar parenthetical notes
-      if (rest && !rest.startsWith("(")) {
-        bookmark = rest;
-      }
-    }
-  }
-
-  // Also detect conflict message
-  const hasConflictMessage = /unresolved conflict/i.test(raw);
-
-  return { changed, conflicts, bookmark, hasConflictMessage };
-}
+// parseStatus authored in scrml at ../lib/parse-status.scrml (S10 slice 7
+// dogfood). Library-mode compile output is the .js sibling; regen with:
+//   bun run ../scrmlTS/compiler/src/cli.js compile src/lib/parse-status.scrml \
+//     -o src/lib --mode library
+import { parseStatus } from "../lib/parse-status.js";
+export { parseStatus };
 
 /**
  * Format parsed status into human-friendly output.

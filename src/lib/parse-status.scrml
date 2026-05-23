@@ -1,0 +1,56 @@
+// parse-status.scrml — port of parseStatus from src/commands/status.js
+// as a second scrml-as-logic dogfood (giti S10 slice 7).
+//
+// jj status output typically looks like:
+//   Working copy changes:
+//   M src/main.js
+//   A src/new.js
+//   D src/old.js
+//   C src/conflict.js
+//   Working copy : abc123 (no description set)
+//   Parent commit: def456 "some message"
+//
+// Or with a bookmark:
+//   Working copy : abc123 feature-x
+
+${
+    export function parseStatus(raw) {
+        const lines = raw.split("\n")
+        const changed = []
+        const conflicts = []
+        let bookmark = not
+
+        for (const line of lines) {
+            // Changed files: "M path", "A path", "D path"
+            const fileMatch = line.match(/^([MAD])\s+(.+)$/)
+            if (fileMatch is some) {
+                const kind = fileMatch[1] == "M" ? "modified"
+                    : fileMatch[1] == "A" ? "added"
+                    : "deleted"
+                changed.push({ kind, path: fileMatch[2].trim() })
+                continue
+            }
+
+            // Conflicted files: "C path"
+            const conflictMatch = line.match(/^C\s+(.+)$/)
+            if (conflictMatch is some) {
+                conflicts.push(conflictMatch[1].trim())
+                continue
+            }
+
+            // Bookmark detection from Working copy line.
+            const bookmarkMatch = line.match(/^Working copy\s*:\s*\S+\s+(.+)/)
+            if (bookmarkMatch is some) {
+                const rest = bookmarkMatch[1].trim()
+                // Ignore "(no description set)" and similar.
+                if (rest && !rest.startsWith("(")) {
+                    bookmark = rest
+                }
+            }
+        }
+
+        const hasConflictMessage = /unresolved conflict/i.test(raw)
+
+        return { changed, conflicts, bookmark, hasConflictMessage }
+    }
+}
