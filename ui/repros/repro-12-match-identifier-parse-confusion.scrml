@@ -1,0 +1,49 @@
+// Repro 12 — GITI-016: variable name `match` triggers a parser
+// confusion when combined with a specific surrounding context. The
+// compiler emits E-SCOPE-001 claiming `is` is undeclared, but the
+// real cause is that `match` (which is also a scrml MARKUP keyword
+// for tier-1 if-else → `<match>` lowering) appears to be mis-tokenized
+// as something other than a variable identifier in this context.
+//
+// Renaming the variable from `match` to ANY other identifier (e.g. `m`)
+// makes the file compile cleanly with identical output shape (modulo
+// the rename). The bug is NOT in `is some` itself — that operator works
+// for `m`, parameters, and other identifier names.
+//
+// Failure isolation (diff is JUST the identifier name):
+//
+//   FAILING — exactly this file with `const match = raw.match(...)`
+//     E-SCOPE-001: Undeclared identifier `is` in logic expression.
+//
+//   PASSING — same file with `const m = raw.match(...)` and
+//     `m is some ? m[1] : ...`. Compiles, lowers to
+//     `(m !== null && m !== undefined) ? m[1] : ...`.
+//
+// Tested against scrmlTS @ cbfefef in --mode library.
+//
+// Surfaced while porting `friendlyError` from src/engine/jj-cli.js
+// to scrml in giti S10 slice 12 dogfood. Author worked around by
+// renaming `match` → `m`, but the natural translation of the JS
+// idiom uses `match` as the conventional name for a regex result.
+
+${
+    export function v(raw) {
+        if (!raw) return "x"
+        if (/not a jj repo/i.test(raw) || /no jj repo/i.test(raw) ||
+            /there is no jj repo/i.test(raw) || /not in a git repository/i.test(raw)) {
+            return "a"
+        }
+        if (/conflict/i.test(raw) && !/resolved/i.test(raw)) {
+            return "b"
+        }
+        if (/no changes/i.test(raw) || /nothing changed/i.test(raw)) {
+            return "c"
+        }
+        if (/bookmark.*already exists/i.test(raw)) {
+            const match = raw.match(/bookmark\s+"?([^\s"]+)"?/i)
+            const name = match is some ? match[1] : "fb"
+            return name
+        }
+        return "d"
+    }
+}

@@ -125,6 +125,20 @@ User direction: "scrml is not just for ui … if it can be written in js, it sho
 **First REAL compiler bug found in dogfood — GITI-015**: `x is some ? a : b` in TERNARY position fails to lower when LHS is a computed member access (`args[i + 1] is some ? ... : ...`). The same `is some` in if-predicate position (even with computed access) lowers correctly. Author workaround: hoist the computed access into a `const next = args[i + 1]` local first. Filed to scrmlTS as `2026-05-23-0703-giti-to-scrmlTS-giti-015-is-some-ternary-with-computed-lhs.md` with sidecar repro `ui/repros/repro-11-is-some-ternary.scrml`.
 
 **Slice 9 also incidentally surfaced a JS-module-semantics gotcha** (not a scrml bug): `export { foo } from "./bar.js"` is re-export ONLY — it doesn't bind the name locally. If the module also *uses* the imported name, you need `import { foo } from "..."; export { foo };`. Caught fast (test red within seconds); fixed in the same slice.
+
+**Slices 10–11 added** generateMessage, parseSaveFlags, bookmarksForPush + PUBLIC_BOOKMARK/PRIVATE_BOOKMARK constants, formatStatus. Exercised: template literals `${var}`, `.split.pop()` chain, `.filter(arrow).length`, `.join`, conditional embed inside template, `export const`, destructuring function params, unicode codepoint `⚠` inside template. All clean.
+
+**Slice 12 — `friendlyError` port surfaced TWO new compiler bugs:**
+
+- **GITI-016 (open)**: variable name `match` triggers `E-SCOPE-001: Undeclared identifier is` when combined with surrounding context (still resists single-construct minimization; reliable repro at `ui/repros/repro-12-match-identifier-parse-confusion.scrml`). Workaround: rename `match` → `m`. Hypothesis: `match` is also a scrml markup keyword (`<match>` for if-else lowering) and the parser gets confused about which token to expect.
+- **GITI-017 (filed)**: SILENT CORRUPTION class — `not` keyword substitution is applied INSIDE regex literals. `/not a jj repo/i` → `/!a jj repo/i` (boolean-negation lowering). `/(not) ...` → `/(null) .../` (absence-sentinel lowering). Compiles clean, parses clean, runs the wrong regex. In friendlyError, 3 patterns were corrupted; only 1 was caught by tests. Repro at `ui/repros/repro-13-not-keyword-replaced-inside-regex.scrml`. Workaround: split the token via a one-char class — `/n[o]t a jj repo/i` survives.
+
+**Dogfood scoreboard end S10 slice 12**:
+- 8 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error
+- ~365 LOC of scrml shipping
+- 3 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution)
+- All Dogfood-Friction items DF-1 through DF-7 still catalogued; DF-6 downgraded (scrml:path stdlib)
+- 371 pass / 0 fail throughout
 - [x][x] **Private scopes slice 1** (spec §12) — `.giti/private` manifest I/O, glob matching, `giti private {add,remove,list}` commands, `land` refusal on private diff, 40 tests
 - [x][x] **Private scopes slice 2** — remote scope config (`.giti/remotes.json`), `giti remote {add,remove,set-scope,list}`, `giti link-private`, `giti sync --remote NAME`, push refusal on public remote when working copy has private changes, private→public scope flip requires `--unsafe`. 48 tests.
 - [x][x] **Private scopes slice 3** — engine primitives (`setBookmark` with create-fallback, `bookmarkExists`, `changedFilesInRange`); save-time scope classification + bookmark routing (`main` + `_private`); mixed-commit refusal with clear error; commit-range-aware push safety. 33 new tests (22 routing + 11 engine).

@@ -193,3 +193,22 @@ User question on DF-6: "is the node package not covered by bun or scrml stdlib?"
 
 **Dogfood scoreboard updated (end S10 slice 9)**: 4 scrml-authored modules in giti's runtime (`duration`, `parse-status`, `scope-match`, `cli-args`). ~210 LOC of scrml. 8 catalogued items: DF-1 through DF-7 (mostly friction/ergonomics) + GITI-015 (real compiler bug, filed). 371 pass / 0 fail.
 
+### Slices 10–12 — keep porting, find 2 more compiler bugs
+
+**Slice 10**: `generateMessage` (save.js → `src/lib/save-message.scrml`) + `parseSaveFlags` (extension to `cli-args.scrml`). New surface verified clean: template literals `${var}`, conditional embed `${cond ? "s" : ""}`, `.split("/").pop()`, `.filter(arrow predicate).length`, `.join`. No holes.
+
+**Slice 11**: `bookmarks.scrml` (with `export const PUBLIC_BOOKMARK/PRIVATE_BOOKMARK` constants + `bookmarksForPush`) + `format-status.scrml` (`formatStatus` with destructuring param + unicode `⚠` in template literal). New surface verified clean. No holes.
+
+**Slice 12**: `friendlyError` (~75 LOC heavy regex matching) → `src/lib/friendly-error.scrml`. Wired into `src/engine/jj-cli.js`, dropped 75 LOC of JS. **Two new compiler bugs surfaced**:
+
+- **GITI-016** — variable name `match` (which is also a scrml MARKUP keyword for tier-1 if-else `<match>` lowering) triggers `E-SCOPE-001: Undeclared identifier is` when combined with surrounding context. Workaround: rename `match` → `m`. Resists single-construct minimization but reproduces reliably in a multi-function file (`repro-12`). Filed upstream.
+- **GITI-017** — **SILENT CORRUPTION**. scrml's `not` keyword substitution is applied INSIDE regex literals. `/not a/i` → `/!a/i`, `/(not) a/i` → `/(null) a/i`. Three patterns mangled in friendlyError; only 1 was caught by existing JS tests. The other 2 would have shipped silently broken. Workaround: char-class split `/n[o]t a jj repo/i`. Same severity class as scrmlTS S42 bug A5 (the `function` text auto-promotion). Sidecar `repro-13`. Filed upstream.
+
+**Dogfood scoreboard end S10 slice 12**:
+- 8 scrml-authored modules in giti's runtime: `duration`, `parse-status`, `scope-match`, `cli-args`, `save-message`, `bookmarks`, `format-status`, `friendly-error`
+- ~365 LOC of scrml shipping
+- **4 real compiler bugs filed upstream**: GITI-014 (UI zero-arg arrow), GITI-015 (is-some ternary + computed-LHS), GITI-016 (match-id parse confusion), GITI-017 (regex `not`-substitution silent corruption)
+- Of the 4 bugs, GITI-017 is the highest severity (silent corruption)
+- DF-1 through DF-7 friction items still catalogued (DF-6 downgraded — scrml:path stdlib)
+- 371 pass / 0 fail throughout
+
