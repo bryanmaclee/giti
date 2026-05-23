@@ -16,38 +16,10 @@ import { getEngine } from "../engine/index.js";
 import { parseStatus } from "./status.js";
 import { loadPrivateManifest, partitionByScope } from "../private/scope.js";
 
-/**
- * Resolve the scrmlTS compiler CLI entry point.
- *
- * Lookup order:
- *   1. $SCRMLTS_PATH env var (points at scrmlTS root)
- *   2. sibling checkout at <giti repo>/../scrmlTS
- *
- * Returns { ok: true, path } or { ok: false, error }.
- * `path` is the absolute path to the compiler CLI.
- */
-export function resolveCompilerPath({ cwd = process.cwd(), env = process.env, fs = { existsSync } } = {}) {
-  const candidates = [];
-  if (env.SCRMLTS_PATH) candidates.push(resolve(env.SCRMLTS_PATH));
-  candidates.push(resolve(cwd, "..", "scrmlTS"));
-
-  for (const root of candidates) {
-    const cli = join(root, "compiler", "src", "cli.js");
-    if (fs.existsSync(cli)) {
-      return { ok: true, path: cli, root };
-    }
-  }
-
-  return {
-    ok: false,
-    error:
-      "Could not find the scrmlTS compiler.\n" +
-      "Set $SCRMLTS_PATH to your scrmlTS checkout, or place scrmlTS next to giti:\n" +
-      "  scrmlMaster/\n" +
-      "    giti/\n" +
-      "    scrmlTS/",
-  };
-}
+// resolveCompilerPath authored in scrml at ../lib/resolve-compiler.scrml
+// (S10 slice 14 dogfood).
+import { resolveCompilerPath } from "../lib/resolve-compiler.js";
+export { resolveCompilerPath };
 
 /**
  * Find .scrml files under cwd using Bun.Glob.

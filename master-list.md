@@ -137,10 +137,14 @@ User direction: "scrml is not just for ui … if it can be written in js, it sho
 
 - **DF-8: cross-scrml imports not rewritten in library mode.** `import { x } from "./foo.scrml"` is emitted literally to the .js output. Bun tries to load the `.scrml` file as JS and fails with "Export named 'x' not found". Workaround: use `.js` extension directly in scrml source — `import { x } from "./foo.js"`. Compiles AND runs. scrml's own internal import-graph analysis doesn't track the cross-file dep this way, but for library-mode emit where each file compiles independently and the .js exists at import-time, this is fine. Discoverability concern: scrml's own scrmlTS native parser uses `.scrml` imports (`./cursor.scrml`) — those probably go through scrmlTS's own build pipeline that does the rewrite, not the public compile path.
 
-**Dogfood scoreboard end S10 slice 13**:
-- 9 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure
-- ~410 LOC of scrml shipping
-- 4 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution)
+**Slice 14** — `resolveCompilerPath` → `src/lib/resolve-compiler.scrml`. Tests default params with destructure + multi-stdlib imports (scrml:path + scrml:fs + scrml:process) + injected/default-resolution pattern. NEW BUG:
+
+- **GITI-018 (filed)** — only the FIRST `scrml:` stdlib import in a file gets rewritten to `./_scrml/X.js` in `--mode library` emit. Subsequent imports stay as bare `scrml:fs` / `scrml:process` URLs that Bun can't resolve. Bonus pathology: when comments precede the imports, even the first one doesn't get rewritten. Repro: `ui/repros/repro-14-multi-stdlib-import-not-rewritten.scrml`. Workaround (applied): "anchor pattern" — keep ONE `scrml:` import to trigger `_scrml/` shim generation, then import the rest directly from `./_scrml/X.js` siblings.
+
+**Dogfood scoreboard end S10 slice 14**:
+- 10 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler
+- ~460 LOC of scrml shipping
+- 5 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution), GITI-018 (multi-stdlib import)
 - All Dogfood-Friction items DF-1 through DF-7 still catalogued; DF-6 downgraded (scrml:path stdlib)
 - 371 pass / 0 fail throughout
 - [x][x] **Private scopes slice 1** (spec §12) — `.giti/private` manifest I/O, glob matching, `giti private {add,remove,list}` commands, `land` refusal on private diff, 40 tests
