@@ -141,9 +141,22 @@ User direction: "scrml is not just for ui … if it can be written in js, it sho
 
 - **GITI-018 (filed)** — only the FIRST `scrml:` stdlib import in a file gets rewritten to `./_scrml/X.js` in `--mode library` emit. Subsequent imports stay as bare `scrml:fs` / `scrml:process` URLs that Bun can't resolve. Bonus pathology: when comments precede the imports, even the first one doesn't get rewritten. Repro: `ui/repros/repro-14-multi-stdlib-import-not-rewritten.scrml`. Workaround (applied): "anchor pattern" — keep ONE `scrml:` import to trigger `_scrml/` shim generation, then import the rest directly from `./_scrml/X.js` siblings.
 
-**Dogfood scoreboard end S10 slice 14**:
-- 10 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler
-- ~460 LOC of scrml shipping
+**Slice 15** — `remotes.js` → `src/lib/remotes.scrml`. ~120 LOC. Heavily tested surface: `JSON.parse`/`JSON.stringify`, `try { } catch { }` (parameterless), `Array.isArray`, `.find`/`.some`/`.filter`/`.map`/`.includes`, multi-stdlib with the GITI-018 anchor pattern, fs I/O (`existsSync`/`readFileSync`/`writeFileSync`/`mkdirSync`).
+
+**NEW finding (language design, not a bug)**: `W-TRY-CATCH-IN-SCRML-SOURCE` warning — scrml's error model (§19.1) is values-not-exceptions; `try`/`catch` is not idiomatic. Compiler accepts try/catch and emits it literally to JS (works at runtime), but warns that the proper scrml idiom is:
+- `safeCall` / `safeCallAsync` from `scrml:host` for JS-host throws
+- `!{ ... }` failable pattern matching
+- `fail` keyword for domain errors
+- `?` propagation operator
+- `<errorBoundary>` state type
+
+For dogfood purposes, the warning is informational — port functions kept the JS-style try/catch. Refactoring to the scrml idiom is a follow-up; the existing `{ ok, error }` discriminated-result tuples giti returns are already a values-not-exceptions shape that maps neatly onto `!{}` failable functions.
+
+**Note**: I briefly applied the GITI-017 char-class workaround `n[o]t` to a STRING literal by mistake — strings are NOT affected by the corruption, only regex literals. Fix reverted, scoreboard amended.
+
+**Dogfood scoreboard end S10 slice 15**:
+- 11 scrml-authored modules in giti's runtime: duration, parse-status, scope-match, cli-args, save-message, bookmarks, format-status, friendly-error, save-routing-pure, resolve-compiler, remotes
+- ~580 LOC of scrml shipping
 - 5 real compiler bugs filed upstream: GITI-014 (UI), GITI-015 (is-some ternary), GITI-016 (match-id), GITI-017 (regex not-substitution), GITI-018 (multi-stdlib import)
 - All Dogfood-Friction items DF-1 through DF-7 still catalogued; DF-6 downgraded (scrml:path stdlib)
 - 371 pass / 0 fail throughout
