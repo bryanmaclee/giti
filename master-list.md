@@ -2,14 +2,16 @@
 
 **Purpose:** Live inventory of the giti collaboration platform.
 
-**Last updated:** 2026-04-22 (S7 — GITI-010 filed + fixed by scrmlTS (Option A) + verified live; GITI-009 confirmed at runtime)
+**Last updated:** 2026-05-24 (S10 close — 21 slices: GITI-012/013 closed, GAP-6 + GAP-8 shipped, 17 scrml-as-logic dogfood modules, 5 compiler bugs filed (014–018, 014 fixed upstream))
 
 ---
 
-## A. CLI (verified S86 in new location)
+## A. CLI
 
 **Entry:** `src/cli.js`, bin name: `giti`
-**Tests:** 88 pass (81 CLI + 7 jj integration)
+**Commands:** 15 (save, switch, merge, undo, history, status, land, init, describe, sync, serve, private, remote, link-private, **check**)
+**Tests:** 371 pass / 0 fail / 0 skip (14 test files). jj 0.41 installed + colocated this session.
+**Engine:** jj-cli wrapper (jj 0.41)
 **Engine:** jj-lib 0.40 wrapper
 
 ### Commands (all working)
