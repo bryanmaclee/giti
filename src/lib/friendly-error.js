@@ -9,8 +9,8 @@
         if (!raw) return "An unknown error occurred."
 
         // GIT-002: Not a giti repository.
-        if (/n[o]t a jj repo/i.test(raw) || /no jj repo/i.test(raw) ||
-            /there is no jj repo/i.test(raw) || /n[o]t in a git repository/i.test(raw)) {
+        if (/not a jj repo/i.test(raw) || /no jj repo/i.test(raw) ||
+            /there is no jj repo/i.test(raw) || /not in a git repository/i.test(raw)) {
             return "This directory is not a giti project.\nTo create a new project here: giti init\nTo work with an existing project: navigate to its directory first."
         }
 
@@ -35,7 +35,7 @@
         }
 
         // Bookmark not found.
-        if (/no such bookmark/i.test(raw) || /bookmark.*n[o]t found/i.test(raw)) {
+        if (/no such bookmark/i.test(raw) || /bookmark.*not found/i.test(raw)) {
             return "That bookmark does not exist. Run 'giti branches' to see available bookmarks."
         }
 

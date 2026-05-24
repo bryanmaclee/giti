@@ -1,0 +1,54 @@
+// Repro 15 — GITI-019: interpolation whose expression uses `||` (or `&&`)
+// emits illegal JS because the compiler's auto `?? ""` wrap is not
+// parenthesized around the logical operand.
+//
+// Source: `${ expr || "fallback" }` — a common "default text" idiom.
+//
+// The compiler wraps every text interpolation in `String( <expr> ?? "" )`
+// to coerce null/undefined to empty string. When <expr> itself contains a
+// top-level `||` (or `&&`), the emit becomes:
+//
+//   String(e.description || "(no message)" ?? "")
+//
+// which is a JS SyntaxError: the `??` operator may NOT be combined with
+// `||` or `&&` without explicit parentheses (ES2020 short-circuit
+// ambiguity rule). Node reports: "SyntaxError: missing ) after argument list".
+//
+// Correct emit must parenthesize the source expression before appending
+// the coalesce guard:
+//
+//   String((e.description || "(no message)") ?? "")
+//
+// The defect is specific to the `for ... lift` loop emit path: there the
+// per-item interpolation is built with `createTextNode(String(expr ?? ""))`.
+// A direct top-level reactive interpolation instead takes the
+// `el.textContent = expr` path (no `?? ""` wrap) and does NOT trip the bug —
+// so the repro must use a lift loop to surface it.
+//
+// To reproduce:
+//   bun run compiler/src/cli.js compile ui/repros/repro-15-interp-logical-or-coalesce-mix.scrml -o /tmp/r15
+//   grep "createTextNode" /tmp/r15/repro-15-interp-logical-or-coalesce-mix.client.js
+//     -> ...createTextNode(String(e.description || "(no message)" ?? ""))
+//   node --check /tmp/r15/repro-15-interp-logical-or-coalesce-mix.client.js
+//     -> SyntaxError: missing ) after argument list
+//
+// Runtime impact: any giti UI page using the `${ x || "default" }` idiom
+// inside a `for ... lift` loop fails to parse its client bundle. Surfaced
+// in 3 of 5 pages (status, history, diff) immediately after GITI-014's fix
+// unblocked those bundles.
+
+<program>
+
+${
+  @entries = [{ description: not }]
+}
+
+<ul>
+  ${
+    for (let e of @entries) {
+      lift <li>${e.description || "(no message)"}</li>
+    }
+  }
+</ul>
+
+</program>

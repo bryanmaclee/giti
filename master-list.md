@@ -133,7 +133,9 @@ User direction: "scrml is not just for ui … if it can be written in js, it sho
 **Slice 12 — `friendlyError` port surfaced TWO new compiler bugs:**
 
 - **GITI-016 (open)**: variable name `match` triggers `E-SCOPE-001: Undeclared identifier is` when combined with surrounding context (still resists single-construct minimization; reliable repro at `ui/repros/repro-12-match-identifier-parse-confusion.scrml`). Workaround: rename `match` → `m`. Hypothesis: `match` is also a scrml markup keyword (`<match>` for if-else lowering) and the parser gets confused about which token to expect.
-- **GITI-017 (filed)**: SILENT CORRUPTION class — `not` keyword substitution is applied INSIDE regex literals. `/not a jj repo/i` → `/!a jj repo/i` (boolean-negation lowering). `/(not) ...` → `/(null) .../` (absence-sentinel lowering). Compiles clean, parses clean, runs the wrong regex. In friendlyError, 3 patterns were corrupted; only 1 was caught by tests. Repro at `ui/repros/repro-13-not-keyword-replaced-inside-regex.scrml`. Workaround: split the token via a one-char class — `/n[o]t a jj repo/i` survives.
+- **GITI-017 (CLOSED S11)**: SILENT CORRUPTION class — `not` keyword substitution was applied INSIDE regex literals. `/not a jj repo/i` → `/!a jj repo/i` (boolean-negation lowering). `/(not) ...` → `/(null) .../` (absence-sentinel lowering). Compiled clean, parsed clean, ran the wrong regex. In friendlyError, 3 patterns were corrupted; only 1 was caught by tests. Repro at `ui/repros/repro-13-not-keyword-replaced-inside-regex.scrml`.
+  - **S11 timeline:** scrmlTS first reported closed (`f181d60a`, 0606) → re-verify found it PARTIAL (absence-sentinel fixed, boolean-negation `not `→`!` still corrupting) → reopen sent → scrmlTS confirmed + retracted (0618). **Residual fix `3341f34d` (in HEAD `fa665e9d`)** extracted the regex/comment/string fence into shared `code-segments.ts` and routed BOTH lowering sites (`rewrite.ts` absence path + `expression-parser.ts::preprocessForAcorn` boolean path) through it.
+  - **CLOSED verified S11 at scrmlTS `a91ad5de`:** clean probe `const re = /not a jj repo/i` → verbatim. Full repro-13 matrix all-verbatim (`not …`, `bookmark.*not found`, `(not)`, `nothing`, `n[o]t` control). **Workaround REMOVED** — 3 `/n[o]t …/` sites in `friendly-error.scrml` reverted to `/not …/`, recompiled `--mode library`, regexes emit verbatim, 371/0 tests pass. (`remotes.scrml` had no `n[o]t` sites.)
 
 **Slice 13** — `classifyChanges`, `planBookmarkMoves`, `splitMessages` → `src/lib/save-routing-pure.scrml`. New surface verified: object destructure with renaming `{ public: pub, private: priv }`, spread in object literal `{ ...obj, x }` (tested separately). NEW HOLE:
 
@@ -222,8 +224,24 @@ Batch 2 — sent 2026-04-20 16:14 → `scrmlTS/handOffs/incoming/2026-04-20-1614
 **Compile drift (closed S10):**
 - [x][x] **DRIFT-1** — CLOSED S10 (scrmlTS `cbfefef`). All 5 UI pages had `null` literals (carryover from before scrml tightened §42.7 to require `not` for absence). Mechanical sed substitution `: null` → `: not` across `status`, `history`, `bookmarks`, `diff`, `land`. All 5 now compile clean; tests still 324/0.
 
-**Open (UI-blocking, filed S10):**
-- [ ][ ] **GITI-014** — Residual of GITI-013: the **zero-arg** arrow shape `() => ({...})` returning an object literal still loses parens in client-emit. Compiles fine, parses fails at runtime (`Uncaught SyntaxError: Unexpected token ':'`). Affects every reactive-state declaration with an object initializer (`@var = { ... }`). All 5 giti UI pages currently regress — pages render empty defaults; awaited fetches never wire to DOM because reactive init throws. Repro: `ui/repros/repro-10-zero-arg-arrow-object-init.scrml`. Filed to scrmlTS 2026-05-23 (`giti-to-scrmlTS-giti-014-zero-arg-arrow-object-init.md`).
+**Closed S11:**
+- [x][x] **GITI-014** — CLOSED S11 (verified against scrmlTS `dc073b94`, fix `18b90f12` S122). Residual of GITI-013: the **zero-arg** arrow shape `() => ({...})` returning an object literal lost parens in client-emit. Fix paren-wraps all 5 thunk emit sites in `emit-logic.ts`. repro-10 now emits `_scrml_init_set("probe", () => ({error: null, count: 0}));` and `node --check` passes. All 5 UI pages recompiled clean.
+
+**Filed + CLOSED S11 (same session):**
+- [x][x] **GITI-019** — CLOSED S11 (fix `fa665e9d`, verified at `a91ad5de`). In the `for ... lift` loop emit path, a per-item text interpolation whose expression used top-level `||` (or `&&`) emitted illegal JS: the auto `?? ""` coalesce wrap was NOT parenthesized around the logical operand, producing `String(e.description || "(no message)" ?? "")` → `SyntaxError: missing ) after argument list` (ES2020 forbids mixing `??` with `||`/`&&` unparenthesized). Surfaced in 3 of 5 pages (status:234, history:64, diff:91) the moment GITI-014's fix unblocked those bundles. Fix: `emit-lift.js` now parenthesizes the source expr → `String((expr) ?? "")`; direct top-level interp path was already correct, untouched. Verified: repro-15 emits `String((e.description || "(no message)") ?? "")`, `node --check` clean; all 5 UI page client bundles now parse clean. Repro: `ui/repros/repro-15-interp-logical-or-coalesce-mix.scrml`.
+
+### S11 re-verify sweep (all open bugs re-tested at scrmlTS `dc073b94`, 2026-05-24)
+| Bug | Verdict at dc073b94 | Workaround disposition |
+|---|---|---|
+| GITI-014 (zero-arg arrow obj-literal) | ✅ CLOSED | removed |
+| GITI-015 (`is some` ternary + computed LHS) | ❌ still broken — `args[i+1] is some ? …` emitted literally (only plain-identifier control lowers); repro-11 `--mode library` | hoist-to-const **stays** |
+| GITI-016 (`match` identifier) | ❌ still broken — `E-SCOPE-001: Undeclared identifier is`; repro-12 | rename `match`→`m` **stays** |
+| GITI-017 (`not` inside regex) | ✅ CLOSED — residual `3341f34d` verified at `a91ad5de`; full repro-13 matrix verbatim | `/n[o]t …/` **REMOVED** |
+| GITI-018 (multi-`scrml:` import in library mode) | ❌ still broken — clean probe: only the 1st import rewritten to `./_scrml/`, rest stay bare `scrml:fs`/`scrml:process` (shims for all 3 still emitted) | anchor-pattern **stays** |
+| GITI-019 (lift-loop `||`+`??`) | ✅ CLOSED — fix `fa665e9d` verified at `a91ad5de`; all 5 UI bundles parse clean | n/a (never worked around) |
+| GITI-006 (cosmetic `${@var.path}` pre-init) | open (not re-tested — cosmetic) | pre-seed defaults |
+
+Net (end of S11): **GITI-014, 017, 019 CLOSED** this session. GITI-015, 016, 018 still open (workarounds retained). GITI-006 cosmetic. scrmlTS turned GITI-017-residual + GITI-019 around within the session (parallel scrmlTS instance); both verified at `a91ad5de`. Only friendly-error.scrml's `/n[o]t …/` workaround was removable; tests 371/0 after removal.
 
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.
