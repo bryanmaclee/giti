@@ -53,7 +53,7 @@ async function _scrml_handler_resolveCompilerPath_1(_scrml_req) {
       return {ok: true, path: cli, root};
     }
     }
-    return {ok: false, error: "Could !find the scrmlTS compiler.\n" + "Set $SCRMLTS_PATH to your scrmlTS checkout, or place scrmlTS next to giti:\n" + "  scrmlMaster/\n" + "    giti/\n" + "    scrmlTS/"};
+    return {ok: false, error: "Could not find the scrmlTS compiler.\n" + "Set $SCRMLTS_PATH to your scrmlTS checkout, or place scrmlTS next to giti:\n" + "  scrmlMaster/\n" + "    giti/\n" + "    scrmlTS/"};
   })();
   return new Response(JSON.stringify(_scrml_result ?? null), {
     status: 200,

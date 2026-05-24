@@ -125,6 +125,14 @@ scrmlTS (parallel instance) turned both around within the hour. Message `2026-05
 
 ### State at S11 work-pause
 - UI no longer compiler-blocked at the bundle-parse level — all 5 pages' client bundles parse clean. Theme dedupe (status.scrml) is now UN-gated: status/history/diff can be browser-verified (still needs a token-naming design call before churning 5 files).
-- Committed: giti HEAD `6f12e6b` (user authorized commit + push).
+- Committed: giti HEAD `6f12e6b` then `30523dd` (user authorized commit + push).
 - Push routed via master coordination — sent `2026-05-24-0725-giti-to-master-push-s11-bug-sweep.md` (`needs: push`) to master, listing giti + scrmlTS as affected. Master PA performs the actual origin push per the gated flow. **Push to origin NOT yet confirmed** (awaiting master).
+
+### GITI-018 ALSO FIXED + CLOSED (after first commit)
+scrmlTS message `2026-05-24-0809-...giti-018-fix-landed.md` (archived). Local scrmlTS advanced to `3a909c1d` (fix `32c2fd39`, ancestor confirmed).
+- Verified: clean 3-import probe → all rewritten to `./_scrml/X.js`, zero bare `scrml:`. Root cause: `^import` anchor disallowed leading indentation (only 1st import de-indented in library emit).
+- **Anchor-pattern workaround REMOVED** from all 4 sites: `resolve-compiler.scrml`, `find-scrml-files.scrml`, `scope-manifest.scrml`, `remotes.scrml` — plain `scrml:NAME` restored, recompiled `--mode library` (0 bare each). **371/0 tests pass.**
+- Ledger updated: **GITI-014, 017, 018, 019 all CLOSED S11.** Remaining open: GITI-015, 016 (workarounds kept), GITI-006 (cosmetic).
+- **Latent GITI-017 string-corruption CAUGHT during recompile:** `resolve-compiler.server.js` had `"Could not find the scrmlTS compiler"` silently compiled to `"Could !find …"` in committed output (boolean-negation `not `→`!` hit a STRING, not just regex — corrects the prior "strings not affected" belief). Recompile fixed it. Full 17-module re-sweep confirmed this was the ONLY lurking instance. master-list note at "strings are NOT affected" amended.
+- This is a SECOND commit's worth of work (post `30523dd`) — needs its own commit + the master push message HEAD ref refreshed again.
 - Theme dedupe (status.scrml): DEFERRED — needs token-naming design call + visual verify of status/history/diff, which are GITI-019 runtime-blocked. Pick up after GITI-019 lands.

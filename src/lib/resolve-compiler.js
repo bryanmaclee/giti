@@ -4,10 +4,6 @@
 import { resolve, join } from "./_scrml/path.js"
     import { existsSync as fsExistsSync } from "./_scrml/fs.js"
     import { cwd as processCwd, env as processEnv } from "./_scrml/process.js"
-    // DF-9 workaround: only the FIRST scrml: stdlib import gets rewritten
-    // to ./_scrml/X.js. Subsequent scrml: imports are left as bare URLs.
-    // Workaround: keep ONE scrml: import (which generates the _scrml/
-    // shims) and import the rest directly from the resulting _scrml/X.js.
 
     // resolveCompilerPath — find scrmlTS's CLI.
     // Returns { ok: true, path, root } or { ok: false, error }.

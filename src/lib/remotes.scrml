@@ -5,12 +5,11 @@
 //   - JSON.parse + JSON.stringify (untested in prior ports)
 //   - try { ... } catch { ... } (parameterless catch — untested)
 //   - Array.isArray, .find, .some, .filter, .map, .includes
-//   - Multi-stdlib (scrml:path + scrml:fs) — uses the anchor pattern
-//     from GITI-018 workaround (one scrml: + direct ./_scrml/X.js)
+//   - Multi-stdlib (scrml:path + scrml:fs)
 
 ${
     import { dirname, join } from "scrml:path"
-    import { readFileSync, writeFileSync, existsSync, mkdirSync } from "./_scrml/fs.js"
+    import { readFileSync, writeFileSync, existsSync, mkdirSync } from "scrml:fs"
 
     export const REMOTES_PATH = ".giti/remotes.json"
     export const SCOPES = ["public", "private"]

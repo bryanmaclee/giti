@@ -13,7 +13,7 @@
 
 ${
     import { join } from "scrml:path"
-    import { readdirSync, statSync } from "./_scrml/fs.js"
+    import { readdirSync, statSync } from "scrml:fs"
 
     const SKIP_DIRS = ["docs", "node_modules", "dist"]
 

@@ -8,7 +8,7 @@
 
 ${
     import { dirname, join } from "scrml:path"
-    import { readFileSync, writeFileSync, existsSync, mkdirSync } from "./_scrml/fs.js"
+    import { readFileSync, writeFileSync, existsSync, mkdirSync } from "scrml:fs"
 
     export const MANIFEST_PATH = ".giti/private"
     export const MANIFEST_FILE_NAME = "private"
