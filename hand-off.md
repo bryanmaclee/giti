@@ -125,5 +125,6 @@ scrmlTS (parallel instance) turned both around within the hour. Message `2026-05
 
 ### State at S11 work-pause
 - UI no longer compiler-blocked at the bundle-parse level — all 5 pages' client bundles parse clean. Theme dedupe (status.scrml) is now UN-gated: status/history/diff can be browser-verified (still needs a token-naming design call before churning 5 files).
-- Working tree being committed now (user authorized commit + push). Push routes via master coordination (giti + scrmlTS affected).
+- Committed: giti HEAD `6f12e6b` (user authorized commit + push).
+- Push routed via master coordination — sent `2026-05-24-0725-giti-to-master-push-s11-bug-sweep.md` (`needs: push`) to master, listing giti + scrmlTS as affected. Master PA performs the actual origin push per the gated flow. **Push to origin NOT yet confirmed** (awaiting master).
 - Theme dedupe (status.scrml): DEFERRED — needs token-naming design call + visual verify of status/history/diff, which are GITI-019 runtime-blocked. Pick up after GITI-019 lands.
