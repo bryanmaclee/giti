@@ -101,6 +101,7 @@ ${
       <a href="/bookmarks.html">Bookmarks</a>
       <a href="/diff.html">Diff</a>
       <a href="/land.html" class="active">Land</a>
+      <a href="/live.html">Live</a>
     </nav>
   </header>
 

@@ -58,6 +58,21 @@ ${
   }
 }
 
+<header class="topbar">
+  <div class="title">
+    <span class="logo">giti</>
+    <span class="muted">live</>
+  </>
+  <nav>
+    <a href="/">Status</>
+    <a href="/history.html">History</>
+    <a href="/bookmarks.html">Bookmarks</>
+    <a href="/diff.html">Diff</>
+    <a href="/land.html">Land</>
+    <a href="/live.html" class="active">Live</>
+  </>
+</header>
+
 <div class="app">
   <h1>giti — live status</>
   <p class="meta">Channel: <code>repo-status</code> · updates broadcast to every open tab</>

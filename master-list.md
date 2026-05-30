@@ -356,6 +356,25 @@ GITI-027 is resolved (the dogfood outcome: the surface giti needs from §40 isn'
 usable for content-hiding yet). Pattern again matches the S140 emit-vs-runtime gap:
 static auth analysis is well-tested; the runtime content-visibility behavior is not.
 
+### S12 live-follow dashboard SHIPPED (2026-05-30)
+
+Pivoted the channel dogfood into a real giti feature: **`ui/live.scrml` is now the
+live-follow dashboard**, served by `giti serve` and runtime-verified end-to-end
+through the actual pipeline (`startServer` → `compileUi` → `dist/ui` →
+`loadScrmlChannels` → `Bun.serve({websocket})`): `/live.html` serves 200, two WS
+clients both receive the channel-cell snapshot sync carrying real `jj` status.
+Built on **channels** (works); the SSE `feed.scrml` is server-only until GITI-026.
+
+**Serve-blocker fixed (`compile-ui.js`):** `giti serve` was broken — `compileUi`
+directory-compiled all of `ui/` (fail-fast), and `ui/repros/repro-12` (GITI-016,
+still open) fails with `E-SCOPE-001`, plus v0.7.0's `--validate-emit` gate would
+trip other repros. Fix: `compileUi` now compiles only the top-level `ui/*.scrml`
+page entry files, skipping the `repros/` subdir (reproducers are not app pages;
+mirrors the `repro-` skip in `loadScrmlHandlers`/`loadScrmlChannels`). Real page
+failures still fail loud (P0 policy). Nav: `Live` link added to `live`/`history`/
+`land`; the 3 theme-dedupe-WIP pages (`status`/`bookmarks`/`diff`) get it when that
+WIP lands. 371/0.
+
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.
 

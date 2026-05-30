@@ -20,7 +20,18 @@ export const DEFAULT_UI_DIR = "ui";
 export const DEFAULT_DIST_DIR = join("dist", "ui");
 
 /**
- * Compile every .scrml file under `uiDir` into `distDir`.
+ * Compile the top-level UI page files under `uiDir` into `distDir`.
+ *
+ * Only the top-level `ui/*.scrml` page entry files are compiled — the
+ * `repros/` subdirectory holds compiler-bug reproducers that intentionally
+ * exhibit broken shapes (some fail to compile by design). A whole-directory
+ * compile is fail-fast, so including the repros would break `giti serve`; they
+ * are reproducers, not app pages, and are skipped here (mirroring the
+ * `repro-` skip in loadScrmlHandlers / loadScrmlChannels).
+ *
+ * Real page compile failures still fail loud — per policy, a scrmlTS compiler
+ * bug blocking a giti page is P0 (pa.md escalation path).
+ *
  * Returns { ok: true, distDir } or { ok: false, error }.
  */
 export async function compileUi({
@@ -40,22 +51,31 @@ export async function compileUi({
 
   mkdirSync(distAbs, { recursive: true });
 
-  const proc = Bun.spawn(
-    ["bun", "run", compiler.path, "compile", uiAbs, "-o", distAbs],
-    { cwd, stdout: "pipe", stderr: "pipe" },
-  );
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
-  const exitCode = await proc.exited;
+  // Top-level page entry files only (no recursion into repros/ or dist/).
+  const pages = readdirSync(uiAbs)
+    .filter((name) => name.endsWith(".scrml"))
+    .sort();
 
-  if (exitCode !== 0) {
-    const msg = (stderr.trim() || stdout.trim()) || `compiler exited with ${exitCode}`;
-    return { ok: false, error: msg };
+  const outputs = [];
+  for (const page of pages) {
+    const proc = Bun.spawn(
+      ["bun", "run", compiler.path, "compile", join(uiAbs, page), "-o", distAbs],
+      { cwd, stdout: "pipe", stderr: "pipe" },
+    );
+    const stdout = await new Response(proc.stdout).text();
+    const stderr = await new Response(proc.stderr).text();
+    const exitCode = await proc.exited;
+
+    if (exitCode !== 0) {
+      const detail = (stderr.trim() || stdout.trim()) || `compiler exited with ${exitCode}`;
+      return { ok: false, error: `${page}: ${detail}` };
+    }
+    outputs.push(stdout.trim());
   }
 
   const sharedCss = copySharedCss({ uiAbs, distAbs });
 
-  return { ok: true, distDir: distAbs, stdout: stdout.trim(), sharedCss };
+  return { ok: true, distDir: distAbs, stdout: outputs.join("\n"), sharedCss };
 }
 
 /**
