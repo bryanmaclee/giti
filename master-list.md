@@ -307,6 +307,31 @@ the report: plain `export function`s + `scrml:fs` emit a spurious HTTP-handler
 `.server.js` that nobody imports. **Now on v0.7.0: all 17 libs + 6 UI pages compile
 clean with the gate ON, 371/0.**
 
+### S12 SSE dogfood (scrmlTS v0.7.0 / 4c9079d2, 2026-05-30)
+
+Dogfooded the §37 SSE surface (`server function*` generators). Built `ui/feed.scrml`
+— a live `jj` status feed: a no-arg `server function*` polls the engine on a 1s
+interval and yields a named `event: status` SSE event. Added `src/lib/delay.js`
+(Promise delay helper for poll pacing). **Server side fully works** (runtime-verified:
+real jj status streamed as named events, correct framing/headers, flows through
+giti's plain GET fetch path — no WS-style wiring needed, unlike channels). **Client
+side is blocked by GITI-026.**
+
+Two NEW silent-miscompiles (both Bug-51-class, server emit correct / client or param
+wiring broken):
+
+| ID | Summary | Detection | Repro |
+|---|---|---|---|
+| **GITI-025** | parameterized `server function*` yields nothing — server references the param as a free var (no `route.query` binding); client drops the call arg (binds it to the onMessage slot, EventSource URL has no query). No-arg generators work. | silent empty stream (ReferenceError swallowed by the stream try/catch) | repro-21 |
+| **GITI-026** | client reactive binding `@cell = gen()` is dead — `_scrml_reactive_set("cell", stub())` stores the EventSource object; no per-event callback is passed, so events never update the cell (even the no-arg default-event case, the canonical §37.5.1 usage). Named `{event,data}` yields additionally unreachable (stub sets `onmessage` only, never `addEventListener(name)`). | runtime-proven via faithful EventSource: reactive_set called once with the EventSource obj, zero stream values delivered | repro-22 |
+
+Both filed to `scrmlTS/handOffs/incoming/` with sidecars; copies in `handOffs/outgoing/`.
+Method note: confirmed scrmlTS's SSE client tests only assert the emit *contains*
+`onmessage`/`JSON.parse` — never runtime-test that events reach the cell — exactly the
+emit-string-only gap the S140 resume message warned about. SSE running tally: server
+surface solid; client consumption (both §37.5.1 reactive + §37.5.2 for/lift) needs the
+stub→cell wiring fixed.
+
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.
 

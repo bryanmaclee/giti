@@ -1,0 +1,68 @@
+// giti — live status feed (SSE dogfood, §37)
+//
+// Built against scrmlTS v0.7.0 (4c9079d2). Runtime-tier exercise of the
+// `server function*` SSE surface per the S140 resume message.
+//
+// A `server function*` polls giti's engine on an interval and `yield`s a
+// status snapshot as a named SSE event. The compiler emits a text/event-stream
+// GET route + an EventSource client stub; binding the call to an @reactive cell
+// updates the page on every event. No EventSource/ReadableStream code is hand-
+// written — only the generator body.
+//
+// No generator parameters (GITI-025: parameterized SSE generators silently
+// yield nothing on v0.7.0). The watcher reads the current repo from server-side
+// state, so it needs none.
+
+<program>
+
+${
+  import { getEngine } from '../src/engine/index.js'
+  import { parseStatus } from '../src/lib/parse-status.js'
+  import { delay } from '../src/lib/delay.js'
+
+  server function* watchStatus() {
+    while (true) {
+      const res = await getEngine().status()
+      const parsed = res.ok
+        ? parseStatus(res.data.raw || "")
+        : { bookmark: not, changed: [], conflicts: [] }
+      yield {
+        event: "status",
+        data: {
+          state: res.ok ? "ok" : "error",
+          changed: parsed.changed.length,
+          conflicts: parsed.conflicts.length,
+          bookmark: parsed.bookmark,
+          error: res.ok ? not : res.error,
+          at: new Date().toISOString(),
+        },
+      }
+      await delay(1000)
+    }
+  }
+
+  @status = watchStatus()
+}
+
+<div class="app">
+  <h1>giti — live status feed</>
+  <p class="meta">Source: <code>server function* watchStatus</code> · streamed over SSE</>
+
+  <div class="card">
+    <p>State: <strong>${@status.state}</></>
+    <p>Changed files: ${@status.changed}</>
+    <p>Conflicts: ${@status.conflicts}</>
+    <p>Bookmark: ${@status.bookmark}</>
+    <p class="ts">As of: ${@status.at}</>
+  </>
+</div>
+
+#{
+  @import url('theme.css');
+  .app { max-width: 720px; margin: 0 auto; padding: 24px; }
+  .card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .meta { color: var(--muted); }
+  .ts { color: var(--muted); font-size: 12px; }
+}
+
+</program>
