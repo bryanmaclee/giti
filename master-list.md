@@ -332,6 +332,30 @@ emit-string-only gap the S140 resume message warned about. SSE running tally: se
 surface solid; client consumption (both §37.5.1 reactive + §37.5.2 for/lift) needs the
 stub→cell wiring fixed.
 
+### S12 auth dogfood (scrmlTS v0.7.0 / 4c9079d2, 2026-05-30)
+
+Dogfooded the §40 auth surface for giti's roadmap need (gate write controls behind
+an `Owner` role; master-list §E hosted-forge blocker). **Static/diagnostic surface
+is solid** (positive coverage): role-enum resolution works; `E-AUTH-GRAPH-003`
+(variant not in enum), `E-AUTH-GRAPH-004` (no role/check), `W-AUTH-LOGIN-MISSING` +
+`I-AUTH-REDIRECT-UNRESOLVED` (login-redirect inference), and `E-PAGE-INVALID-ATTR`
+(`loginRedirect=` belongs on `<program>`, not `<page>`) all fire correctly. The
+§40.9 per-role JS chunk classification (`--emit-per-route`) also works — the
+Anonymous chunk omits the owner-only mounts; the Owner chunk includes them.
+
+One HIGH/security finding:
+
+| ID | Summary | Detection | Repro |
+|---|---|---|---|
+| **GITI-027** | `<auth role="X">` does not hide CONTENT from unauthorized viewers. DEFAULT compile mode (what giti's compile-on-serve uses): full no-op — gated markup + secret text in the served HTML, owner handler wired unconditionally, no role check, `UserRole` enum emitted-but-unused, NO warning. `--emit-per-route` mode: JS mount is role-split, but the single shared `*.html` still contains the gated markup verbatim (secret visible in view-source to anonymous). Runtime has no `<auth>`-element role gating. | runtime/emit: secret in HTML=1, handler wired=1, role-guards=0, W-AUTH=0 | repro-23 |
+
+Filed to scrmlTS with sidecar; copy in `handOffs/outgoing/`. **giti CANNOT adopt
+`<auth role>` for write-gating yet** — it would be a fully inert security gate in
+the serve mode giti uses. giti keeps its `localDev` + 127.0.0.1 write-gate until
+GITI-027 is resolved (the dogfood outcome: the surface giti needs from §40 isn't
+usable for content-hiding yet). Pattern again matches the S140 emit-vs-runtime gap:
+static auth analysis is well-tested; the runtime content-visibility behavior is not.
+
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.
 
