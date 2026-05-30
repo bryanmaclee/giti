@@ -1,0 +1,96 @@
+// giti — live status (channel dogfood, §38)
+//
+// Built against scrmlTS v0.6.7 (18de30ba). First runtime-tier exercise of
+// the <channel> surface in giti per the S140 resume-dogfooding message.
+//
+// A <channel>-declared <snapshot> cell auto-syncs across every connected
+// client (§38.4). The server function refreshStatus() reads real `jj`
+// working-copy status via giti's engine and writes the cell — the write
+// lowers to a broadcast({__type:"__sync"}) so every open tab updates live.
+// No polling: one client clicking "Refresh" updates all of them.
+
+<program>
+
+<channel name="repo-status" topic="working-copy">
+  ${
+    // Server-only imports — preserved in .server.js, pruned from .client.js.
+    import { getEngine } from '../src/engine/index.js'
+    import { parseStatus } from '../src/lib/parse-status.js'
+
+    // V5-strict auto-synced cell (§38.4 — no @shared modifier).
+    <snapshot> = {
+      state: "idle",
+      bookmark: not,
+      changed: [],
+      conflicts: [],
+      error: not,
+      at: not,
+    }
+
+    // Two compiler workarounds in play here (both filed v0.6.7):
+    //   GITI-020 — a channel-cell write nested in a block mis-lowers to the
+    //     client reactive path, so @snapshot is written exactly once at the
+    //     top level of the function.
+    //   GITI-021 — a local reassignment in a server fn is mis-emitted as a
+    //     shadowing `const`, so we use NO reassignment: every local is a
+    //     single-assignment `const`, branches expressed as ternaries.
+    server function refreshStatus() {
+      const engine = getEngine()
+      const res = await engine.status()
+      const parsed = res.ok
+        ? parseStatus(res.data.raw || "")
+        : { bookmark: not, changed: [], conflicts: [] }
+      @snapshot = {
+        state: res.ok ? "ok" : "error",
+        bookmark: parsed.bookmark,
+        changed: parsed.changed,
+        conflicts: parsed.conflicts,
+        error: res.ok ? not : res.error,
+        at: new Date().toISOString(),
+      }
+    }
+  }
+</>
+
+${
+  function refresh() {
+    refreshStatus()
+  }
+}
+
+<div class="app">
+  <h1>giti — live status</>
+  <p class="meta">Channel: <code>repo-status</code> · updates broadcast to every open tab</>
+
+  <div class="card">
+    <p>State: <strong>${@snapshot.state}</></>
+    <p>Bookmark: ${@snapshot.bookmark}</>
+    <p>Changed files: ${@snapshot.changed.length}</>
+    <p>Conflicts: ${@snapshot.conflicts.length}</>
+    <p class="ts">Last update: ${@snapshot.at}</>
+    <button onclick=refresh()>Refresh now</>
+  </>
+
+  <ul class="files">
+    ${
+      for (let f of @snapshot.changed) {
+        lift <li><span class="kind">${f.kind}</> ${f.path}</li>
+      }
+    }
+  </ul>
+</div>
+
+#{
+  @import url('theme.css');
+
+  .app { max-width: 760px; margin: 0 auto; padding: 24px; }
+  .card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .meta { color: var(--muted); }
+  .ts { color: var(--muted); font-size: 12px; }
+  .files { list-style: none; padding: 0; }
+  .files li { font-family: var(--mono); padding: 2px 0; }
+  .kind { color: var(--accent); }
+  button { margin-top: 8px; }
+}
+
+</program>

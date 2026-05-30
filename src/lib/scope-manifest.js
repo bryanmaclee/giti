@@ -18,8 +18,10 @@ import { dirname, join } from "./_scrml/path.js"
         const raw = readFileSync(abs, "utf8")
         for (const rawLine of raw.split("\n")) {
             const line = rawLine.trim()
-            if (!line || line.startsWith("#")) continue
-            if (line == MANIFEST_PATH) continue
+            // GITI-024 workaround: brace-less `continue` in the server-split
+            // emit swallows the next line's identifier as a label. Braces fix it.
+            if (!line || line.startsWith("#")) { continue }
+            if (line == MANIFEST_PATH) { continue }
             globs.push(line)
         }
         return globs

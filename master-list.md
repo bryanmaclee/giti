@@ -244,6 +244,69 @@ Batch 2 — sent 2026-04-20 16:14 → `scrmlTS/handOffs/incoming/2026-04-20-1614
 
 Net (end of S11): **GITI-014, 017, 018, 019 CLOSED** this session. GITI-015, 016 still open (workarounds retained). GITI-006 cosmetic. scrmlTS turned GITI-017-residual + GITI-019 + GITI-018 around within the session (parallel scrmlTS instance); verified at `a91ad5de` (017/019) and `3a909c1d` (018). Workarounds removed: `friendly-error.scrml` `/n[o]t …/` (017); anchor-pattern in `resolve-compiler`/`find-scrml-files`/`scope-manifest`/`remotes` (018). Tests 371/0 after each removal.
 
+### S12 channel dogfood + server-fn codegen sweep (scrmlTS v0.6.7 / 18de30ba, 2026-05-29)
+
+Resumed dogfooding on v0.6.7 per scrmlTS S140 resume message. Upgraded local
+scrmlTS to v0.6.7 (clean ff to `feab1207`). Regression sweep: all 17 libs + 5 UI
+pages recompile clean, emitted JS byte-identical, **371/0** tests — v0.6.7 is a
+clean drop-in (GITI-014/017/018/019 stay closed).
+
+Built `ui/live.scrml` — a live `jj` status page on a §38 `<channel>` (auto-synced
+`<snapshot>` cell + `refreshStatus()` server fn reading the engine). Wired giti's
+`Bun.serve` for the channel WS contract (`loadScrmlChannels`, WS-route dispatch
+with the server instance, `globalThis._scrml_active_server`, `websocket:` handlers
+in `src/server/index.js`). **Runtime-verified**: two WS clients both receive the
+channel-cell `__sync` carrying real `jj status` (`state:"ok"`, actual changed
+files), no echo storm. Harness: `tests/manual/channel-runtime.mjs`.
+
+Four NEW compiler bugs filed (all Bug-51-class — compile exit-0):
+
+| ID | Summary | Scope | Detection | Repro |
+|---|---|---|---|---|
+| **GITI-020** | `@cell` write nested in any block (`if`/`for`) in a channel server fn → client `_scrml_reactive_set`/`_scrml_init_set` (undefined in `.server.js`) instead of `broadcast(__sync)` | channel server fn | silent (node --check OK; runtime ReferenceError + no broadcast) | repro-16 |
+| **GITI-021** | bare local reassignment `x = v` → spurious `const x = v`; shadows in blocks (silent drop) or redeclares same-scope (SyntaxError). Client w/ explicit `let` is correct; idiomatic bare-assignment form breaks both client+server | server fn (+ idiomatic client) | silent in block / loud same-scope | repro-17 |
+| **GITI-022** | uninitialized `let x` + `x = v` → `let x = x = v` (TDZ self-ref) | server fn only | silent (node --check OK; runtime ReferenceError) | repro-18 |
+| **GITI-023** | user-written optional chaining `?.` → `? . ` (broken JS); `o?.fn()`→`o ? . function()`. Compiler's own `?.` is fine | client + server expr path | exit-0 + unparseable emit | repro-19 |
+
+Meta-insight: GITI-020/021/022 all live in the **server-function statement-lowering
+path**, which is a separate, buggier code path than the client/program lowering
+(the same source is correct client-side). GITI-023 is a distinct expression
+lexer/parser issue (likely `?.` digraph vs scrml postfix `?` collision). All 4
+delivered to `scrmlTS/handOffs/incoming/` with version-stamped sidecars; copies in
+`handOffs/outgoing/`. Workarounds applied to `ui/live.scrml` (single tail `@cell`
+write fed by single-assignment-`const` + ternaries; no `?.`). Still open from
+before: GITI-015, 016 (workarounds retained), GITI-006 (cosmetic).
+
+**S12 follow-up (scrmlTS reply, 2026-05-30, compiler now v0.7.0 / 4c9079d2):**
+scrmlTS closed all four within a day. GITI-020/021/022 fixed by a single commit
+`8e7f18fe` (the shared server-fn-body context-threading root I'd hypothesized);
+GITI-023 already fixed in the v0.6.7→v0.7.0 native-parser optional-chain work.
+**All 4 verified CLOSED** by recompiling the exact repros on v0.7.0:
+GITI-020 (`broadcast(__sync)`, no `_scrml_reactive_set`), GITI-021 (`label = …`
+reassign), GITI-022 (`let x;` + `x = 1;`), GITI-023 (`o?.a?.b` parses). `ui/live.scrml`
+error-branch broadcast confirmed working at runtime.
+
+| ID | Status (v0.7.0) | Disposition |
+|---|---|---|
+| GITI-020 | ✅ CLOSED — `8e7f18fe` | repro-16; live.scrml workaround now optional |
+| GITI-021 | ✅ CLOSED — `8e7f18fe` | repro-17 |
+| GITI-022 | ✅ CLOSED — `8e7f18fe` | repro-18 |
+| GITI-023 | ✅ CLOSED — native-parser (pre-v0.7.0) | repro-19 |
+| **GITI-024** | **OPEN (NEW)** — filed 2026-05-30 | repro-20; braces workaround applied to `scope-manifest.scrml` |
+
+**GITI-024 (NEW):** v0.7.0's new `--validate-emit` parse gate (E-CODEGEN-INVALID-JS)
+caught a latent server-split-emit bug in `scope-manifest.scrml`: a brace-less
+`if (cond) continue` followed by an identifier-led statement emits `continue out;`
+(next id eaten as a label) + orphaned `. push(line)` → invalid JS. Latent on v0.6.7
+(emitted silently into the spurious, never-imported `.server.js`); the gate now hard-
+fails the compile. Same subsystem as `8e7f18fe`. Trigger: `scrml:fs` import (→ server
+split) + brace-less `continue` + identifier-led next line. **Workaround:** brace the
+`continue` statements (applied to `scope-manifest.scrml`; the imported `scope-manifest.js`
+artifact was already correct — gate-appeasement, not a runtime fix). Secondary note in
+the report: plain `export function`s + `scrml:fs` emit a spurious HTTP-handler
+`.server.js` that nobody imports. **Now on v0.7.0: all 17 libs + 6 UI pages compile
+clean with the gate ON, 371/0.**
+
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.
 

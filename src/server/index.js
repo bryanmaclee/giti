@@ -111,6 +111,20 @@ function instrumentScrmlHandlers(handlers) {
   });
 }
 
+// Recursively collect every `*.server.js` under `dir`, skipping compiler-repro
+// artifacts. `ui/repros/*.scrml` are bug reproducers that intentionally exhibit
+// broken shapes; loading them as live routes would crash the server at import.
+function walkServerModules(dir) {
+  const out = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) out.push(...walkServerModules(p));
+    else if (e.isFile() && e.name.endsWith(".server.js")
+             && !e.name.startsWith("repro-")) out.push(p);
+  }
+  return out;
+}
+
 /**
  * Discover every `*.server.js` file under `distDir` and dynamically import
  * its `fetch` export (if present). Returns an array of fetch functions
@@ -122,28 +136,51 @@ function instrumentScrmlHandlers(handlers) {
 export async function loadScrmlHandlers(distDir) {
   if (!distDir || !existsSync(distDir)) return [];
   const handlers = [];
-
-  const walk = (dir) => {
-    const entries = readdirSync(dir, { withFileTypes: true });
-    const files = [];
-    for (const e of entries) {
-      const p = join(dir, e.name);
-      if (e.isDirectory()) files.push(...walk(p));
-      else if (e.isFile() && e.name.endsWith(".server.js")) files.push(p);
-    }
-    return files;
-  };
-
-  for (const file of walk(distDir)) {
-    // Skip compiler-repro artifacts. `ui/repros/*.scrml` are bug reproducers
-    // that intentionally exhibit broken shapes; loading them as live routes
-    // would crash the server at import time.
-    const base = file.split("/").pop();
-    if (base.startsWith("repro-")) continue;
+  for (const file of walkServerModules(distDir)) {
     const mod = await import(file);
     if (typeof mod.fetch === "function") handlers.push(mod.fetch);
   }
   return handlers;
+}
+
+/**
+ * Discover §38 channel WebSocket wiring emitted into `*.server.js` modules.
+ *
+ * Each channel-bearing module exports `_scrml_ws_handlers` ({open,message,close}
+ * for Bun.serve's `websocket:` option) and one or more WebSocket upgrade routes
+ * (`routes[].isWebSocket === true`, path `/_scrml_ws/<name>`). The upgrade
+ * handler needs the live Bun server instance to call `server.upgrade(req)`, so
+ * these routes are dispatched specially (see createHandler) rather than through
+ * the standard WinterCG `fetch` export, which only forwards `req`.
+ *
+ * Returns `{ wsHandlers: object[], wsRoutes: object[] }`.
+ */
+export async function loadScrmlChannels(distDir) {
+  if (!distDir || !existsSync(distDir)) return { wsHandlers: [], wsRoutes: [] };
+  const wsHandlers = [];
+  const wsRoutes = [];
+  for (const file of walkServerModules(distDir)) {
+    const mod = await import(file);
+    if (mod._scrml_ws_handlers) wsHandlers.push(mod._scrml_ws_handlers);
+    if (Array.isArray(mod.routes)) {
+      for (const r of mod.routes) if (r && r.isWebSocket) wsRoutes.push(r);
+    }
+  }
+  return { wsHandlers, wsRoutes };
+}
+
+/**
+ * Merge per-file channel WS handler objects into the single `{open,message,close}`
+ * Bun.serve expects. Each emitted handler self-filters on `ws.data.__ch`, so
+ * fan-out is safe: only the matching channel's handler acts on a given socket.
+ */
+function mergeWsHandlers(list) {
+  if (list.length <= 1) return list[0] || null;
+  return {
+    open(ws) { for (const h of list) h.open?.(ws); },
+    message(ws, raw) { for (const h of list) h.message?.(ws, raw); },
+    close(ws, code, reason) { for (const h of list) h.close?.(ws, code, reason); },
+  };
 }
 
 /**
@@ -154,9 +191,10 @@ export async function loadScrmlHandlers(distDir) {
  * @param {boolean} [opts.localDev]     unlock write endpoints (save/switch/merge/undo)
  * @param {string}  [opts.distDir]      absolute path to compiled scrml UI (static serving)
  * @param {Array}   [opts.scrmlHandlers] scrml WinterCG fetch handlers (first-match wins)
+ * @param {Array}   [opts.wsRoutes]      §38 channel WebSocket upgrade routes (need the server)
  */
 export function createHandler({
-  engine, localDev = false, distDir = null, scrmlHandlers = [],
+  engine, localDev = false, distDir = null, scrmlHandlers = [], wsRoutes = [],
 } = {}) {
   const eng = engine || getEngine();
   const scrml = composeScrmlFetch(instrumentScrmlHandlers(scrmlHandlers));
@@ -218,10 +256,23 @@ export function createHandler({
 
   const WRITE_PATHS = new Set(["/save", "/switch", "/merge", "/undo"]);
 
-  return async function handler(req) {
+  return async function handler(req, server) {
     const url = new URL(req.url);
     const { pathname } = url;
     if (LOG) logLine("REQ", snapshotRequest(req));
+
+    // §38 channel WebSocket upgrade routes — dispatched here (not via the
+    // scrml `fetch` export) because the emitted upgrade handler needs the live
+    // Bun `server` to call server.upgrade(req). A successful upgrade returns
+    // undefined; Bun then takes over the socket.
+    if (server && wsRoutes.length > 0) {
+      for (const r of wsRoutes) {
+        if (r.path === pathname && r.method === req.method) {
+          if (LOG) logLine("WS-UPGRADE", pathname);
+          return r.handler(req, server);
+        }
+      }
+    }
 
     // scrml-generated /_scrml/* routes first (first-match wins, null falls through).
     const scrmlResponse = await scrml(req);
@@ -280,8 +331,19 @@ export async function startServer({ port = 3737, engine, localDev = false } = {}
   }
 
   const scrmlHandlers = await loadScrmlHandlers(compile.distDir);
+  const { wsHandlers, wsRoutes } = await loadScrmlChannels(compile.distDir);
   const fetch = createHandler({
-    engine, localDev, distDir: compile.distDir, scrmlHandlers,
+    engine, localDev, distDir: compile.distDir, scrmlHandlers, wsRoutes,
   });
-  return Bun.serve({ port, hostname: "127.0.0.1", fetch });
+
+  const serveOpts = { port, hostname: "127.0.0.1", fetch };
+  const websocket = mergeWsHandlers(wsHandlers);
+  if (websocket) serveOpts.websocket = websocket;
+
+  const server = Bun.serve(serveOpts);
+  // §38.6: the channel broadcast() built-in in HTTP-routed server functions
+  // publishes via globalThis._scrml_active_server. Wire it to this server.
+  globalThis._scrml_active_server = server;
+  if (LOG) logLine("CHANNELS", `${wsRoutes.length} ws route(s), ${wsHandlers.length} handler set(s)`);
+  return server;
 }

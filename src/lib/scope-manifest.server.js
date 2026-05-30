@@ -83,9 +83,9 @@ async function _scrml_handler_loadPrivateManifest_1(_scrml_req) {
       continue;
     }
       if (_scrml_structural_eq(line, MANIFEST_PATH)) {
-      continue globs;
+      continue;
     }
-      . push ( line );
+      globs.push(line);
     }
     return globs;
   })();

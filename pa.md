@@ -63,7 +63,7 @@ giti/
 
 ## Commit rules
 
-Commits to main are allowed only after explicit user authorization in the current session. Confirm with the user before the first commit of a session, and before any push. Authorization stands for the scope specified, not beyond. Pushes to origin remain gated on the master-PA push coordination flow. Force-push, destructive ops, and hook bypass (`--no-verify`) are explicitly-authorized-only.
+Commits to main are allowed only after explicit user authorization in the current session. Confirm with the user before the first commit of a session, and before any push. Authorization stands for the scope specified, not beyond. Pushes to origin are performed by the PA directly upon explicit user authorization (the master-PA push-coordination flow was a failed experiment and is retired, 2026-05-30). Force-push, destructive ops, and hook bypass (`--no-verify`) are explicitly-authorized-only.
 
 ## giti UI is written in scrml — compiler bug escalation path
 
@@ -213,12 +213,16 @@ Reproducer must be:
 
 As SENDER (giti's typical role): attach the offending scrml from your repo (or a minimized version of it) every time. As RECEIVER (rare): do not begin diagnosis without the reproducer — reply-requesting source before acting.
 
-### Push coordination via master
+### Pushing to origin (PA-direct, on user auth)
 
-When this repo is at a push point (especially if you sent messages to other repos):
-1. Send a `needs: push` message to master (`/home/bryan/scrmlMaster/handOffs/incoming/`)
-2. List which repos are affected (this repo + any repos you dropped messages into)
-3. The master PA will verify all affected repos are clean and push them together
+**Retired (2026-05-30):** the master-PA push-coordination flow ("send `needs: push`
+to master, master pushes all affected repos together") was a failed experiment. Master
+no longer pushes.
+
+The PA now pushes this repo to origin directly once the user explicitly authorizes it.
+Cross-repo message drops (e.g. bug reports into `scrmlTS/handOffs/incoming/`) are
+committed/pushed by each repo's own PA on its own user auth — there is no longer a
+single coordinated multi-repo push.
 
 ### Agent staging via master
 
