@@ -371,9 +371,19 @@ still open) fails with `E-SCOPE-001`, plus v0.7.0's `--validate-emit` gate would
 trip other repros. Fix: `compileUi` now compiles only the top-level `ui/*.scrml`
 page entry files, skipping the `repros/` subdir (reproducers are not app pages;
 mirrors the `repro-` skip in `loadScrmlHandlers`/`loadScrmlChannels`). Real page
-failures still fail loud (P0 policy). Nav: `Live` link added to `live`/`history`/
-`land`; the 3 theme-dedupe-WIP pages (`status`/`bookmarks`/`diff`) get it when that
-WIP lands. 371/0.
+failures still fail loud (P0 policy). Nav: `Live` link added to all six pages
+(`status`/`history`/`bookmarks`/`diff`/`land`/`live`). `feed` is intentionally NOT
+in nav (its SSE client is dead under GITI-026 — won't advertise a non-updating
+page). 371/0.
+
+**Theme dedupe LANDED (long-pending, DEFERRED since S11):** `theme.css` is now the
+single source of truth for design tokens + chrome; `status.scrml` dropped its
+143-line duplicated `:root`/chrome block; token vocabulary unified to
+`--fg`/`--ok`/`--err`/`--warn`/`--priv`/`--mono`/`--sans`/`--accent-2` (old
+`--text`/`--error`/`--success` retired). Verified: every `var(--…)` referenced by
+any page is defined in `theme.css` (no undefined tokens, no stale refs); all pages
+compile clean. Browser visual-verify still advisable; token-correctness is
+statically confirmed.
 
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.

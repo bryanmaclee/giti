@@ -60,6 +60,7 @@ ${
       <a href="/bookmarks.html">Bookmarks</a>
       <a href="/diff.html" class="active">Diff</a>
       <a href="/land.html">Land</a>
+      <a href="/live.html">Live</a>
     </nav>
   </header>
 
@@ -178,7 +179,7 @@ ${
     grid-template-columns: 80px 1fr;
     gap: 8px;
     padding: 8px 4px;
-    color: var(--text);
+    color: var(--fg);
     text-decoration: none;
     align-items: baseline;
   }
@@ -219,7 +220,7 @@ ${
     line-height: 1.45;
     white-space: pre;
     overflow-x: auto;
-    color: var(--text);
+    color: var(--fg);
   }
 }
 

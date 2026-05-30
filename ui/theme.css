@@ -1,110 +1,150 @@
 /*
- * giti shared UI theme — referenced by every scrml page via @import.
+ * giti shared UI theme — single source of truth for chrome + design tokens.
  *
- * Hand-written (not scrml-compiled). compileUi copies this file into
- * dist/ui/ alongside the compiler output so @import url('theme.css')
- * resolves from the per-page CSS file.
+ * Referenced by every scrml page via `@import url('theme.css')`. compileUi
+ * copies this file into dist/ui/ alongside the compiler output so the import
+ * resolves from each per-page CSS file.
  *
- * Page-specific rules stay in each page's own #{} block.
+ * This file owns: design tokens (:root), the page shell (.app / .topbar /
+ * .title / .logo / nav / main / .panel / .bottombar) and the base text
+ * helpers (.muted / .error / code). Page-specific rules stay in each page's
+ * own #{} block.
  */
 
 :root {
   --bg:        #0e1116;
   --panel:     #161b22;
-  --border:    #30363d;
-  --text:      #e6edf3;
-  --muted:     #8b949e;
+  --border:    #21262d;
+  --fg:        #e6edf3;
+  --muted:     #7d8590;
   --accent:    #58a6ff;
-  --error:     #f85149;
-  --success:   #3fb950;
+  --accent-2:  #a371f7;
+  --ok:        #3fb950;
+  --warn:      #d29922;
+  --err:       #f85149;
+  --priv:      #a371f7;
+  --mono:      ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans:      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
+  font-family: var(--sans);
   background: var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--fg);
   font-size: 14px;
   line-height: 1.5;
 }
 
-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
+.app {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem 1.25rem;
 }
 
-.app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
+/* ----- top bar ----- */
 
 .topbar {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
+  align-items: center;
   border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: -0.02em;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.topbar a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.88rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.topbar a:hover {
+  color: var(--fg);
   background: var(--panel);
 }
 
-.title .logo {
-  font-weight: 600;
-  color: var(--accent);
-  margin-right: 8px;
+.topbar a.active {
+  color: var(--fg);
+  background: var(--panel);
 }
 
-.muted { color: var(--muted); }
-
-nav a {
-  color: var(--text);
-  text-decoration: none;
-  margin-left: 16px;
-  padding-bottom: 2px;
-  border-bottom: 2px solid transparent;
-}
-
-nav a.active {
-  border-bottom-color: var(--accent);
-}
+/* ----- panels ----- */
 
 main {
-  flex: 1;
-  padding: 24px;
-  max-width: 960px;
-  width: 100%;
-  margin: 0 auto;
+  display: grid;
+  gap: 1rem;
 }
 
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 20px 24px;
-  margin-bottom: 24px;
+  padding: 1rem 1.25rem 1.25rem 1.25rem;
 }
 
 .panel h2 {
-  margin: 0 0 8px;
-  font-size: 16px;
+  margin: 0 0 0.85rem 0;
+  font-size: 1rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
-.panel > p {
-  margin: 0 0 16px;
+.panel h3 {
+  margin: 1rem 0 0.5rem 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-.error { color: var(--error); }
+.panel h3 .count {
+  display: inline-block;
+  background: var(--border);
+  color: var(--fg);
+  padding: 0.05rem 0.45rem;
+  border-radius: 10px;
+  margin-left: 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0;
+}
+
+/* ----- text helpers ----- */
+
+.muted { color: var(--muted); }
+.error { color: var(--err); }
+code { font-family: var(--mono); font-size: 0.85em; background: var(--bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+
+/* ----- footer ----- */
 
 .bottombar {
-  padding: 12px 24px;
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--border);
-  background: var(--panel);
-  font-size: 12px;
+  font-size: 0.82rem;
+  text-align: center;
 }
 
-.bottombar .muted {
-  margin-right: 4px;
-}
+.bottombar > span { margin: 0 0.25rem; }
