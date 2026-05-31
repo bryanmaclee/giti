@@ -385,6 +385,28 @@ any page is defined in `theme.css` (no undefined tokens, no stale refs); all pag
 compile clean. Browser visual-verify still advisable; token-correctness is
 statically confirmed.
 
+### S12 close — all filed bugs resolved (scrmlTS reply 2026-05-30-1500, verified)
+
+scrmlTS turned around all four newly-filed bugs same day (pushed origin/main, then
+`7be403dd`). Verified each against my repros:
+
+| ID | Fix | Verified |
+|---|---|---|
+| GITI-024 | `8b50c89b` — break/continue label heuristic compared `tok.line` (nonexistent; line is `tok.span.line`) so the guard always fired. + **§12.6 `3b825808`**: body-content-escalated plain `export function`s (fs/`?{}`) no longer emit a spurious HTTP-handler `.server.js` — only explicit `server function`/`route=` do. | repro-20 `continue;`+`out.push`; `scope-manifest.scrml` emits NO `.server.js` ✓ |
+| GITI-025 + 026 | `e2dcde7b` — SSE: server binds params from `route.query`; client encodes args in the EventSource URL; reactive binding is a per-event callback (not the EventSource obj); named-event `addEventListener`. | repro-21 server `const from = route.query["from"]`, client `_scrml_sse_…(5, d=>set)`; feed.client.js `addEventListener("status")` + callback ✓ |
+| GITI-027 | Part-A `53203851` — NEW `W-AUTH-CONTENT-NOT-GATED` warning (footgun now loud, honest in both modes). Part-B (per-role SSR HTML stripping) **deferred** to design deliberation (scrmlTS S146 ratified A+D; impl pending). | repro-23 fires the warning ✓ |
+
+**Workaround dropped:** GITI-024 braces in `scope-manifest.scrml` reverted to natural
+braceless `continue`; orphaned `scope-manifest.server.js` removed (no longer emitted
+under §12.6). **`ui/feed.scrml` SSE now works client-side** (GITI-026 fixed) — left
+out of nav to avoid a duplicate live-status page; promote if wanted. Compiler bug
+ledger: **GITI-020–027 all CLOSED** except GITI-027-B (deferred) + the older open
+GITI-015/016 (workarounds retained), GITI-006 (cosmetic).
+
+**S13 follow-up:** §12.6 likely orphans other plain-fs libs' committed `.server.js`
+(find-scrml-files, etc.); a lib-wide `--mode library` re-emit + orphan sweep is
+deferred (stale artifacts are unused — tests 371/0 — not urgent).
+
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.
 
