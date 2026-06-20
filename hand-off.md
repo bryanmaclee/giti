@@ -1,58 +1,41 @@
-# giti — Session 12 Hand-Off
+# giti — Session 13 Hand-Off
 
-**Date:** 2026-05-30
-**Previous session file:** `handOffs/hand-off-11.md`
-**Next hand-off filename:** `handOffs/hand-off-12.md`
+**Date:** 2026-06-20
+**Previous session file:** `handOffs/hand-off-12.md`
+**Next hand-off filename:** `handOffs/hand-off-13.md`
 
-## Caught-up state (through S12)
+## Caught-up state (entering S13)
 
-- **Compiler:** upgraded to **scrmlTS v0.7.0** (`../scrmlTS` on `main`, currently `7be403dd`). Clean drop-in for giti — all prior bugs stay closed, no regressions.
+- **Compiler:** scrmlTS v0.7.0 (`../scrmlTS` on `main`). Clean drop-in; all prior bugs closed.
 - **CLI:** 15 commands. **371 pass / 0 fail** across 14 test files.
-- **Web UI:** **7 pages** — status, history, bookmarks, diff, land, **live (NEW)**, feed (NEW, not in nav). Consistent `Live` nav across all six product pages.
-- **`giti serve` works** end-to-end (was broken on v0.7.0 until the compileUi fix below).
+- **Web UI:** 7 scrml pages — status, history, bookmarks, diff, land, live, feed. `giti serve` works end-to-end.
 - **scrml-as-logic dogfood:** 17 scrml lib modules power giti's runtime.
+- **Git:** clean on `main`, last commit `e5ace38` (FSL-1.1-MIT license).
 
-## S12 summary — dogfood arc + live-follow dashboard
+## Open items carried from S12
 
-Resumed dogfooding on v0.7.0 per scrmlTS's S140 resume message; swept four runtime-tier surfaces and filed **8 compiler bugs** (GITI-020…027). The recurring pattern (flagged by the resume message): static/emit-string analysis is well-tested, the **runtime/client tier is where the silent-miscompiles cluster**.
-
-**Surfaces swept:**
-- **Channels (§38)** — works end-to-end. → **shipped `ui/live.scrml` as the live-follow dashboard** (channel `<snapshot>` cell + `refreshStatus()`; broadcasts to every open tab; runtime-verified through the real `giti serve` pipeline: two WS clients both receive real `jj` status). Wired giti's `Bun.serve` for the channel WS contract (`loadScrmlChannels`, WS-route dispatch with the server instance, `globalThis._scrml_active_server`).
-- **Server-fn codegen** — GITI-020/021/022/024 (all in the server-fn body statement-lowering path).
-- **SSE (§37)** — server works; client was broken (GITI-025/026), now FIXED. `ui/feed.scrml` is a working SSE live-status feed.
-- **Auth (§40)** — diagnostics solid; content-gating is the gap (GITI-027).
-
-**Also landed:** theme dedupe (deferred since S11 — `theme.css` now single source of truth, token vocab unified to `--fg`/`--ok`/`--err`/…); `compileUi` serve-blocker fix (compile top-level `ui/*.scrml` only, skip `repros/`); push-flow change (PA pushes origin directly on user auth — master-coordination retired).
-
-Full detail in `master-list.md` (S12 sections) and `handOffs/hand-off-11.md`.
-
-## Compiler bug ledger (status at S12 close)
-
+### Compiler bug ledger
 | ID | Status |
 |---|---|
 | GITI-006 | open (cosmetic) — workaround in place |
-| GITI-015, 016 | open — workarounds retained (`is some` ternary hoist; `match`→rename). GITI-016 is why `repros/` must be excluded from `giti serve`. |
-| GITI-017, 018, 019 | CLOSED (S11) |
-| GITI-014 | CLOSED (S11) |
-| GITI-020, 021, 022 | CLOSED — scrmlTS `8e7f18fe` (server-fn body context-threading) |
-| GITI-023 | CLOSED — native-parser optional-chain (pre-v0.7.0) |
-| GITI-024 | CLOSED — `8b50c89b` + §12.6 `3b825808` (spurious `.server.js` dropped) |
-| GITI-025, 026 | CLOSED — `e2dcde7b` (SSE param + client binding) |
-| GITI-027 | Part-A CLOSED (`53203851`, `W-AUTH-CONTENT-NOT-GATED` warning); **Part-B deferred** (per-role SSR HTML stripping — scrmlTS S146 ratified A+D, impl pending; keep giti's `localDev`+127.0.0.1 write-gate until it lands) |
+| GITI-015, 016 | open — workarounds retained (`is some` ternary hoist; `match`→rename). GITI-016 is why `repros/` is excluded from `giti serve`. |
+| GITI-027 | Part-A CLOSED; **Part-B deferred** (per-role SSR HTML stripping — scrmlTS S146 ratified A+D, impl pending; keep `localDev`+127.0.0.1 write-gate until it lands) |
+| (others 017–026) | CLOSED — see hand-off-12.md |
 
-All S12-filed bugs verified against their repros (`ui/repros/repro-16…23`). Cross-repo copies in `handOffs/outgoing/`.
+### Inbox at S13 start
+Three messages in `handOffs/incoming/`:
+- `2026-05-29 resume-dogfooding` (needs:action) — **acted on in S12** (dogfood arc, GITI-020…027 filed). Ready to archive.
+- `2026-05-23 giti-017-closed` (fyi) — done; one opportunistic note: revert `n[o]t a jj repo` char-class workaround → `not a jj repo` in `src/lib/friendly-error.scrml`. Ready to archive.
+- `2026-05-17 deep-dives-canonical-home-move` (needs:action) — **NOT done.** No `docs/deep-dives/` dir exists in giti. Action: copy 5 `giti-*.md` DDs from `../scrml-support/docs/deep-dives/`, strip cross-ref annotation blocks, record in master-list, ack back into `scrml-support/handOffs/incoming/`. Surfaced to user at S13 start.
 
-## Inbox at S12 close
+## S13 priorities (suggested, carried from S12)
 
-- Empty of unread action items. Three older FYI messages remain in `handOffs/incoming/` (deep-dives move, GITI-017-closed, resume-dogfooding) — informational, can archive.
-
-## S13 priorities (suggested)
-
-1. **Lib `.server.js` orphan sweep** — §12.6 likely orphans other plain-fs libs' committed `.server.js` (find-scrml-files, resolve-compiler, remotes, etc.). Re-emit all 17 libs `--mode library`, `git rm` orphans, refresh `.js`. (Not urgent — stale artifacts are unused, 371/0.)
-2. **Promote `ui/feed.scrml`?** SSE now works client-side (GITI-026 fixed). Decide whether the SSE feed earns a nav slot or stays a dogfood example (currently redundant with the channel `live` page).
-3. **Watch for GITI-027 Part-B** (per-role SSR content-stripping) — re-test `<auth role>` content gating when scrmlTS ships it; this unblocks real auth-gated write controls (master-list §E hosted-forge).
-4. **Browser visual-verify** the theme dedupe + the live dashboard (token-correctness is statically confirmed; layout needs eyes).
-5. **Continue dogfood / giti proper** — remaining untested surfaces, or giti roadmap (auth+multi-repo, license, deploy).
+1. **Deep-dives canonical-home move** (the genuine open `needs:action` — see inbox above).
+2. **Lib `.server.js` orphan sweep** — §12.6 likely orphans plain-fs libs' committed `.server.js`. Re-emit 17 libs `--mode library`, `git rm` orphans. (Not urgent — 371/0.)
+3. **Promote `ui/feed.scrml`?** SSE works client-side now. Decide nav slot vs dogfood example (redundant with channel `live` page).
+4. **Watch GITI-027 Part-B** (per-role SSR content-stripping) — re-test `<auth role>` gating when scrmlTS ships it.
+5. **Browser visual-verify** theme dedupe + live dashboard (token-correct statically; layout needs eyes).
+6. **giti proper** — auth+multi-repo, license, deploy roadmap.
 
 ## Dogfood — how to regen a scrml lib / UI page
 
@@ -66,4 +49,15 @@ bun run ../scrmlTS/compiler/src/cli.js compile ui/<page>.scrml -o ui/dist
 
 ## Push / commit
 
-Per `pa.md` (updated S12): commits + pushes to `main` require explicit per-session user auth; **the PA pushes origin directly** (master-coordination flow retired 2026-05-30).
+Per `pa.md`: commits + pushes to `main` require explicit per-session user auth; **the PA pushes origin directly** (master-coordination retired 2026-05-30).
+
+## S13 log
+
+**Deep-dives canonical-home move — DONE (2026-06-20).** Acted on the 2026-05-17 `needs:action` from scrmlTS-PA-machine-B.
+- Created `docs/deep-dives/`; copied the 5 giti-domain DDs from `../scrml-support/docs/deep-dives/` (radical-doubt, vcs-model, collaboration-primitive, conflict-resolution, design-constraints-from-friction).
+- Stripped the `GITI-CROSS-REF` annotation block from each (verified 0 remain).
+- Recorded as canonical-giti in `master-list.md` §D; updated header date stamp.
+- Dropped ack into `scrml-support/handOffs/incoming/2026-06-20-1644-giti-to-scrml-support-deep-dives-move-complete.md` (needs:action — asks them to flip §I to `[x][x]`).
+- Archived the request msg → `handOffs/incoming/read/`.
+- **6th DD also moved (user-authorized):** `giti-027b-per-role-ssr-content-stripping-2026-05-30.md` copied to `docs/deep-dives/`. No cross-ref block (postdated S98B annotation pass) — copied as-is. Recorded canonical in §D; ack message updated to note the move.
+- **Committed** S13 (see commit below).

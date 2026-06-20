@@ -2,7 +2,7 @@
 
 **Purpose:** Live inventory of the giti collaboration platform.
 
-**Last updated:** 2026-05-24 (S10 close — 21 slices: GITI-012/013 closed, GAP-6 + GAP-8 shipped, 17 scrml-as-logic dogfood modules, 5 compiler bugs filed (014–018, 014 fixed upstream))
+**Last updated:** 2026-06-20 (S13 — moved 5 giti-domain deep-dives to canonical `docs/deep-dives/` home, cross-ref blocks stripped)
 
 ---
 
@@ -60,13 +60,19 @@
 
 - [x][x] `docs/gauntlet-teams/` — reference data from teams gauntlet
 
-**All other giti research + friction audits + debates live in `scrml-support/docs/deep-dives/`:**
-- `giti-vcs-model-2026-04-09.md`
-- `giti-collaboration-primitive-2026-04-09.md`
-- `giti-conflict-resolution-2026-04-09.md`
-- `giti-radical-doubt-2026-04-09.md`
-- `giti-design-constraints-from-friction-2026-04-10.md`
-- `pa-agent-git-friction-audit-2026-04-10.md`
+### `docs/deep-dives/` — canonical giti-domain deep-dives (moved S13, 2026-06-20)
+
+Relocated from `scrml-support/docs/deep-dives/` per the 2026-05-17 canonical-home-move request (scrmlTS-PA-machine-B). Cross-ref annotation blocks stripped on copy. scrml-support retains `#cross-ref` carryover copies (may grow stale); giti is now canonical. On update: write the substantive change here, back-port a summary to scrml-support only if it carries cross-cutting scrmlTS implications.
+
+- [x][x] `docs/deep-dives/giti-radical-doubt-2026-04-09.md` — what's wrong with git/GitHub (parent DD)
+- [x][x] `docs/deep-dives/giti-vcs-model-2026-04-09.md` — git vs jj vs custom (decision: Casey/Handmade, 50.5 > Fossil 46.5)
+- [x][x] `docs/deep-dives/giti-collaboration-primitive-2026-04-09.md` — PRs vs stacked diffs vs novel
+- [x][x] `docs/deep-dives/giti-conflict-resolution-2026-04-09.md` — text markers vs structured vs compiler-assisted (compiler-assisted ratified; AST con-res is a scrml-compiler milestone)
+- [x][x] `docs/deep-dives/giti-design-constraints-from-friction-2026-04-10.md` — constraints from PA agent/git friction
+- [x][x] `docs/deep-dives/giti-027b-per-role-ssr-content-stripping-2026-05-30.md` — GITI-027 Part-B (per-role SSR content elision); records the S146 disposition (A canonical-now, D strategic direction, B rejected). No cross-ref block (postdated the S98B annotation pass).
+
+**Still in `scrml-support/docs/deep-dives/` (not part of the move):**
+- `pa-agent-git-friction-audit-2026-04-10.md` — source audit feeding the constraints DD
 - `git-e-platform-2026-03-30.md` (historical — before rename to giti)
 
 ---
