@@ -13,7 +13,7 @@
 
 ## Scope principle
 
-Same as scrmlTS: **current truth only**. Spec here describes what giti IS or WILL BE under the ratified design. Historical debates, friction audits, design alternatives → `scrml-support`.
+Same as scrml: **current truth only**. Spec here describes what giti IS or WILL BE under the ratified design. Historical debates, friction audits, design alternatives → `scrml-support`.
 
 ## Repo layout
 
@@ -51,7 +51,7 @@ giti/
 
 ## Cross-repo references
 
-- **scrmlTS** at `../scrmlTS/` — compiler gate target for `giti land`
+- **scrml** at `../scrml/` — compiler gate target for `giti land` (the compiler repo; **renamed from `scrmlTS` ~2026-06** — older log entries / sibling docs may still say `scrmlTS`)
 - **scrml-support** at `../scrml-support/` — friction audits, debates, design insights, giti deep-dives
 - **scrml8** — frozen
 
@@ -68,8 +68,8 @@ Commits to main are allowed only after explicit user authorization in the curren
 ## giti UI is written in scrml — compiler bug escalation path
 
 **Policy (S3, 2026-04-11):** The giti Web UI is built in scrml. No vanilla-HTML
-or Svelte/Vue fallback. scrmlTS compiler bugs that block giti UI progress are
-**P0 on the scrmlTS side** — giti is a first-class driver of scrmlTS's roadmap.
+or Svelte/Vue fallback. scrml compiler bugs that block giti UI progress are
+**P0 on the scrml side** — giti is a first-class driver of scrml's roadmap.
 
 When the giti PA hits a compiler bug:
 
@@ -78,10 +78,10 @@ When the giti PA hits a compiler bug:
    file path, expected vs actual, compiler version
 3. Report to the user — **do not work around the bug in JS**. Stop the UI work
    on that screen; move to a different screen if possible
-4. User opens a scrmlTS Claude instance and promotes it to P0 there
+4. User opens a scrml Claude instance and promotes it to P0 there
 5. When the fix lands, user signals, giti PA resumes on that screen
 
-This PA does **not** cross-edit scrmlTS (per-repo PA rule). Only the user moves
+This PA does **not** cross-edit scrml (per-repo PA rule). Only the user moves
 work between repos.
 
 ---
@@ -111,7 +111,7 @@ when work is needed there. Cross-repo coordination happens through the user, not
 ### What this PA does NOT touch
 - Any file outside this repo (except the reads listed above from scrml-support)
 - `~/projects/scrml8/` — FROZEN, read-only archive
-- Other project repos (scrmlTS, scrml-support, 6nz) — **except** writing message files into their `handOffs/incoming/` (see Cross-repo messaging below)
+- Other project repos (scrml, scrml-support, 6nz) — **except** writing message files into their `handOffs/incoming/` (see Cross-repo messaging below)
 
 ### Session-start checklist (this repo only)
 1. Read `pa.md` (this file)
@@ -152,30 +152,29 @@ when work is needed there. Cross-repo coordination happens through the user, not
 
 **You are the PA for giti.** Your own inbox is `handOffs/incoming/` in this repo.
 
-The four ecosystem projects (scrmlTS, scrml-support, giti, 6nz) communicate asynchronously through file-based dropboxes. Each repo owns `handOffs/incoming/` — unread messages sit there; once this PA reads and acts on them, they move to `handOffs/incoming/read/`.
+The four ecosystem projects (scrml, scrml-support, giti, 6nz) communicate asynchronously through file-based dropboxes. Each repo owns `handOffs/incoming/` — unread messages sit there; once this PA reads and acts on them, they move to `handOffs/incoming/read/`.
 
 **This is the ONE sanctioned exception** to "do not write into sibling repos." PAs may write message files into a sibling's `handOffs/incoming/` — nothing else in the sibling repo is touched. In particular, the compiler-bug escalation path above still routes through the user — the dropbox is for async coordination, not a replacement for the P0 handoff.
 
 ### Inbox (this PA reads)
-- `/home/bryan/scrmlMaster/giti/handOffs/incoming/` — unread
-- `/home/bryan/scrmlMaster/giti/handOffs/incoming/read/` — archive
+- `/home/bryan-maclee/scrmlMaster/giti/handOffs/incoming/` — unread
+- `/home/bryan-maclee/scrmlMaster/giti/handOffs/incoming/read/` — archive
 
 ### Outbox targets (this PA may write into)
-- scrmlTS:       `/home/bryan/scrmlMaster/scrmlTS/handOffs/incoming/`
-- scrml:         `/home/bryan/scrmlMaster/scrml/handOffs/incoming/`
-- scrml-support: `/home/bryan/scrmlMaster/scrml-support/handOffs/incoming/`
-- 6nz:           `/home/bryan/scrmlMaster/6NZ/handOffs/incoming/`
-- master:        `/home/bryan/scrmlMaster/handOffs/incoming/`
+- scrml:         `/home/bryan-maclee/scrmlMaster/scrml/handOffs/incoming/`
+- scrml-support: `/home/bryan-maclee/scrmlMaster/scrml-support/handOffs/incoming/`
+- 6nz:           `/home/bryan-maclee/scrmlMaster/6NZ/handOffs/incoming/`
+- master:        `/home/bryan-maclee/scrmlMaster/handOffs/incoming/`
 
 ### Message file format
 
 Filename: `YYYY-MM-DD-HHMM-<from>-to-<to>-<slug>.md`
-Example: `2026-04-11-1432-giti-to-scrmlTS-compiler-bug-repro.md`
+Example: `2026-04-11-1432-giti-to-scrml-compiler-bug-repro.md`
 
 ```markdown
 ---
 from: giti
-to: scrmlTS
+to: scrml
 date: 2026-04-11
 subject: <one-line subject>
 needs: reply | action | fyi
@@ -208,7 +207,7 @@ When this PA files a bug report into another repo's `handOffs/incoming/` — or 
 Reproducer must be:
 - **Self-contained** — runnable against the receiving repo's current compiler without external setup
 - **Minimal** — smallest scrml that still exhibits the bug
-- **Version-stamped** — exact command used and compiler SHA (e.g., `scrmltsc repro.scrml` against `scrmlTS@ccae1f6`)
+- **Version-stamped** — exact command used and compiler SHA (e.g., `scrmltsc repro.scrml` against `scrml@ccae1f6`)
 - **Expected vs actual** — state both in the report body
 
 As SENDER (giti's typical role): attach the offending scrml from your repo (or a minimized version of it) every time. As RECEIVER (rare): do not begin diagnosis without the reproducer — reply-requesting source before acting.
@@ -220,7 +219,7 @@ to master, master pushes all affected repos together") was a failed experiment. 
 no longer pushes.
 
 The PA now pushes this repo to origin directly once the user explicitly authorizes it.
-Cross-repo message drops (e.g. bug reports into `scrmlTS/handOffs/incoming/`) are
+Cross-repo message drops (e.g. bug reports into `scrml/handOffs/incoming/`) are
 committed/pushed by each repo's own PA on its own user auth — there is no longer a
 single coordinated multi-repo push.
 
