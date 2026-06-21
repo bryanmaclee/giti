@@ -23,7 +23,17 @@ describe("resolveCompilerPath", () => {
     expect(result.path).toBe("/custom/scrmlTS/compiler/src/cli.js");
   });
 
-  test("falls back to sibling ../scrmlTS", () => {
+  test("resolves sibling ../scrml (canonical, post-rename)", () => {
+    const result = resolveCompilerPath({
+      cwd: "/repos/giti",
+      env: {},
+      fs: fakeFs(new Set(["/repos/scrml/compiler/src/cli.js"])),
+    });
+    expect(result.ok).toBe(true);
+    expect(result.path).toBe("/repos/scrml/compiler/src/cli.js");
+  });
+
+  test("falls back to sibling ../scrmlTS (legacy name)", () => {
     const result = resolveCompilerPath({
       cwd: "/repos/giti",
       env: {},
@@ -31,6 +41,40 @@ describe("resolveCompilerPath", () => {
     });
     expect(result.ok).toBe(true);
     expect(result.path).toBe("/repos/scrmlTS/compiler/src/cli.js");
+  });
+
+  test("prefers canonical ../scrml over legacy ../scrmlTS when both exist", () => {
+    const result = resolveCompilerPath({
+      cwd: "/repos/giti",
+      env: {},
+      fs: fakeFs(new Set([
+        "/repos/scrml/compiler/src/cli.js",
+        "/repos/scrmlTS/compiler/src/cli.js",
+      ])),
+    });
+    expect(result.path).toBe("/repos/scrml/compiler/src/cli.js");
+  });
+
+  test("prefers SCRML_PATH env var when set", () => {
+    const result = resolveCompilerPath({
+      cwd: "/repos/giti",
+      env: { SCRML_PATH: "/custom/scrml" },
+      fs: fakeFs(new Set(["/custom/scrml/compiler/src/cli.js"])),
+    });
+    expect(result.ok).toBe(true);
+    expect(result.path).toBe("/custom/scrml/compiler/src/cli.js");
+  });
+
+  test("SCRML_PATH takes precedence over legacy SCRMLTS_PATH", () => {
+    const result = resolveCompilerPath({
+      cwd: "/repos/giti",
+      env: { SCRML_PATH: "/custom/scrml", SCRMLTS_PATH: "/custom/scrmlTS" },
+      fs: fakeFs(new Set([
+        "/custom/scrml/compiler/src/cli.js",
+        "/custom/scrmlTS/compiler/src/cli.js",
+      ])),
+    });
+    expect(result.path).toBe("/custom/scrml/compiler/src/cli.js");
   });
 
   test("errors with install instructions when nothing found", () => {
