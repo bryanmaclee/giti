@@ -13,7 +13,7 @@ import { getEngine } from "../engine/index.js";
 // parseDuration / parseTimestamp authored in scrml at ../lib/duration.scrml
 // (S10 dogfood experiment). Library-mode compile output is the .js
 // sibling; regen with:
-//   bun run ../scrmlTS/compiler/src/cli.js compile src/lib/duration.scrml \
+//   bun run ../scrml/compiler/src/cli.js compile src/lib/duration.scrml \
 //     -o src/lib --mode library
 import { parseDuration, parseTimestamp } from "../lib/duration.js";
 export { parseDuration, parseTimestamp };

@@ -6,7 +6,7 @@
  * import paths.
  *
  * Regen scrml output with:
- *   bun run ../scrmlTS/compiler/src/cli.js compile src/lib/remotes.scrml \
+ *   bun run ../scrml/compiler/src/cli.js compile src/lib/remotes.scrml \
  *     -o src/lib --mode library
  */
 

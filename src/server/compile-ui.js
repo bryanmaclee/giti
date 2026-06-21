@@ -1,12 +1,12 @@
 /**
  * Compile the giti scrml UI at server startup.
  *
- * Strategy: shell out to the scrmlTS compiler CLI (resolved the same way
+ * Strategy: shell out to the scrml compiler CLI (resolved the same way
  * `giti land` does) and emit into `dist/ui/` next to the giti repo.
  *
  * Fail-fast: if the compiler is missing or any file fails to compile,
  * we throw so `giti serve` reports it loudly and the user can escalate
- * to scrmlTS (per pa.md "compiler bug escalation path").
+ * to scrml (per pa.md "compiler bug escalation path").
  */
 
 import {
@@ -29,7 +29,7 @@ export const DEFAULT_DIST_DIR = join("dist", "ui");
  * are reproducers, not app pages, and are skipped here (mirroring the
  * `repro-` skip in loadScrmlHandlers / loadScrmlChannels).
  *
- * Real page compile failures still fail loud — per policy, a scrmlTS compiler
+ * Real page compile failures still fail loud — per policy, a scrml compiler
  * bug blocking a giti page is P0 (pa.md escalation path).
  *
  * Returns { ok: true, distDir } or { ok: false, error }.

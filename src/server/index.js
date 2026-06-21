@@ -319,9 +319,9 @@ export function createHandler({
  * on another interface would let any local-network peer read or (in
  * localDev mode) mutate the repo.
  *
- * Compile-on-start: if `ui/` exists, shells out to the scrmlTS compiler
- * and emits into `dist/ui/`. Compile failures throw — by policy, scrmlTS
- * compiler bugs blocking giti are P0 on the scrmlTS side (pa.md), so we
+ * Compile-on-start: if `ui/` exists, shells out to the scrml compiler
+ * and emits into `dist/ui/`. Compile failures throw — by policy, scrml
+ * compiler bugs blocking giti are P0 on the scrml side (pa.md), so we
  * fail loud instead of silently degrading.
  */
 export async function startServer({ port = 3737, engine, localDev = false } = {}) {

@@ -33,7 +33,7 @@ export async function serve(args) {
     server = await startServer({ port, localDev });
   } catch (e) {
     process.stderr.write(`giti serve: ${e.message}\n`);
-    process.stderr.write("\nThis may be a scrmlTS compiler bug blocking giti.\n");
+    process.stderr.write("\nThis may be a scrml compiler bug blocking giti.\n");
     process.stderr.write("See pa.md 'compiler bug escalation path'.\n");
     process.exit(1);
   }

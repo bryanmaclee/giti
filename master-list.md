@@ -82,7 +82,7 @@ Relocated from `scrml-support/docs/deep-dives/` per the 2026-05-17 canonical-hom
 ### M4.1 — Hosted Forge (target: beta tester access)
 - [x][x] **Bun HTTP API (read-only)** — `/api/health`, `/api/version`, `/api/status`, `/api/history` (S3)
 - [x][x] **Bun HTTP API (local-dev writes)** — `/api/save`, `/api/switch`, `/api/merge`, `/api/undo` gated on `--local-dev`, bound 127.0.0.1 (S3)
-- [x][x] **Compiler gate in `land`** — resolves `$SCRMLTS_PATH` or `../scrmlTS`, globs `.scrml`, skips when none (S3)
+- [x][x] **Compiler gate in `land`** — resolves `$SCRML_PATH` or `../scrml` (legacy `$SCRMLTS_PATH`/`../scrmlTS` still honored), globs `.scrml`, skips when none (S3; rename-adapted S13)
 - [x][x] **Web UI — status dashboard** — `ui/status.scrml` (540 LOC) live end-to-end S7; CSRF bootstrap verified in browser after GITI-010 fix. All three loaders (status/history/bookmarks) render on first page load.
 - [x][x] **Web UI — history timeline** — `ui/history.scrml` ships dedicated timeline page. `loadTimeline` server fn fetches 50 entries; CSRF bootstrap+retry verified via curl (S7).
 - [x][x] **Web UI — bookmarks** — `ui/bookmarks.scrml` ships full bookmark listing including remote-tracking. `loadBookmarkList` server fn → `engine.listBranches`; CSRF bootstrap+retry verified (S7).
@@ -425,6 +425,6 @@ If recompilation-after-filing shows the bug gone, the fix may have just shipped 
 
 ## F. Cross-repo
 
-- **scrmlTS** — compiler gate target
+- **scrml** — compiler gate target. **Renamed from `scrmlTS` (~s210, 2026-06).** Now lives at `../scrml` (`compiler/src/cli.js`); `../scrmlTS` no longer exists. Older log entries below referencing "scrmlTS @SHA" / `scrmlTS/handOffs/...` are historical records under the prior name — left as-is.
 - **scrml-support** — all giti research + history
 - **scrml8** — frozen archive

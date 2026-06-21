@@ -145,7 +145,7 @@ export async function land(args) {
  * Run the scrml compiler on all .scrml files in the project.
  *
  * Behavior:
- *   - Resolves the scrmlTS compiler via resolveCompilerPath()
+ *   - Resolves the scrml compiler via resolveCompilerPath()
  *   - Globs .scrml files under cwd
  *   - Skips the compiler gate (pass) if there are no .scrml files
  *   - Invokes `bun run <compiler-cli> compile <files...>` and reports stderr on failure

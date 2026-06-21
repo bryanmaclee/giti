@@ -10,7 +10,7 @@
 import { getEngine } from "../engine/index.js";
 // parseStatus authored in scrml at ../lib/parse-status.scrml (S10 slice 7
 // dogfood). Library-mode compile output is the .js sibling; regen with:
-//   bun run ../scrmlTS/compiler/src/cli.js compile src/lib/parse-status.scrml \
+//   bun run ../scrml/compiler/src/cli.js compile src/lib/parse-status.scrml \
 //     -o src/lib --mode library
 import { parseStatus } from "../lib/parse-status.js";
 export { parseStatus };
