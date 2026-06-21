@@ -69,6 +69,15 @@ Per `pa.md`: commits + pushes to `main` require explicit per-session user auth; 
 - **375 pass / 0 fail.** All three S13 code commits pushed (see below).
 - **Inbox:** archived `resume-dogfooding`, `giti-017-closed`, `giti-015-resolved` → `incoming/read/` (all done/acted-on). Inbox now empty of unread.
 
-### Follow-ups surfaced (not yet done)
-- **Stale `scrmlTS` references sweep** — source comments (`status.js`, `history.js`, `remotes.js`, `compile-ui.js`, `serve.js`, `server/index.js`), `pa.md` (escalation path + cross-repo paths), `master-list.md` (§54 "compiler gate target"). All cosmetic; functional path is fixed. `pa.md` is a directives file — confirm with user before rewriting.
-- **GITI-017 char-class note** — `giti-017-closed` suggested reverting a `n[o]t a jj repo` char-class hack in `friendly-error.scrml`. Grep found no such hack (likely already reverted in a prior session). No action.
+**scrmlTS→scrml doc sweep — DONE (2026-06-20, user-directed).** Confirmed on disk: `scrmlTS/` gone, `scrml/` is the compiler.
+- Source comments (`status.js`, `history.js`, `private/remotes.js`, `compile-ui.js`, `server/index.js`, `land.js`) + the user-facing `serve.js` stderr hint swapped to `scrml`. master-list: `land`-gate description + cross-repo ref updated, historical logs left intact. Commit `70db951`.
+- **Pruned 2 stale `.server.js` orphans** (`remotes`, `resolve-compiler`) — current `--mode library` emits only `.js`, 0 import refs, server only scans distDir. `resolve-compiler.server.js` also held broken pre-rename gate logic. (Same commit `70db951`.)
+- **pa.md (user-approved)** — full scrmlTS→scrml swap, dropped dead `scrmlTS` outbox line, added rename note (L54). Also fixed a separate pre-existing bug: all absolute paths said `/home/bryan/...` but real home is `/home/bryan-maclee/...` (documented paths didn't resolve). Commit `0cb2d7b`. All outbox targets verified on disk.
+- **375 pass / 0 fail** throughout.
+
+### Follow-ups still open (not done)
+- **`.claude/maps/` stale** — `primary.map.md` / `non-compliance.report.md` reference `scrmlTS`. Regenerate via `/map` (maps were already possibly-stale at session start).
+- **Historical DD path refs** — `docs/deep-dives/giti-027b-...md` cites `scrmlTS/compiler/SPEC.md:...` external paths. Left as historical record; update only if those SPEC line refs are re-followed.
+- **`ui/history.scrml:14`** — one comment says "scrmlTS rewrites relative-import paths". Left to avoid a UI recompile; cosmetic.
+- **Other sibling docs** may share the `/home/bryan/` stale-home-path bug (only fixed in giti's pa.md this session). Per-repo PAs own their own.
+- **GITI-017 char-class note** — `giti-017-closed` suggested reverting a `n[o]t a jj repo` char-class hack in `friendly-error.scrml`. Grep found none (already reverted in a prior session per master-list §144). No action.
