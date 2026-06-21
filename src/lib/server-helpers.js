@@ -17,8 +17,7 @@ export const MIME = {
         const dot = path.lastIndexOf(".")
         if (dot < 0) return "application/octet-stream"
         const ext = path.slice(dot)
-        const hit = MIME[ext]
-        return (hit !== null && hit !== undefined) ? hit : "application/octet-stream"
+        return (MIME[ext] !== null && MIME[ext] !== undefined) ? MIME[ext] : "application/octet-stream"
     }
 
     // composeScrmlFetch — chain a list of scrml-generated fetch handlers

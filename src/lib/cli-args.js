@@ -40,10 +40,7 @@
         for (let i = 0; i < args.length; i = i + 1) {
             const a = args[i]
             if (a == "--remote") {
-                // GITI-015 workaround: hoist computed access into a local
-                // (ternary `args[i+1] is some ? ... : ...` fails to lower).
-                const next = args[i + 1]
-                remote = (next !== null && next !== undefined) ? next : null
+                remote = (args[i + 1] !== null && args[i + 1] !== undefined) ? args[i + 1] : null
                 i = i + 1
             } else if (a.startsWith("--remote=")) {
                 remote = a.slice("--remote=".length)

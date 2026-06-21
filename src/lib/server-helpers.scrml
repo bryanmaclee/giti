@@ -6,9 +6,6 @@
 //   - Returning a typed `Response` was attempted but `Response` isn't in
 //     scrml's logic scope and isn't exposed via scrml:host or scrml:http
 //     stdlibs — `json` stays JS-side.
-//
-// GITI-015 workaround applied: hoist computed-member access into a
-// const before using `is some` in ternary.
 
 ${
     export const MIME = {
@@ -27,8 +24,7 @@ ${
         const dot = path.lastIndexOf(".")
         if (dot < 0) return "application/octet-stream"
         const ext = path.slice(dot)
-        const hit = MIME[ext]
-        return hit is some ? hit : "application/octet-stream"
+        return MIME[ext] is some ? MIME[ext] : "application/octet-stream"
     }
 
     // composeScrmlFetch — chain a list of scrml-generated fetch handlers
