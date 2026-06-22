@@ -1,15 +1,28 @@
 // giti — live status (channel dogfood, §38)
 //
-// Built against scrmlTS v0.6.7 (18de30ba). First runtime-tier exercise of
-// the <channel> surface in giti per the S140 resume-dogfooding message.
+// First runtime-tier exercise of the <channel> surface in giti. A
+// <channel>-declared <snapshot> cell auto-syncs across every connected client
+// (§38.4): refreshStatus() reads real `jj` working-copy status via giti's
+// engine and writes the cell; the write lowers to a __sync broadcast so every
+// open tab updates live. No polling — one client clicking "Refresh" updates all.
 //
-// A <channel>-declared <snapshot> cell auto-syncs across every connected
-// client (§38.4). The server function refreshStatus() reads real `jj`
-// working-copy status via giti's engine and writes the cell — the write
-// lowers to a broadcast({__type:"__sync"}) so every open tab updates live.
-// No polling: one client clicking "Refresh" updates all of them.
+// Idiom note (S15): the request lifecycle is a typed Phase enum field
+// (Idle | Ok | Error) rendered with <match for=Phase>, replacing the old
+// raw-string-in-DOM `state: "idle"/"ok"/"error"` flag. It is a <match>, NOT a
+// Tier-2 <engine>: an engine OWNS its cell's variant progression and the
+// engine cell cannot also be a server-written <channel>-synced cell (E-RI-002
+// — server fns may write a channel cell, but NOT an engine cell). So the live
+// page keeps its channel cell and matches on a typed state field. Filed the
+// engine-cannot-drive-a-channel-cell gap back to scrml. The changed-files list
+// is now <each>.
 
 <program>
+
+type Phase:enum = {
+  Idle
+  Ok
+  Error
+}
 
 <channel name="repo-status" topic="working-copy">
   ${
@@ -17,9 +30,10 @@
     import { getEngine } from '../src/engine/index.js'
     import { parseStatus } from '../src/lib/parse-status.js'
 
-    // V5-strict auto-synced cell (§38.4 — no @shared modifier).
+    // V5-strict auto-synced cell (§38.4 — no @shared modifier). The state
+    // field is a typed Phase enum, not a string flag.
     <snapshot> = {
-      state: "idle",
+      state: Phase.Idle,
       bookmark: not,
       changed: [],
       conflicts: [],
@@ -27,7 +41,7 @@
       at: not,
     }
 
-    // Two compiler workarounds in play here (both filed v0.6.7):
+    // Two compiler workarounds in play here (both filed v0.6.7, still OPEN):
     //   GITI-020 — a channel-cell write nested in a block mis-lowers to the
     //     client reactive path, so @snapshot is written exactly once at the
     //     top level of the function.
@@ -41,7 +55,7 @@
         ? parseStatus(res.data.raw || "")
         : { bookmark: not, changed: [], conflicts: [] }
       @snapshot = {
-        state: res.ok ? "ok" : "error",
+        state: res.ok ? Phase.Ok : Phase.Error,
         bookmark: parsed.bookmark,
         changed: parsed.changed,
         conflicts: parsed.conflicts,
@@ -78,7 +92,13 @@ ${
   <p class="meta">Channel: <code>repo-status</code> · updates broadcast to every open tab</>
 
   <div class="card">
-    <p>State: <strong>${@snapshot.state}</></>
+    <p>State:
+      <match for=Phase on=@snapshot.state>
+        <Idle><strong class="muted">idle</strong></Idle>
+        <Ok><strong class="ok">ok</strong></Ok>
+        <Error><strong class="err">error</strong></Error>
+      </match>
+    </p>
     <p>Bookmark: ${@snapshot.bookmark}</>
     <p>Changed files: ${@snapshot.changed.length}</>
     <p>Conflicts: ${@snapshot.conflicts.length}</>
@@ -87,11 +107,10 @@ ${
   </>
 
   <ul class="files">
-    ${
-      for (let f of @snapshot.changed) {
-        lift <li><span class="kind">${f.kind}</> ${f.path}</li>
-      }
-    }
+    <each in=@snapshot.changed>
+      <li><span class="kind">${@.kind}</span> ${@.path}</li>
+      <empty><li class="muted">No changed files.</li></empty>
+    </each>
   </ul>
 </div>
 
@@ -102,6 +121,8 @@ ${
   .card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 16px 0; }
   .meta { color: var(--muted); }
   .ts { color: var(--muted); font-size: 12px; }
+  .ok { color: var(--ok); }
+  .err { color: var(--err); }
   .files { list-style: none; padding: 0; }
   .files li { font-family: var(--mono); padding: 2px 0; }
   .kind { color: var(--accent); }
