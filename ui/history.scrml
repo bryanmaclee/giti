@@ -11,7 +11,7 @@
 <program>
 
 ${
-  // GITI-009 fixed upstream: scrmlTS rewrites relative-import paths for dist/ui/.
+  // GITI-009 fixed upstream: scrml rewrites relative-import paths for dist/ui/.
   import { getEngine } from '../src/engine/index.js'
 
   // Distinct from status.scrml's loadHistory — this fetches a larger window.
@@ -86,11 +86,7 @@ ${
 #{
   @import url('theme.css');
 
-  /* Shared chrome lives in theme.css. Only page-specific rules below.
-
-     (Tried `@import url('theme.css')` here first, but scrml's CSS parser
-     mangles at-rules — tracked as potential compiler UX bug. Using HTML
-     link injection instead.) */
+  /* Shared chrome lives in theme.css. Only page-specific rules below. */
 
   .change-id {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

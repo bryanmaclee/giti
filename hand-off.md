@@ -1,43 +1,51 @@
-# giti — Session 14 Hand-Off
+# giti — Session 15 Hand-Off
 
 **Date:** 2026-06-22
-**Previous session file:** `handOffs/hand-off-13.md`
-**Next hand-off filename:** `handOffs/hand-off-14.md`
+**Previous session file:** `handOffs/hand-off-14.md`
+**Next hand-off filename:** `handOffs/hand-off-15.md`
 
-## Caught-up state (entering S14)
+## Caught-up state (entering S15)
 
-- **Compiler:** lives at `../scrml` (renamed from `scrmlTS` ~2026-06). giti's gate resolution prefers `$SCRML_PATH`/`../scrml`, with legacy `$SCRMLTS_PATH`/`../scrmlTS` honored as fallback.
-- **CLI:** 15 commands. **375 pass / 0 fail** across 14 test files (per S13 hand-off).
+- **Compiler:** lives at `../scrml` (renamed from `scrmlTS` ~2026-06). HEAD `ca712295` (s212, pkg v0.2.0, emitted self-id `scrml-0.7.0`). giti's gate resolves to `../scrml` directly; legacy `../scrmlTS`/`$SCRMLTS_PATH` kept as harmless back-compat fallback.
+- **CLI:** 15 commands. **375 pass / 0 fail** across 14 test files.
 - **Web UI:** 7 scrml pages — status, history, bookmarks, diff, land, live, feed. `giti serve` works end-to-end.
 - **scrml-as-logic dogfood:** 17 scrml lib modules power giti's runtime.
-- **Git:** clean on `main`, last commit `b2fde19`.
+- **Git:** clean on `main`, last commit `d170641`.
 
-## Open items carried from S13
+## Inbox at S15 start — 2 unread (from scrml PA S210, dated 2026-06-20)
+
+1. **`...2109-scrml-to-giti-idiomatic-audit-rewrite-plan.md`** (needs: action) — scrml read-only audited giti's scrml. **Idiom gap is NARROW: 6 UI pages, not src/lib.** src/lib is genuinely idiomatic (KEEP 16). LIGHT-EDIT 8 · REWRITE 5 (all `ui/`: status/land/diff/live/feed). 3-tier plan:
+   - Tier-0: `<each>` sweep — ~16 `${for…lift}` sites across 6 pages → `<each>`+`<empty>` (mechanical).
+   - Tier-1: status.scrml REWRITE → `Phase` enum + `<match for=Phase>` + errors-as-states (dissolves GITI-006 / CG-6 defaults-dodge).
+   - Tier-2: live.scrml + feed.scrml → `<engine for=Phase>` (the two cycling pages).
+   - DO NOT rewrite away CG-1..5 workarounds (GITI-016/020/021/025/026 + CSS @import) — keep until scrml fixes. Full doc: `scrml-support/docs/deep-dives/giti-idiomatic-audit-2026-06-20.md`.
+2. **`...2112-scrml-to-giti-gap-triage-cg5-not-reproduced.md`** (needs: fyi) — **CG-5 (CSS `@import` mangling) NOT-REPRODUCED** on current main. `@import url('theme.css');` in `#{}` is preserved intact. `history.scrml` L91-93 comment is stale → can drop the HTML-link-injection workaround and use `@import` directly. No bug to file.
+
+## Open items carried from S14
 
 ### Compiler bug ledger
 | ID | Status |
 |---|---|
-| GITI-006 | open (cosmetic) — workaround in place |
+| GITI-006 | open (cosmetic) — workaround in place; **dissolves into status.scrml rewrite (CG-6)** |
 | GITI-016 | open — workaround retained (`match`→rename). Why `repros/` is excluded from `giti serve`. |
-| GITI-027 | Part-A CLOSED; **Part-B deferred** (per-role SSR HTML stripping — keep `localDev`+127.0.0.1 write-gate until it lands) |
+| GITI-027 | Part-A CLOSED; **Part-B still NOT shipped** (retested S14 @ca712295) — keep `localDev`+127.0.0.1 write-gate, do NOT relax |
 
-### Follow-ups still open (carried from S13)
-- **`.claude/maps/` stale** — `primary.map.md` / `non-compliance.report.md` reference `scrmlTS`. Regenerate via `project-mapper` / `/map`.
-- **Historical DD path refs** — `docs/deep-dives/giti-027b-...md` cites `scrmlTS/compiler/SPEC.md:...` external paths. Left as historical record.
-- **`ui/history.scrml:14`** — one comment says "scrmlTS rewrites relative-import paths". Cosmetic; left to avoid a UI recompile.
-- **Other sibling docs** may share the `/home/bryan/` stale-home-path bug (only fixed in giti's pa.md). Per-repo PAs own their own.
+### Follow-ups still open
+- **`../scrmlTS/` legacy checkout** still on disk (superseded). Fallback in `resolve-compiler.scrml` is harmless; prune only on user request.
+- **Optional tidy:** `rm -rf src/lib/dist/` (gitignored stray build output).
+- **`ui/history.scrml` L91-93** — stale CG-5 workaround comment; can switch to direct `@import` (per inbox msg 2).
+- **`ui/history.scrml:14`** — comment says "scrmlTS rewrites…"; cosmetic.
 
-## S14 priorities (suggested, carried from S13)
+## S15 priorities (suggested)
 
-1. **Lib `.server.js` orphan sweep** — §12.6 likely orphans plain-fs libs' committed `.server.js`. Re-emit 17 libs `--mode library`, `git rm` orphans. (Not urgent.)
-2. **Promote `ui/feed.scrml`?** SSE works client-side. Decide nav slot vs dogfood example (redundant with channel `live` page).
-3. **Watch GITI-027 Part-B** (per-role SSR content-stripping) — re-test `<auth role>` gating when scrml ships it.
-4. **Browser visual-verify** theme dedupe + live dashboard.
-5. **Regenerate `.claude/maps/`** (stale `scrmlTS` refs).
-6. **giti proper** — auth+multi-repo, license, deploy roadmap.
+1. **Idiomatic UI rewrite** (per inbox msg 1) — the headline new work. Tier-0 `<each>` sweep is low-risk mechanical; status.scrml rewrite is highest-leverage. Needs user go-ahead + likely worktree dev agent.
+2. **CG-5 cleanup** (per inbox msg 2) — drop the history.scrml @import workaround.
+3. Watch GITI-027 Part-B (per-role SSR content-stripping).
+4. giti proper — auth+multi-repo, license, deploy roadmap.
 
-## Inbox at S14 start
-Empty (no unread in `handOffs/incoming/`).
+## Push / commit
+
+Per `pa.md`: commits + pushes to `main` require explicit per-session user auth; **the PA pushes origin directly** (master-coordination retired 2026-05-30).
 
 ## Dogfood — how to regen a scrml lib / UI page
 
@@ -49,59 +57,6 @@ bun run ../scrml/compiler/src/cli.js compile ui/<page>.scrml -o ui/dist
 ```
 `giti serve` compiles top-level `ui/*.scrml` → `dist/ui` automatically (skips `repros/`).
 
-## Push / commit
+## S15 log
 
-Per `pa.md`: commits + pushes to `main` require explicit per-session user auth; **the PA pushes origin directly** (master-coordination retired 2026-05-30).
-
-## S14 log
-
-**Maps regenerated + pa.md fixed (committed `4ffe1ba`).** `.claude/maps/` were stale
-(2026-04-11, commit 3c4a7c3): 10 commands/88 tests, named scrmlTS as current, omitted
-the scrml dogfood + server layers. Regenerated cold via project-mapper. pa.md "Current
-state" corrected to 15 commands / ~375 tests / ~2,495 LOC + scrml-dogfood line; layout
-diagram expanded. non-compliance.report.md: pa.md entry marked RESOLVED; 5 deep-dive
-"location" flags annotated as intentional false positives (canonical-home move, S13).
-
-**Compiler migration confirmed landed (2026-06-22).** Mid-sweep I read a stale disk
-(`../scrml` looked like the self-host repo with no `compiler/`; `../scrmlTS` still present)
-and flagged an apparent scrmlTS/scrml contradiction. User clarified: all of scrmlTS was
-migrated INTO `../scrml`; the old self-host repo moved out (now `../scrml-self-host/`).
-scrml PA then synced this disk — `../scrml/compiler/src/cli.js` now exists (HEAD
-`ca712295`, s212, v0.2.0). giti's gate now resolves to `../scrml` directly (no fallback).
-The `4ffe1ba` maps/pa.md naming `../scrml` canonical were correct all along.
-
-**Lib `.server.js` orphan sweep — COMPLETE, clean.** Verified against the migrated
-`../scrml` compiler:
-- Zero committed `.server.js` orphans (already clean from S13). `git ls-files '*.server.js'` empty.
-- Fresh `--mode library` compile of all 17 libs emits a single `.js` each — **no `.server.js`**.
-  §12.6 concern fully resolved.
-- **Zero drift** — in-place re-emit of all 17 libs → 0 git changes (byte-identical to committed).
-  (A temp-dir compile falsely showed 2 "drifts" — that's the relative-import-rewrite artifact;
-  in-place `-o src/lib` is the only correct drift check.)
-- `src/lib/delay.js` kept — legit hand-written host helper imported by `ui/feed.scrml`.
-- Stray gitignored build cruft remains on disk at `src/lib/dist/ui/*.server.js` (untracked,
-  harmless; a compile that landed in the wrong dir). Not removed — tidy-only, optional.
-
-**GITI-027 Part-B retest — still NOT shipped (2026-06-22).** Recompiled repro-23 against
-the migrated `../scrml`@`ca712295` (s212, pkg v0.2.0, output self-id `scrml-0.7.0`):
-- **Default mode:** secret `owner-only-marker-12345` + owner button still emitted verbatim
-  in served HTML. Part-A `W-AUTH-CONTENT-NOT-GATED` warning still fires (now cites §34,
-  §40.9.5 and explicitly notes `--emit-per-route` does NOT withhold HTML).
-- **`--emit-per-route`:** JS role-split works (Anonymous 503B / Owner 566B chunks differ,
-  anon omits owner mount) BUT the single shared `*.html` still contains the secret verbatim.
-  No serve-layer / SSR role-elision artifact emitted.
-- **Verdict:** Part-B unresolved. `<auth role>` is still JS-behavior-only; content ships to
-  all viewers. **giti's `localDev`+127.0.0.1 write-gate stays load-bearing** — no giti code
-  change, do NOT relax it. master-list GITI-027 row re-stamped with retest result.
-
-**FYI sent to scrml (2026-06-22).** Dropped `2026-06-22-0832-giti-to-scrml-compiler-version-mismatch.md`
-into `../scrml/handOffs/incoming/` (needs:fyi). Compiler reports two version strings:
-`compiler/package.json` = `0.2.0` vs emitted `chunks.json` `compiler` field = `scrml-0.7.0`.
-Non-blocking for giti (gate resolves by path, not version); flagged before anything downstream
-pins on a version. Exact repro commands in the message.
-
-### Still open / follow-ups
-- `../scrmlTS/` legacy checkout still on disk (superseded by `../scrml`). giti's
-  `resolve-compiler.scrml` keeps `../scrmlTS`/`$SCRMLTS_PATH` as back-compat fallback —
-  harmless, left in place. Prune only if user wants the legacy path dropped.
-- Optional tidy: `rm -rf src/lib/dist/` (gitignored stray build output).
+(session in progress)
