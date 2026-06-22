@@ -1,51 +1,75 @@
-// giti — diff viewer (v1)
+// giti — diff viewer (v2)
 //
-// v0 showed the raw working-copy diff. v1 adds per-change selection via
-// URL query (/diff.html?change=<id>). Left pane: recent history. Right
-// pane: diff for selected change, or working-copy diff if no change is
-// selected.
+// v0 showed the raw working-copy diff. v1 added per-change selection via
+// URL query (/diff.html?change=<id>). v2 models the two axes as enums:
+//   - DiffMode  (WorkingCopy | Change(id))  — which diff we're viewing,
+//     derived synchronously from the ?change= URL param. The id rides as a
+//     variant payload, so there's no `change: string?` truthy-checking.
+//   - DiffPhase (Loading | Loaded(diff) | Failed) — the async load lifecycle.
+// Left pane: recent history (its own HistoryPhase). Right pane: the diff.
 //
 // Selection flow: each history entry is an <a href="/diff.html?change=X">.
-// Clicking navigates — the server fn reads `route.query.change` and
-// serves the matching diff. Full-page reload, no client-side state.
-// Tests scrml's SPEC §20.3 route.query injection from the author side.
+// Clicking navigates — the client reads route's ?change= and passes it to the
+// server fn. Full-page reload, no client-side state. Tests scrml's SPEC §20.3
+// route.query injection from the author side.
 
 <program>
 
-${
-  // GITI-009 fixed upstream: scrmlTS rewrites relative-import paths for dist/ui/.
-  import { getEngine } from '../src/engine/index.js'
+// GITI-009 fixed upstream: scrml rewrites relative-import paths for dist/ui/.
+import { getEngine } from '../src/engine/index.js'
 
-  server function loadHistory() {
-    const engine = getEngine()
-    const res = await engine.history(30)
-    if (!res.ok) return { error: res.error, entries: [] }
-    return { error: not, entries: res.data }
-  }
-
-  // changeId: string | null. If null → working-copy diff. Otherwise →
-  // diff of that specific change. Compiler's internal route.query is NOT
-  // author-exposed (E-SCOPE-001), so the client reads the URL param and
-  // passes it in as an explicit arg.
-  server function loadDiff(changeId) {
-    const engine = getEngine()
-    const res = changeId
-      ? await engine.diffChange(changeId)
-      : await engine.diff()
-    if (!res.ok) return { error: res.error, diff: "", change: changeId }
-    return { error: not, diff: res.data || "", change: changeId }
-  }
-
-  @history = { error: not, entries: [] }
-  @diff = { error: not, diff: "", change: not }
-
-  // Client-side: read ?change= out of the URL. window.location is
-  // available at scrml client-code scope (browser globals).
-  @selectedChange = new URLSearchParams(window.location.search).get('change')
-
-  @history = loadHistory()
-  @diff = loadDiff(@selectedChange)
+type DiffMode:enum = {
+  WorkingCopy
+  Change(id: string)
 }
+type DiffPhase:enum = {
+  Loading
+  Loaded(diff: string)
+  Failed(err: string)
+}
+type Entry:struct = { changeId: string, description: string, author: string, timestamp: string }
+type HistoryPhase:enum = {
+  Loading
+  Loaded(entries: Entry[])
+  Failed(err: string)
+}
+
+// The ?change= URL param is a client-only read (window.location). Two pure
+// derivations off it: the view mode, and the raw id to hand the server fn.
+fn modeFromUrl() {
+  const param = new URLSearchParams(window.location.search).get('change')
+  return param is some ? DiffMode.Change(param) : DiffMode.WorkingCopy
+}
+fn changeIdFromUrl() {
+  return new URLSearchParams(window.location.search).get('change')
+}
+
+server function loadHistory() {
+  const engine = getEngine()
+  const res = await engine.history(30)
+  if (!res.ok) return HistoryPhase.Failed(res.error)
+  return HistoryPhase.Loaded(res.data)
+}
+
+// changeId: string | not. not → working-copy diff; otherwise → that change.
+// The compiler's internal route.query is NOT author-exposed (E-SCOPE-001),
+// so the client reads the URL param and passes it in as an explicit arg.
+server function loadDiff(changeId) {
+  const engine = getEngine()
+  const res = changeId
+    ? await engine.diffChange(changeId)
+    : await engine.diff()
+  if (!res.ok) return DiffPhase.Failed(res.error)
+  return DiffPhase.Loaded(res.data || "")
+}
+
+<mode>:    DiffMode    = DiffMode.WorkingCopy
+<history>: HistoryPhase = HistoryPhase.Loading
+<diff>:    DiffPhase   = DiffPhase.Loading
+
+on mount { @mode    = modeFromUrl() }
+on mount { @history = loadHistory() }
+on mount { @diff    = loadDiff(changeIdFromUrl()) }
 
 <div class="app">
 
@@ -69,64 +93,50 @@ ${
     <aside class="panel change-picker">
       <h2>Changes</h2>
       <p class="muted">
-        ${
-          if (@diff.change) {
-            lift <a href="/diff.html">← Pending changes</a>
-          } else {
-            lift <span>Pending changes (selected)</span>
-          }
-        }
+        <match for=DiffMode on=@mode>
+          <WorkingCopy><span>Pending changes (selected)</span></WorkingCopy>
+          <Change(id)><a href="/diff.html">← Pending changes</a></Change>
+        </match>
       </p>
-      ${
-        if (@history.error) {
-          lift <p class="error">Could not read history: ${@history.error}</p>
-        } else if (@history.entries.length == 0) {
-          lift <p class="muted">No saves yet.</p>
-        } else {
-          lift <ol class="picker-list">
-            ${
-              for (let e of @history.entries) {
-                lift <li>
-                  <a href="/diff.html?change=${e.changeId}">
-                    <code class="change-id">${e.changeId}</code>
-                    <span class="desc">${e.description || "(no message)"}</span>
-                  </a>
-                </li>
-              }
-            }
+      <match for=HistoryPhase on=@history>
+        <Loading><p class="muted">Loading…</p></Loading>
+        <Failed(err)><p class="error">Could not read history: ${err}</p></Failed>
+        <Loaded(entries)>
+          <ol class="picker-list">
+            <each in=entries key=@.changeId>
+              <li>
+                <a href="/diff.html?change=${@.changeId}">
+                  <code class="change-id">${@.changeId}</code>
+                  <span class="desc">${@.description || "(no message)"}</span>
+                </a>
+              </li>
+              <empty><p class="muted">No saves yet.</p></empty>
+            </each>
           </ol>
-        }
-      }
+        </Loaded>
+      </match>
     </aside>
 
     <section class="panel diff-view">
       <h2>
-        ${
-          if (@diff.change) {
-            lift <span>Diff for <code>${@diff.change}</code></span>
-          } else {
-            lift <span>Pending changes</span>
-          }
-        }
+        <match for=DiffMode on=@mode>
+          <WorkingCopy><span>Pending changes</span></WorkingCopy>
+          <Change(id)><span>Diff for <code>${id}</code></span></Change>
+        </match>
       </h2>
 
-      ${
-        if (@diff.error) {
-          lift <p class="error">Could not read diff: ${@diff.error}</p>
-        } else if (@diff.diff == "") {
-          lift <p class="muted">
-            ${
-              if (@diff.change) {
-                lift <span>This change introduced no file modifications.</span>
-              } else {
-                lift <span>No pending changes. Working copy is clean.</span>
-              }
-            }
-          </p>
-        } else {
-          lift <pre class="diff-pane">${@diff.diff}</pre>
-        }
-      }
+      <match for=DiffPhase on=@diff>
+        <Loading><p class="muted">Loading…</p></Loading>
+        <Failed(err)><p class="error">Could not read diff: ${err}</p></Failed>
+        <Loaded(diffText)>
+          ${ diffText == "" ? <p class="muted">
+              <match for=DiffMode on=@mode>
+                <WorkingCopy><span>No pending changes. Working copy is clean.</span></WorkingCopy>
+                <Change(id)><span>This change introduced no file modifications.</span></Change>
+              </match>
+            </p> : <pre class="diff-pane">${diffText}</pre> }
+        </Loaded>
+      </match>
     </section>
 
   </main>

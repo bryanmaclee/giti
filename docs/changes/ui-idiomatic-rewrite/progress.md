@@ -28,6 +28,8 @@ Compiler: `../scrml` @ `ca712295` (s212, self-id scrml-0.7.0)
 
 - 2026-06-22 — **land.scrml DONE** (task #5). `running: true` loading-bool → `PreflightPhase.Loading` variant (the headline smell, killed). PreflightReport struct (4 gate sub-structs w/ optional fields for the union-shaped gates: `error: string?`, `fileCount: number?`, `skipped: boolean?`, `count: string?`). `<match for=PreflightPhase>`; banner + 3-way compiler badge + gate badges/details → ternary-as-value; 2 for-lifts → `<each>`. `.Failed` arm kept for symmetry (loadLandingPreflight captures gate errors as data, never top-level-fails — dead-but-harmless arm, no lint). Clean compile, node --check OK, 375 tests green.
 
+- 2026-06-22 — **diff.scrml DONE** (task #6, deepest nesting). TWO axes as enums: DiffMode (WorkingCopy | Change(id)) for the working-copy-vs-selected fork (id as payload, kills `change: string?` truthy-checks), DiffPhase (Loading | Loaded(diff) | Failed) for the load + HistoryPhase for the picker. `<match for=DiffMode>` used in 3 fork sites (audit's "+ a <match> for the fork"); deepest case is `<match for=DiffMode>` nested inside a ternary inside a DiffPhase `.Loaded` arm — compiles fine. URL param → enum via `fn modeFromUrl()` / `fn changeIdFromUrl()` (used `fn` per I-FN-PROMOTABLE; pure). 1 for-lift → `<each>`. scrmlTS→scrml. Clean compile, node --check OK, 375 tests green.
+
 ### Notes / follow-ups
 - W-DEPRECATED-SERVER-MODIFIER: the `server` keyword is deprecated when body uses a server-only resource. giti uses `server function` throughout; modernizing to inference-based is a separate repo-wide task, NOT part of this idiomatic rewrite. Loaders that only call getEngine() (history/bookmarks) are NOT auto-inferred and still REQUIRE the keyword.
 
