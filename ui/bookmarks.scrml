@@ -6,22 +6,28 @@
 
 <program>
 
-${
-  // GITI-009 fixed upstream: scrmlTS rewrites relative-import paths for dist/ui/.
-  import { getEngine } from '../src/engine/index.js'
+// GITI-009 fixed upstream: scrml rewrites relative-import paths for dist/ui/.
+import { getEngine } from '../src/engine/index.js'
 
-  // Distinct fn name from status.scrml's loadBookmarks to avoid any
-  // per-file route ambiguity in composeScrmlFetch.
-  server function loadBookmarkList() {
-    const engine = getEngine()
-    const res = await engine.listBranches()
-    if (!res.ok) return { error: res.error, list: [] }
-    return { error: not, list: res.data }
-  }
-
-  @bookmarks = { error: not, list: [] }
-  @bookmarks = loadBookmarkList()
+type Bookmark:struct = { name: string, info: string, active: boolean }
+type BookmarksPhase:enum = {
+  Loading
+  Loaded(list: Bookmark[])
+  Failed(err: string)
 }
+
+// Distinct fn name from status.scrml's loadBookmarks to avoid any per-file
+// route ambiguity in composeScrmlFetch. Returns a BookmarksPhase variant
+// straight off the engine Result tuple.
+server function loadBookmarkList() {
+  const engine = getEngine()
+  const res = await engine.listBranches()
+  if (!res.ok) return BookmarksPhase.Failed(res.error)
+  return BookmarksPhase.Loaded(res.data)
+}
+
+<bookmarks> = BookmarksPhase.Loading
+on mount { @bookmarks = loadBookmarkList() }
 
 <div class="app">
 
@@ -46,29 +52,22 @@ ${
       <h2>Bookmarks</h2>
       <p class="muted">All named bookmarks, including remote-tracking branches. Run <code>giti switch &lt;name&gt;</code> in the terminal to switch.</p>
 
-      ${
-        if (@bookmarks.error) {
-          lift <p class="error">Could not list bookmarks: ${@bookmarks.error}</p>
-        } else if (@bookmarks.list.length == 0) {
-          lift <p class="muted">No bookmarks yet. Try <code>giti save</code> to create your first.</p>
-        } else {
-          lift <ul class="bookmark-list">
-            ${
-              for (let b of @bookmarks.list) {
-                lift <li class="bookmark">
-                  <code class="name">${b.name}</code>
-                  <span class="info muted">${b.info}</span>
-                  ${
-                    if (b.active) {
-                      lift <span class="badge active">active</span>
-                    }
-                  }
-                </li>
-              }
-            }
+      <match for=BookmarksPhase on=@bookmarks>
+        <Loading><p class="muted">Loading…</p></Loading>
+        <Failed(err)><p class="error">Could not list bookmarks: ${err}</p></Failed>
+        <Loaded(list)>
+          <ul class="bookmark-list">
+            <each in=list key=@.name>
+              <li class="bookmark">
+                <code class="name">${@.name}</code>
+                <span class="info muted">${@.info}</span>
+                ${ @.active ? <span class="badge active">active</span> : "" }
+              </li>
+              <empty><p class="muted">No bookmarks yet. Try <code>giti save</code> to create your first.</p></empty>
+            </each>
           </ul>
-        }
-      }
+        </Loaded>
+      </match>
     </section>
 
   </main>
