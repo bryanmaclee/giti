@@ -11,82 +11,92 @@
 // performed here. This page is the pre-flight; the user runs `giti land`
 // from the CLI when ready (and we may add a "Land" button in a later
 // slice once auth + dest gating exist).
+//
+// The preflight lifecycle is a PreflightPhase enum (Loading/Loaded/Failed)
+// rendered via <match> — the .Loading variant replaces the old `running:true`
+// boolean + the GITI-006 hydrate-with-defaults dodge.
 
 <program>
 
-${
-  // Source-relative paths (GITI-009 fixed upstream).
-  import { getEngine } from '../src/engine/index.js'
-  import { parseStatus } from '../src/commands/status.js'
-  import { runCompiler, runTests } from '../src/commands/land.js'
-  import { loadPrivateManifest, partitionByScope } from '../src/private/scope.js'
+// Source-relative paths (GITI-009 fixed upstream).
+import { getEngine } from '../src/engine/index.js'
+import { parseStatus } from '../src/commands/status.js'
+import { runCompiler, runTests } from '../src/commands/land.js'
+import { loadPrivateManifest, partitionByScope } from '../src/private/scope.js'
 
-  server function loadLandingPreflight() {
-    const engine = getEngine()
+// ---------- Types: the preflight report + its lifecycle phase ----------
 
-    // Gate 1: private-files
-    const statusRes = await engine.status()
-    let privateGate = { ok: true, files: [] }
-    if (statusRes.ok && statusRes.data.raw) {
-      const parsed = parseStatus(statusRes.data.raw)
-      const globs = loadPrivateManifest(process.cwd())
-      const part = partitionByScope(parsed.changed, globs)
-      const privChanged = part.private
-      privateGate = {
-        ok: !privChanged.length,
-        files: privChanged.map(f => ({ path: f.path, kind: f.kind })),
-      }
-    }
-
-    // Gate 2: conflicts
-    const conflictRes = await engine.conflicts()
-    const conflictsGate = conflictRes.ok
-      ? { ok: !conflictRes.data.hasConflicts, files: conflictRes.data.files || [] }
-      : { ok: false, error: conflictRes.error, files: [] }
-
-    // Gate 3: compiler (all .scrml files)
-    const compilerRes = await runCompiler()
-    const compilerGate = compilerRes.ok
-      ? {
-          ok: true,
-          fileCount: compilerRes.data.fileCount || 0,
-          skipped: !!compilerRes.data.skipped,
-        }
-      : { ok: false, error: compilerRes.error }
-
-    // Gate 4: tests (full bun test)
-    const testRes = await runTests()
-    const testsGate = testRes.ok
-      ? { ok: true, count: testRes.data.count }
-      : { ok: false, error: testRes.error }
-
-    const allOk =
-      privateGate.ok && conflictsGate.ok && compilerGate.ok && testsGate.ok
-
-    return {
-      error: not,
-      allOk,
-      privateGate,
-      conflictsGate,
-      compilerGate,
-      testsGate,
-    }
-  }
-
-  // Defaults (GITI-006 dodge — same pattern as status.scrml).
-  // `running: true` keeps the spinner visible until the server fn lands.
-  @preflight = {
-    error: not,
-    running: true,
-    allOk: false,
-    privateGate: { ok: true, files: [] },
-    conflictsGate: { ok: true, files: [] },
-    compilerGate: { ok: true, fileCount: 0, skipped: false },
-    testsGate: { ok: true, count: "?" },
-  }
-
-  @preflight = loadLandingPreflight()
+type GateFile:struct = { path: string, kind: string }
+type PrivateGate:struct = { ok: boolean, files: GateFile[] }
+type ConflictsGate:struct = { ok: boolean, files: string[], error: string? }
+type CompilerGate:struct = { ok: boolean, fileCount: number?, skipped: boolean?, error: string? }
+type TestsGate:struct = { ok: boolean, count: string?, error: string? }
+type PreflightReport:struct = {
+  allOk: boolean
+  privateGate: PrivateGate
+  conflictsGate: ConflictsGate
+  compilerGate: CompilerGate
+  testsGate: TestsGate
 }
+type PreflightPhase:enum = {
+  Loading
+  Loaded(report: PreflightReport)
+  Failed(err: string)
+}
+
+server function loadLandingPreflight() {
+  const engine = getEngine()
+
+  // Gate 1: private-files
+  const statusRes = await engine.status()
+  let privateGate = { ok: true, files: [] }
+  if (statusRes.ok && statusRes.data.raw) {
+    const parsed = parseStatus(statusRes.data.raw)
+    const globs = loadPrivateManifest(process.cwd())
+    const part = partitionByScope(parsed.changed, globs)
+    const privChanged = part.private
+    privateGate = {
+      ok: !privChanged.length,
+      files: privChanged.map(f => ({ path: f.path, kind: f.kind })),
+    }
+  }
+
+  // Gate 2: conflicts
+  const conflictRes = await engine.conflicts()
+  const conflictsGate = conflictRes.ok
+    ? { ok: !conflictRes.data.hasConflicts, files: conflictRes.data.files || [] }
+    : { ok: false, error: conflictRes.error, files: [] }
+
+  // Gate 3: compiler (all .scrml files)
+  const compilerRes = await runCompiler()
+  const compilerGate = compilerRes.ok
+    ? {
+        ok: true,
+        fileCount: compilerRes.data.fileCount || 0,
+        skipped: !!compilerRes.data.skipped,
+      }
+    : { ok: false, error: compilerRes.error }
+
+  // Gate 4: tests (full bun test)
+  const testRes = await runTests()
+  const testsGate = testRes.ok
+    ? { ok: true, count: testRes.data.count }
+    : { ok: false, error: testRes.error }
+
+  const allOk =
+    privateGate.ok && conflictsGate.ok && compilerGate.ok && testsGate.ok
+
+  return PreflightPhase.Loaded({
+    allOk,
+    privateGate,
+    conflictsGate,
+    compilerGate,
+    testsGate,
+  })
+}
+
+<preflight> = PreflightPhase.Loading
+on mount { @preflight = loadLandingPreflight() }
 
 <div class="app">
 
@@ -113,103 +123,65 @@ ${
         nothing is landed from the dashboard.
       </p>
 
-      ${
-        if (@preflight.error) {
-          lift <p class="error">Engine error: ${@preflight.error}</p>
-        } else if (@preflight.running) {
-          lift <p class="muted">Running gates… (compile + tests can take a few seconds)</p>
-        } else if (@preflight.allOk) {
-          lift <p class="banner banner-ok">All gates pass — your work would land cleanly.</p>
-        } else {
-          lift <p class="banner banner-fail">One or more gates failed — see details below.</p>
-        }
-      }
+      <match for=PreflightPhase on=@preflight>
+        <Loading><p class="muted">Running gates… (compile + tests can take a few seconds)</p></Loading>
+        <Failed(err)><p class="error">Engine error: ${err}</p></Failed>
+        <Loaded(r)>
+          ${ r.allOk
+            ? <p class="banner banner-ok">All gates pass — your work would land cleanly.</p>
+            : <p class="banner banner-fail">One or more gates failed — see details below.</p> }
 
-      <ul class="gates">
+          <ul class="gates">
 
-        <!-- Gate 1: private files -->
-        <li class="gate">
-          <span class="gate-name">Private files</span>
-          ${
-            if (@preflight.privateGate.ok) {
-              lift <span class="badge badge-ok">pass</span>
-            } else {
-              lift <span class="badge badge-fail">fail</span>
-            }
-          }
-          ${
-            if (@preflight.privateGate.files.length > 0) {
-              lift <ul class="gate-detail">
-                ${
-                  for (let f of @preflight.privateGate.files) {
-                    lift <li><span class="tag tag-${f.kind}">${f.kind}</span> <code>${f.path}</code></li>
-                  }
-                }
-              </ul>
-            }
-          }
-        </li>
+            <!-- Gate 1: private files -->
+            <li class="gate">
+              <span class="gate-name">Private files</span>
+              ${ r.privateGate.ok
+                ? <span class="badge badge-ok">pass</span>
+                : <span class="badge badge-fail">fail</span> }
+              ${ r.privateGate.files.length > 0 ? <ul class="gate-detail">
+                  <each in=r.privateGate.files key=@.path>
+                    <li><span class="tag tag-${@.kind}">${@.kind}</span> <code>${@.path}</code></li>
+                  </each>
+                </ul> : "" }
+            </li>
 
-        <!-- Gate 2: conflicts -->
-        <li class="gate">
-          <span class="gate-name">Conflicts</span>
-          ${
-            if (@preflight.conflictsGate.ok) {
-              lift <span class="badge badge-ok">pass</span>
-            } else {
-              lift <span class="badge badge-fail">fail</span>
-            }
-          }
-          ${
-            if (@preflight.conflictsGate.files.length > 0) {
-              lift <ul class="gate-detail">
-                ${
-                  for (let f of @preflight.conflictsGate.files) {
-                    lift <li><code>${f}</code></li>
-                  }
-                }
-              </ul>
-            }
-          }
-        </li>
+            <!-- Gate 2: conflicts -->
+            <li class="gate">
+              <span class="gate-name">Conflicts</span>
+              ${ r.conflictsGate.ok
+                ? <span class="badge badge-ok">pass</span>
+                : <span class="badge badge-fail">fail</span> }
+              ${ r.conflictsGate.files.length > 0 ? <ul class="gate-detail">
+                  <each in=r.conflictsGate.files>
+                    <li><code>${@.}</code></li>
+                  </each>
+                </ul> : "" }
+            </li>
 
-        <!-- Gate 3: compiler -->
-        <li class="gate">
-          <span class="gate-name">Compiler</span>
-          ${
-            if (@preflight.compilerGate.ok && @preflight.compilerGate.skipped) {
-              lift <span class="badge badge-skip">skipped — no .scrml files</span>
-            } else if (@preflight.compilerGate.ok) {
-              lift <span class="badge badge-ok">pass — ${@preflight.compilerGate.fileCount} file(s)</span>
-            } else {
-              lift <span class="badge badge-fail">fail</span>
-            }
-          }
-          ${
-            if (!@preflight.compilerGate.ok && @preflight.compilerGate.error) {
-              lift <pre class="gate-error">${@preflight.compilerGate.error}</pre>
-            }
-          }
-        </li>
+            <!-- Gate 3: compiler -->
+            <li class="gate">
+              <span class="gate-name">Compiler</span>
+              ${ r.compilerGate.ok && r.compilerGate.skipped
+                ? <span class="badge badge-skip">skipped — no .scrml files</span>
+                : r.compilerGate.ok
+                  ? <span class="badge badge-ok">pass — ${r.compilerGate.fileCount} file(s)</span>
+                  : <span class="badge badge-fail">fail</span> }
+              ${ !r.compilerGate.ok && r.compilerGate.error ? <pre class="gate-error">${r.compilerGate.error}</pre> : "" }
+            </li>
 
-        <!-- Gate 4: tests -->
-        <li class="gate">
-          <span class="gate-name">Tests</span>
-          ${
-            if (@preflight.testsGate.ok) {
-              lift <span class="badge badge-ok">pass — ${@preflight.testsGate.count}</span>
-            } else {
-              lift <span class="badge badge-fail">fail</span>
-            }
-          }
-          ${
-            if (!@preflight.testsGate.ok && @preflight.testsGate.error) {
-              lift <pre class="gate-error">${@preflight.testsGate.error}</pre>
-            }
-          }
-        </li>
+            <!-- Gate 4: tests -->
+            <li class="gate">
+              <span class="gate-name">Tests</span>
+              ${ r.testsGate.ok
+                ? <span class="badge badge-ok">pass — ${r.testsGate.count}</span>
+                : <span class="badge badge-fail">fail</span> }
+              ${ !r.testsGate.ok && r.testsGate.error ? <pre class="gate-error">${r.testsGate.error}</pre> : "" }
+            </li>
 
-      </ul>
+          </ul>
+        </Loaded>
+      </match>
 
     </section>
   </main>
