@@ -1,19 +1,33 @@
 // giti — live status feed (SSE dogfood, §37)
 //
-// Built against scrmlTS v0.7.0 (4c9079d2). Runtime-tier exercise of the
-// `server function*` SSE surface per the S140 resume message.
+// Runtime-tier exercise of the `server function*` SSE surface. A
+// `server function*` polls giti's engine on an interval and `yield`s a status
+// snapshot as a named SSE event. The compiler emits a text/event-stream GET
+// route + an EventSource client stub; binding the call to an @reactive cell
+// updates the page on every event.
 //
-// A `server function*` polls giti's engine on an interval and `yield`s a
-// status snapshot as a named SSE event. The compiler emits a text/event-stream
-// GET route + an EventSource client stub; binding the call to an @reactive cell
-// updates the page on every event. No EventSource/ReadableStream code is hand-
-// written — only the generator body.
+// Idiom note (S15): the request lifecycle is a typed Phase enum field
+// (Idle | Ok | Error) rendered with <match for=Phase>, replacing the old
+// raw-string-in-DOM `state: "ok"/"error"` flag. As on live.scrml it is a
+// <match>, NOT a Tier-2 <engine>: the @status cell is bound to the SSE
+// generator, and an engine OWNS its cell's progression — it can't be a
+// stream-/server-driven cell (E-RI-002 class). Same gap as live.scrml.
 //
-// No generator parameters (GITI-025: parameterized SSE generators silently
-// yield nothing on v0.7.0). The watcher reads the current repo from server-side
-// state, so it needs none.
+// KNOWN INERT (GITI-026 / CG-4): the SSE reactive binding is dead on the
+// current compiler — @status = watchStatus() stores the EventSource object and
+// no per-event callback is wired, so zero stream values are delivered and the
+// page does NOT update at runtime. This rewrite lands the idiomatic SHAPE now
+// (per S15 user decision) as a forcing function; it will animate once scrml
+// ships the GITI-026 SSE-binding fix. No generator parameters either
+// (GITI-025: parameterized SSE generators silently yield nothing).
 
 <program>
+
+type Phase:enum = {
+  Idle
+  Ok
+  Error
+}
 
 ${
   import { getEngine } from '../src/engine/index.js'
@@ -29,7 +43,7 @@ ${
       yield {
         event: "status",
         data: {
-          state: res.ok ? "ok" : "error",
+          state: res.ok ? Phase.Ok : Phase.Error,
           changed: parsed.changed.length,
           conflicts: parsed.conflicts.length,
           bookmark: parsed.bookmark,
@@ -40,16 +54,26 @@ ${
       await delay(1000)
     }
   }
-
-  @status = watchStatus()
 }
+
+// Seeded at .Idle so the first paint (before any SSE event) is type-sound;
+// the SSE binding is a module-top write (wrapped in ${} — a write, not a
+// declaration; on-mount placement trips an SSE-binding codegen bug, S15).
+<status> = { state: Phase.Idle, changed: 0, conflicts: 0, bookmark: not, error: not, at: not }
+${ @status = watchStatus() }
 
 <div class="app">
   <h1>giti — live status feed</>
   <p class="meta">Source: <code>server function* watchStatus</code> · streamed over SSE</>
 
   <div class="card">
-    <p>State: <strong>${@status.state}</></>
+    <p>State:
+      <match for=Phase on=@status.state>
+        <Idle><strong class="muted">waiting…</strong></Idle>
+        <Ok><strong class="ok">ok</strong></Ok>
+        <Error><strong class="err">error</strong></Error>
+      </match>
+    </p>
     <p>Changed files: ${@status.changed}</>
     <p>Conflicts: ${@status.conflicts}</>
     <p>Bookmark: ${@status.bookmark}</>
@@ -63,6 +87,8 @@ ${
   .card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 16px 0; }
   .meta { color: var(--muted); }
   .ts { color: var(--muted); font-size: 12px; }
+  .ok { color: var(--ok); }
+  .err { color: var(--err); }
 }
 
 </program>
