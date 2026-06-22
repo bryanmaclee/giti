@@ -12,9 +12,9 @@
 // Tier-2 <engine>: an engine OWNS its cell's variant progression and the
 // engine cell cannot also be a server-written <channel>-synced cell (E-RI-002
 // — server fns may write a channel cell, but NOT an engine cell). So the live
-// page keeps its channel cell and matches on a typed state field. Filed the
-// engine-cannot-drive-a-channel-cell gap back to scrml. The changed-files list
-// is now <each>.
+// page keeps its channel cell and matches on a typed state field. The
+// engine-cannot-drive-a-channel-cell gap is to be reported to scrml. The
+// changed-files list is now <each>.
 
 <program>
 
@@ -41,13 +41,13 @@ type Phase:enum = {
       at: not,
     }
 
-    // Two compiler workarounds in play here (both filed v0.6.7, still OPEN):
-    //   GITI-020 — a channel-cell write nested in a block mis-lowers to the
-    //     client reactive path, so @snapshot is written exactly once at the
-    //     top level of the function.
-    //   GITI-021 — a local reassignment in a server fn is mis-emitted as a
-    //     shadowing `const`, so we use NO reassignment: every local is a
-    //     single-assignment `const`, branches expressed as ternaries.
+    // Single-top-level-write + no-reassignment style retained from the original.
+    // It began as the GITI-020 / GITI-021 workarounds (channel-cell-write and
+    // server-fn local-reassignment mis-lowering), which the master-list records
+    // CLOSED at 8e7f18fe (S12, pre scrmlTS→scrml migration). The style is harmless
+    // either way and kept for stability; not re-verified on the migrated compiler.
+    //   - @snapshot is written exactly once at the top level of the function.
+    //   - every local is a single-assignment `const`; branches are ternaries.
     server function refreshStatus() {
       const engine = getEngine()
       const res = await engine.status()

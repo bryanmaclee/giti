@@ -13,13 +13,16 @@
 // generator, and an engine OWNS its cell's progression — it can't be a
 // stream-/server-driven cell (E-RI-002 class). Same gap as live.scrml.
 //
-// KNOWN INERT (GITI-026 / CG-4): the SSE reactive binding is dead on the
-// current compiler — @status = watchStatus() stores the EventSource object and
-// no per-event callback is wired, so zero stream values are delivered and the
-// page does NOT update at runtime. This rewrite lands the idiomatic SHAPE now
-// (per S15 user decision) as a forcing function; it will animate once scrml
-// ships the GITI-026 SSE-binding fix. No generator parameters either
-// (GITI-025: parameterized SSE generators silently yield nothing).
+// SSE runtime status is CONTESTED and NOT re-verified this session:
+//   - giti's master-list records GITI-025 + GITI-026 (parameterized + dead SSE
+//     binding) BOTH FIXED at e2dcde7b (S12, 2026-05-30) with feed working
+//     client-side — but that was on scrmlTS v0.7.0, BEFORE the scrml migration.
+//   - the 2026-06-20 idiomatic audit reported the SSE binding still dead (CG-4).
+// This rewrite lands the idiomatic SHAPE either way (it compiles + serves 200);
+// whether events reach @status on the migrated compiler is unverified — a quick
+// SSE runtime probe is the follow-up. (Kept the generator parameter-less: it
+// reads the current repo from server state, so it needs none — independent of
+// the GITI-025 param-binding fix.)
 
 <program>
 
