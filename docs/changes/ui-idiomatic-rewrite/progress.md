@@ -41,6 +41,8 @@ Compiler: `../scrml` @ `ca712295` (s212, self-id scrml-0.7.0)
 2. **SSE-binding-in-on-mount codegen** — `on mount { @x = watchStatus() }` → `E-CODEGEN-INVALID-JS`. Workaround: module-top `${ @x = watchStatus() }`.
 3. **safeCall-in-library-mode codegen** — `safeCall(...) !{}` → `E-CODEGEN-INVALID-JS` under `--mode library` (fine in program mode). Blocks the remotes.scrml try/catch→safeCall conversion.
 
+- 2026-06-22 — **COMPLETE.** Final verify: all 7 UI pages compile clean (only W-PROGRAM-SPA-INFERRED info) + every emitted JS `node --check` OK; `giti serve` boots and 7/7 pages serve HTTP 200 (home carries scrml-runtime + `<title>status</title>`); 375/0 tests. master-list "S15" section + hand-off S15 log written. Audit inbox msg moved to read/. Corrected stale bug-status comments in live/feed (`5f95868`) after reconciling vs the master-list (GITI-020/021/025/026 recorded CLOSED). 9 commits: a267163 (CG-5) + b088927/327fdd9/e596ee4/5ae5a44/5cf9d3e/a7d6e20/f458855/8a8c1dd (rewrites) + 5f95868 (comment fix) + docs commit.
+
 ### Notes / follow-ups
 - W-DEPRECATED-SERVER-MODIFIER: the `server` keyword is deprecated when body uses a server-only resource. giti uses `server function` throughout; modernizing to inference-based is a separate repo-wide task, NOT part of this idiomatic rewrite. Loaders that only call getEngine() (history/bookmarks) are NOT auto-inferred and still REQUIRE the keyword.
 

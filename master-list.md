@@ -219,7 +219,7 @@ Batch 2 — sent 2026-04-20 16:14 → `scrmlTS/handOffs/incoming/2026-04-20-1614
 - [x][x] **GITI-008** — lift-branch text tokens emitted as separate `createTextNode` calls, stripping whitespace ("Hello world" → "Helloworld"). Repro: `ui/repros/repro-03-lift-whitespace.scrml`
 
 **Open (cosmetic only):**
-- [ ][ ] **GITI-006** — markup `${@var.path}` emits a bare module-top `_scrml_reactive_get(...).value` that throws `undefined.path` before async reactive init resolves. Workaround: pre-seed `@state` with full default shapes. Applied in `ui/status.scrml`. Low-priority — filed as "ride or ticket, your call."
+- [ ][ ] **GITI-006** — markup `${@var.path}` emits a bare module-top `_scrml_reactive_get(...).value` that throws `undefined.path` before async reactive init resolves. Workaround was: pre-seed `@state` with full default shapes. **Workaround DISSOLVED S15** — the idiomatic rewrite replaces the defaults-dodge with a `Phase:enum` seeded at `.Loading` (no bare module-top `${@x.y}` read remains in `status.scrml`/`history.scrml`/`land.scrml`/etc.). The underlying compiler behavior may still exist; giti no longer triggers it.
 
 **Open (UI-blocking):**
 - [x][x] **GITI-009** — CLOSED upstream S8 (workaround removed).
@@ -412,6 +412,28 @@ GITI-015/016 (workarounds retained), GITI-006 (cosmetic).
 **S13 follow-up:** §12.6 likely orphans other plain-fs libs' committed `.server.js`
 (find-scrml-files, etc.); a lib-wide `--mode library` re-emit + orphan sweep is
 deferred (stale artifacts are unused — tests 371/0 — not urgent).
+
+### S15 — idiomatic UI rewrite (2026-06-22, compiler `../scrml`@`ca712295`)
+
+Executed the scrml-PA idiomatic audit's rewrite directive (`scrml-support/docs/deep-dives/giti-idiomatic-audit-2026-06-20.md`; inbox `2026-06-20-2109`). All 7 UI pages + 1 src/lib edit. Per-file commits, recompile + 375/0 tests after each. Progress journal: `docs/changes/ui-idiomatic-rewrite/progress.md`.
+
+**Landed (Tier-1 dashboards → Phase enum + `<match for=Phase on=@x>` + `<each>`+`<empty>`):**
+- history, bookmarks, status (3 loads → 3 enums), land (killed `running:true` bool → `.Running`), diff (DiffMode + DiffPhase + HistoryPhase; working-copy-vs-selected fork → `<match for=DiffMode>`, id as payload).
+- Server fns return the variant directly off the engine Result tuple (no `!{}` needed for dashboard loads). Loads trigger via `on mount {}`. **GITI-006/CG-6 defaults-dodge dissolved** (cells seed at `.Loading`).
+- Conditional content-sections + badges → ternary-as-value `${ cond ? <markup> : "" }` (Pillar 1).
+
+**Cycling pages (live, feed) — DEVIATION from audit's `<engine>`, compiler-forced:** verified **`E-RI-002`** on the current compiler — a server-escalated fn may write a `<channel>`/SSE cell but NOT an `<engine>` cell, so an engine can't drive the synced cell these pages need (dropping the channel would kill cross-tab/stream sync). Used typed `Phase` state field + `<match for=Phase on=@cell.state>` instead (kills the raw-string-in-DOM `state:"ok"/"error"` flag) + `<each>`. This is independent of GITI-020/021/026.
+
+**remotes.scrml — try/catch RETAINED (compiler-gap):** the idiomatic replacement is `safeCall` (scrml:host), but `safeCall(...) !{}` emits invalid JS in `--mode library` (remotes' mode; fine in program mode). Reverted to the working try/catch, documented + flagged. Now also warns `W-TRY-CATCH-IN-SCRML-SOURCE`.
+
+**3 NEW compiler findings (to report to scrml — see hand-off):**
+1. `<engine>` cell can't be a server-written `<channel>`/SSE cell (`E-RI-002`).
+2. `on mount { @x = watchStatus() }` (SSE binding in on-mount) → `E-CODEGEN-INVALID-JS`; workaround = module-top `${ @x = watchStatus() }`.
+3. `safeCall(...) !{}` → `E-CODEGEN-INVALID-JS` under `--mode library` (fine in program mode).
+
+**Ledger reconciliation (audit vs this repo's master-list):** the audit (S210) treated CG-1/CG-3 (GITI-020/021) as OPEN and feed as inert (CG-4/GITI-026 open). This repo's S12-close record says **GITI-020/021/025/026 were all CLOSED** (`8e7f18fe` / `e2dcde7b`, 2026-05-30, on scrmlTS v0.7.0 **before** the scrml migration). Not re-verified on the migrated compiler this session. **feed.scrml's actual runtime SSE on the migrated compiler is UNVERIFIED** — a quick SSE runtime probe is the open follow-up; the idiomatic shape is correct either way (compiles + serves 200).
+
+**Verification:** all 7 pages compile clean (only `W-PROGRAM-SPA-INFERRED` info) + every emitted JS `node --check` OK; `giti serve` boots and all 7 pages serve HTTP 200 end-to-end; **375/0** throughout. CG-5 (CSS `@import` mangling) confirmed NOT-REPRODUCED — stale `history.scrml` comment dropped.
 
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.

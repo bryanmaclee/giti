@@ -59,4 +59,37 @@ bun run ../scrml/compiler/src/cli.js compile ui/<page>.scrml -o ui/dist
 
 ## S15 log
 
-(session in progress)
+**Concurrent doctrine refactor (committed `724500b`).** Mid-session an external actor
+restructured `pa.md` (+pa-base.md) — the base+overlay vendoring. Detected real-time index
+churn between git commands; paused, user confirmed "pause until tree stable," resumed once
+it committed. Adopted **path-limited commits** (`git commit -- <files>`) defense-in-depth for
+the rest of the session. New pa.md commit rules confirmed consistent (explicit pathspec;
+manual `bun test` is the only gate — NO commit hook installed).
+
+**CG-5 resolved (`a267163`).** `@import url('theme.css')` emits intact (NOT-REPRODUCED) —
+dropped the stale `history.scrml` workaround comment + `scrmlTS`→`scrml`. Inbox msg
+`2026-06-20-2112` moved to `read/`.
+
+**Idiomatic UI rewrite — COMPLETE (8 commits `b088927`..`5f95868`).** Executed the scrml-PA
+audit directive (inbox `2026-06-20-2109`). All 7 UI pages + remotes.scrml. Per-page commits,
+375/0 after each. Full record: master-list "S15" section + `docs/changes/ui-idiomatic-rewrite/progress.md`.
+- Tier-1 dashboards (history, bookmarks, status, land, diff) → `Phase:enum` + `<match for=Phase on=@x>` + `<each>`+`<empty>`; server fns return the variant; `on mount` loads. **GITI-006/CG-6 dissolved** (`.Loading` seed).
+- Cycling pages (live, feed) → **DEVIATION**: `<match>` on a typed state field, NOT `<engine>`. Verified **`E-RI-002`** (engine cell can't be a server-written channel/SSE cell). Kept channels (cross-tab/stream sync). String-flag smell killed.
+- remotes.scrml: try/catch RETAINED — `safeCall` (the idiomatic fix) emits invalid JS in `--mode library`. Documented.
+- Verified end-to-end: all 7 pages compile clean + `node --check` + `giti serve` → 7/7 HTTP 200.
+
+### Open items carried to S16
+
+**3 compiler findings to REPORT to scrml** (drafted, NOT yet sent — needs user confirm per pa.md cross-repo-message rule):
+1. `<engine>` cell can't be a server-written `<channel>`/SSE cell (`E-RI-002`) — blocks engine on channel/SSE pages.
+2. `on mount { @x = watchStatus() }` → `E-CODEGEN-INVALID-JS` (SSE binding in on-mount); workaround module-top `${...}`.
+3. `safeCall(...) !{}` → `E-CODEGEN-INVALID-JS` under `--mode library` (fine in program mode).
+Repros for all 3 live under `/tmp/giti-idiom-probe/` this session — will need re-creating as committed repros when filing.
+
+**Ledger reconciliation needed:** audit (S210) said CG-1/CG-3 (GITI-020/021) OPEN + feed inert (GITI-026 open); this repo's master-list says GITI-020/021/025/026 all CLOSED (pre-migration). NOT re-verified on the migrated compiler. **feed.scrml runtime SSE on the migrated compiler is UNVERIFIED** — quick SSE runtime probe is the open follow-up.
+
+**Carried (unchanged):** GITI-027 Part-B still unshipped (keep write-gate); GITI-015/016 workarounds retained; `../scrmlTS/` legacy checkout on disk; optional `rm -rf src/lib/dist/`.
+
+### Inbox at S15 close
+- `2026-06-20-2109-...idiomatic-audit-rewrite-plan.md` → moved to `read/` (acted on, this rewrite).
+- `2026-06-20-2112-...cg5...` → moved to `read/` (acted on).
