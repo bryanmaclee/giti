@@ -1,91 +1,96 @@
-// giti — status dashboard (iteration 3)
+// giti — status dashboard (iteration 4)
 //
-// Built against scrmlTS d23fd54+ (GITI-BLOCK-001..005 fixed, 2026-04-20).
-// Uses the now-working `server function + import + ${serverFn()}` idiom.
-// Avoids <request> (broken without url=) and bare `${@x.y}` module-top
-// reads (GITI-006 caveat) by hydrating `@state` with a default shape
-// before the awaited server call resolves.
+// Three independent async loads — current status, bookmarks, recent saves —
+// each modeled as its own RemoteData-style enum (Loading/Loaded/Failed) and
+// rendered with <match for=Phase>. The .Loading initial variant is the seed
+// state, which retires the old hydrate-with-defaults GITI-006 dodge: there is
+// no bare `${@x.y}` module-top read anymore, the cell simply starts .Loading.
 //
 // Data source: giti's JS engine module (jj-cli wrapper) called from
-// server-function bodies. The compiler preserves the import in
-// .server.js (fixed GITI-002) and prunes it from .client.js (GITI-003).
+// server-function bodies, which return a Phase variant straight off the
+// engine Result tuple. The compiler keeps the import in .server.js
+// (GITI-002) and prunes it from .client.js (GITI-003).
 
 <program>
 
-${
-  // GITI-009 fixed upstream: scrmlTS now rewrites relative-import paths
-  // for the compiled output location, so source-relative paths are correct.
-  import { getEngine } from '../src/engine/index.js'
-  import { parseStatus } from '../src/commands/status.js'
-  import { classifyFromStatus } from '../src/private/save-routing.js'
+// GITI-009 fixed upstream: scrml rewrites relative-import paths for the
+// compiled output location, so source-relative paths are correct.
+import { getEngine } from '../src/engine/index.js'
+import { parseStatus } from '../src/commands/status.js'
+import { classifyFromStatus } from '../src/private/save-routing.js'
 
-  // ---------- Server functions: wrap the engine ----------
+// ---------- Types: one Phase enum per independent load ----------
 
-  server function loadStatus() {
-    const engine = getEngine()
-    const res = await engine.status()
-    if (!res.ok) {
-      return {
-        error: res.error,
-        scope: "empty",
-        bookmark: not,
-        changed: [],
-        conflicts: [],
-        publicFiles: [],
-        privateFiles: [],
-      }
-    }
-    const cls = classifyFromStatus(res.data.raw || "", process.cwd())
-    return {
-      error: not,
-      scope: cls.scope,
-      bookmark: cls.parsed.bookmark,
-      changed: cls.parsed.changed,
-      conflicts: cls.parsed.conflicts,
-      publicFiles: cls.publicFiles,
-      privateFiles: cls.privateFiles,
-    }
-  }
-
-  server function loadHistory() {
-    const engine = getEngine()
-    const res = await engine.history(12)
-    if (!res.ok) return { error: res.error, entries: [] }
-    return { error: not, entries: res.data }
-  }
-
-  server function loadBookmarks() {
-    const engine = getEngine()
-    const res = await engine.listBranches()
-    if (!res.ok) return { error: res.error, list: [] }
-    return { error: not, list: res.data }
-  }
-
-  // ---------- Reactive state: seeded with defaults to dodge GITI-006 ----------
-  // The awaited fetch returns after the initial render; the reactive effects
-  // re-render the DOM once real data arrives. Defaults ensure property reads
-  // don't throw during that gap.
-
-  @status = {
-    error: not,
-    scope: "empty",
-    bookmark: not,
-    changed: [],
-    conflicts: [],
-    publicFiles: [],
-    privateFiles: [],
-  }
-
-  @history = { error: not, entries: [] }
-
-  @bookmarks = { error: not, list: [] }
-
-  // Hydrate (fixed GITI-001: these assignments are auto-rewritten to
-  // awaited async IIFEs so the Promise resolves before reactive_set).
-  @status    = loadStatus()
-  @history   = loadHistory()
-  @bookmarks = loadBookmarks()
+type FileChange:struct = { kind: string, path: string }
+type StatusData:struct = {
+  scope: string
+  bookmark: string?
+  conflicts: string[]
+  publicFiles: FileChange[]
+  privateFiles: FileChange[]
 }
+type StatusPhase:enum = {
+  Loading
+  Loaded(data: StatusData)
+  Failed(err: string)
+}
+
+type Bookmark:struct = { name: string, info: string }
+type BookmarksPhase:enum = {
+  Loading
+  Loaded(list: Bookmark[])
+  Failed(err: string)
+}
+
+type Entry:struct = { changeId: string, description: string, author: string, timestamp: string }
+type HistoryPhase:enum = {
+  Loading
+  Loaded(entries: Entry[])
+  Failed(err: string)
+}
+
+// ---------- Server functions: wrap the engine, return a Phase variant ----------
+
+server function loadStatus() {
+  const engine = getEngine()
+  const res = await engine.status()
+  if (!res.ok) return StatusPhase.Failed(res.error)
+  const cls = classifyFromStatus(res.data.raw || "", process.cwd())
+  return StatusPhase.Loaded({
+    scope: cls.scope,
+    bookmark: cls.parsed.bookmark,
+    conflicts: cls.parsed.conflicts,
+    publicFiles: cls.publicFiles,
+    privateFiles: cls.privateFiles,
+  })
+}
+
+server function loadHistory() {
+  const engine = getEngine()
+  const res = await engine.history(12)
+  if (!res.ok) return HistoryPhase.Failed(res.error)
+  return HistoryPhase.Loaded(res.data)
+}
+
+server function loadBookmarks() {
+  const engine = getEngine()
+  const res = await engine.listBranches()
+  if (!res.ok) return BookmarksPhase.Failed(res.error)
+  return BookmarksPhase.Loaded(res.data)
+}
+
+// ---------- Reactive state: each load seeded at .Loading ----------
+// Per §13.5.5 the three independent server calls are parallelized on mount.
+
+<status>    = StatusPhase.Loading
+<bookmarks> = BookmarksPhase.Loading
+<history>   = HistoryPhase.Loading
+
+// Three separate mount blocks (§6.7.1a) — independent loads the compiler
+// parallelizes (§13.3/§13.5.5); each transitions its own Phase cell.
+on mount { @status    = loadStatus() }
+on mount { @bookmarks = loadBookmarks() }
+on mount { @history   = loadHistory() }
 
 <div class="app">
 
@@ -110,108 +115,78 @@ ${
     <section class="panel">
       <h2>Current status</h2>
 
-      ${
-        if (@status.error) {
-          lift <p class="error">Engine error: ${@status.error}</p>
-        } else if (@status.scope == "empty" && @status.conflicts.length == 0) {
-          lift <p class="muted">Working copy is clean. No pending changes.</p>
-        }
-      }
+      <match for=StatusPhase on=@status>
+        <Loading><p class="muted">Loading…</p></Loading>
+        <Failed(err)><p class="error">Engine error: ${err}</p></Failed>
+        <Loaded(d)>
+          ${ d.scope == "empty" && d.conflicts.length == 0 ? <p class="muted">Working copy is clean. No pending changes.</p> : "" }
 
-      ${
-        if (@status.bookmark) {
-          lift <p class="kv"><span class="k">On</span> <code>${@status.bookmark}</code></p>
-        }
-      }
+          ${ d.bookmark ? <p class="kv"><span class="k">On</span> <code>${d.bookmark}</code></p> : "" }
 
-      ${
-        if (@status.conflicts.length > 0) {
-          lift <div class="conflicts">
-            <h3>Conflicts</h3>
-            <ul class="file-list">
-              ${
-                for (let f of @status.conflicts) {
-                  lift <li class="conflict"><span class="tag tag-conflict">conflict</span> ${f}</li>
-                }
-              }
-            </ul>
-            <p class="hint">Resolve these files, then <code>giti save</code>.</p>
-          </div>
-        }
-      }
+          ${ d.conflicts.length > 0 ? <div class="conflicts">
+              <h3>Conflicts</h3>
+              <ul class="file-list">
+                <each in=d.conflicts>
+                  <li class="conflict"><span class="tag tag-conflict">conflict</span> ${@.}</li>
+                </each>
+              </ul>
+              <p class="hint">Resolve these files, then <code>giti save</code>.</p>
+            </div> : "" }
 
-      ${
-        if (@status.publicFiles.length > 0) {
-          lift <div class="changes">
-            <h3>Public changes <span class="count">${@status.publicFiles.length}</span></h3>
-            <ul class="file-list">
-              ${
-                for (let f of @status.publicFiles) {
-                  lift <li>
-                    <span class="tag tag-${f.kind}">${f.kind}</span>
-                    <span class="path">${f.path}</span>
+          ${ d.publicFiles.length > 0 ? <div class="changes">
+              <h3>Public changes <span class="count">${d.publicFiles.length}</span></h3>
+              <ul class="file-list">
+                <each in=d.publicFiles key=@.path>
+                  <li>
+                    <span class="tag tag-${@.kind}">${@.kind}</span>
+                    <span class="path">${@.path}</span>
                   </li>
-                }
-              }
-            </ul>
-          </div>
-        }
-      }
+                </each>
+              </ul>
+            </div> : "" }
 
-      ${
-        if (@status.privateFiles.length > 0) {
-          lift <div class="changes private">
-            <h3>Private changes <span class="count">${@status.privateFiles.length}</span></h3>
-            <ul class="file-list">
-              ${
-                for (let f of @status.privateFiles) {
-                  lift <li>
-                    <span class="tag tag-${f.kind}">${f.kind}</span>
-                    <span class="path">${f.path}</span>
+          ${ d.privateFiles.length > 0 ? <div class="changes private">
+              <h3>Private changes <span class="count">${d.privateFiles.length}</span></h3>
+              <ul class="file-list">
+                <each in=d.privateFiles key=@.path>
+                  <li>
+                    <span class="tag tag-${@.kind}">${@.kind}</span>
+                    <span class="path">${@.path}</span>
                     <span class="scope-mark">private</span>
                   </li>
-                }
-              }
-            </ul>
-          </div>
-        }
-      }
+                </each>
+              </ul>
+            </div> : "" }
 
-      ${
-        if (@status.scope == "mixed") {
-          lift <div class="hint-box">
-            <strong>Mixed save.</strong>
-            <span class="muted">Use</span>
-            <code>giti save --split "msg"</code>
-            <span class="muted">to split into a public and a private commit.</span>
-          </div>
-        }
-      }
+          ${ d.scope == "mixed" ? <div class="hint-box">
+              <strong>Mixed save.</strong>
+              <span class="muted">Use</span>
+              <code>giti save --split "msg"</code>
+              <span class="muted">to split into a public and a private commit.</span>
+            </div> : "" }
+        </Loaded>
+      </match>
 
     </section>
 
     <!-- ============ BOOKMARKS ============ -->
     <section class="panel">
       <h2>Bookmarks</h2>
-      ${
-        if (@bookmarks.error) {
-          lift <p class="error">Could not list bookmarks: ${@bookmarks.error}</p>
-        } else if (@bookmarks.list.length == 0) {
-          lift <p class="muted">No bookmarks yet.</p>
-        } else {
-          lift <ul class="bookmark-list">
-            ${
-              for (let b of @bookmarks.list) {
-                const nameCls = b.name == "_private" ? "name-priv" : "name-pub"
-                lift <li class="bookmark">
-                  <span class="name ${nameCls}">${b.name}</span>
-                  <span class="info muted">${b.info}</span>
-                </li>
-              }
-            }
+      <match for=BookmarksPhase on=@bookmarks>
+        <Loading><p class="muted">Loading…</p></Loading>
+        <Failed(err)><p class="error">Could not list bookmarks: ${err}</p></Failed>
+        <Loaded(list)>
+          <ul class="bookmark-list">
+            <each in=list key=@.name>
+              <li class="bookmark">
+                <span class="name ${@.name == "_private" ? "name-priv" : "name-pub"}">${@.name}</span>
+                <span class="info muted">${@.info}</span>
+              </li>
+              <empty><p class="muted">No bookmarks yet.</p></empty>
+            </each>
           </ul>
-        }
-      }
+        </Loaded>
+      </match>
       <p class="hint">
         <code>main</code> tracks public commits.
         <code>_private</code> tracks your personal overlay — never leaves machines scoped 'private'.
@@ -221,26 +196,23 @@ ${
     <!-- ============ HISTORY ============ -->
     <section class="panel">
       <h2>Recent saves</h2>
-      ${
-        if (@history.error) {
-          lift <p class="error">Could not read history: ${@history.error}</p>
-        } else if (@history.entries.length == 0) {
-          lift <p class="muted">No saves yet. Try <code>giti save "first"</code>.</p>
-        } else {
-          lift <ol class="history-list">
-            ${
-              for (let e of @history.entries) {
-                lift <li class="entry">
-                  <code class="change-id">${e.changeId}</code>
-                  <span class="desc">${e.description || "(no message)"}</span>
-                  <span class="author muted">${e.author}</span>
-                  <span class="time muted">${e.timestamp}</span>
-                </li>
-              }
-            }
+      <match for=HistoryPhase on=@history>
+        <Loading><p class="muted">Loading…</p></Loading>
+        <Failed(err)><p class="error">Could not read history: ${err}</p></Failed>
+        <Loaded(entries)>
+          <ol class="history-list">
+            <each in=entries key=@.changeId>
+              <li class="entry">
+                <code class="change-id">${@.changeId}</code>
+                <span class="desc">${@.description || "(no message)"}</span>
+                <span class="author muted">${@.author}</span>
+                <span class="time muted">${@.timestamp}</span>
+              </li>
+              <empty><p class="muted">No saves yet. Try <code>giti save "first"</code>.</p></empty>
+            </each>
           </ol>
-        }
-      }
+        </Loaded>
+      </match>
     </section>
 
   </main>
