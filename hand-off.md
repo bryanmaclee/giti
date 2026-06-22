@@ -90,6 +90,9 @@ Repros for all 3 live under `/tmp/giti-idiom-probe/` this session — will need 
 
 **Carried (unchanged):** GITI-027 Part-B still unshipped (keep write-gate); GITI-015/016 workarounds retained; `../scrmlTS/` legacy checkout on disk; optional `rm -rf src/lib/dist/`.
 
+### Cross-repo sends (S15)
+- **Filed bug report → scrml** (`../scrml/handOffs/incoming/2026-06-22-1443-giti-to-scrml-three-codegen-findings.md`, needs:action). The 3 codegen/RI findings (E-RI-002 engine-cell-write, SSE-binding-in-on-mount, safeCall-in-library-mode) with inline repros. giti-side repros committed at `ui/repros/repro-24..26`. (User gave standing authorization to file legit bug reports without per-report permission, S15.)
+
 ### Inbox at S15 close
 - `2026-06-20-2109-...idiomatic-audit-rewrite-plan.md` → moved to `read/` (acted on, this rewrite).
 - `2026-06-20-2112-...cg5...` → moved to `read/` (acted on).

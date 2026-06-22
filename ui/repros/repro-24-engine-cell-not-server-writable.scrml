@@ -1,0 +1,35 @@
+// repro-24 — E-RI-002: a server-escalated function cannot write an <engine> cell.
+//
+// Compiler: ../scrml @ ca712295 (s212). Command: scrml compile repro-24-...scrml
+// Expected: compiles (the engine drives its own cell; a server fn shouldn't need
+//   to write it). OR a clear "engines own their cell, drive via rule=/transition"
+//   diagnostic. Actual: E-RI-002 ("Server-escalated function `go` assigns to a `@`
+//   reactive variable").
+//
+// Why this matters (giti live.scrml / feed.scrml): a <channel>/SSE page wants its
+// SYNCED cell to be a typed state machine. A server fn (reads jj) MAY write a
+// <channel> cell (§38.4 special-case) but NOT an <engine> cell — so the engine
+// can't be the synced cell, and the audit's recommended <engine> rewrite for
+// cycling pages is blocked. giti fell back to <match> on a typed state field.
+
+<program>
+
+type Phase:enum = {
+  Idle
+  Busy
+}
+
+${
+  server function go() {
+    @phase = Phase.Busy
+  }
+}
+
+<engine for=Phase initial=.Idle var=phase>
+  <Idle : "idle">
+  <Busy : "busy">
+</engine>
+
+<button onclick=go()>go</button>
+
+</program>

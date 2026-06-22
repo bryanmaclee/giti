@@ -1,0 +1,28 @@
+// repro-25 — E-CODEGEN-INVALID-JS: binding an SSE generator inside `on mount {}`
+// emits unparseable JS.
+//
+// Compiler: ../scrml @ ca712295 (s212). Command: scrml compile repro-25-...scrml
+// Expected: compiles (an SSE binding in on-mount is the natural "start the stream
+//   after first render" lifecycle). Actual: a "statement boundary not detected"
+//   warning + E-CODEGEN-INVALID-JS (the compiler emits JS it cannot itself parse).
+//
+// Workaround (what giti's feed.scrml uses): bind at module top in a ${} logic
+// block instead — `${ @status = tick() }` compiles cleanly. Only the on-mount
+// placement trips the codegen.
+
+<program>
+
+${
+  server function* tick() {
+    while (true) {
+      yield { event: "t", data: { n: 1 } }
+    }
+  }
+}
+
+<status> = { n: 0 }
+on mount { @status = tick() }
+
+<p>${@status.n}</p>
+
+</program>

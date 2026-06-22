@@ -13,16 +13,16 @@
 // generator, and an engine OWNS its cell's progression — it can't be a
 // stream-/server-driven cell (E-RI-002 class). Same gap as live.scrml.
 //
-// SSE runtime status is CONTESTED and NOT re-verified this session:
-//   - giti's master-list records GITI-025 + GITI-026 (parameterized + dead SSE
-//     binding) BOTH FIXED at e2dcde7b (S12, 2026-05-30) with feed working
-//     client-side — but that was on scrmlTS v0.7.0, BEFORE the scrml migration.
-//   - the 2026-06-20 idiomatic audit reported the SSE binding still dead (CG-4).
-// This rewrite lands the idiomatic SHAPE either way (it compiles + serves 200);
-// whether events reach @status on the migrated compiler is unverified — a quick
-// SSE runtime probe is the follow-up. (Kept the generator parameter-less: it
-// reads the current repo from server state, so it needs none — independent of
-// the GITI-025 param-binding fix.)
+// SSE binding status (S15): GITI-026 (the dead-binding bug the 2026-06-20 audit
+// called CG-4) is FIXED on the current compiler — confirmed by inspecting the
+// emitted feed.client.js: it wires a per-event callback
+// `(d) => _scrml_reactive_set("status", d)` + `addEventListener("status")`, not
+// the old store-the-EventSource-object stub. So this page is NOT inert; the
+// audit's CG-4 premise was stale (matches this repo's master-list, which records
+// GITI-025/026 CLOSED at e2dcde7b). A 3s runtime probe in this checkout observed
+// 0 delivered frames, but that was likely a probe-harness artifact (secondary
+// page; left for a proper browser verify). Generator kept parameter-less: it
+// reads the current repo from server state, so it needs no args.
 
 <program>
 

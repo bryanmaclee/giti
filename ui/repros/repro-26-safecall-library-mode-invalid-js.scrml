@@ -1,0 +1,23 @@
+// repro-26 — E-CODEGEN-INVALID-JS: `safeCall(...) !{}` emits unparseable JS under
+// `--mode library` (compiles fine in program mode).
+//
+// Compiler: ../scrml @ ca712295 (s212).
+//   FAILS:   scrml compile repro-26-...scrml --mode library   -> E-CODEGEN-INVALID-JS
+//   COMPILES: scrml compile repro-26-...scrml                  (program mode) -> OK
+// Expected: safeCall (the §19 / scrml:host JS-host-throw containment primitive)
+//   should lower identically in both modes. Actual: invalid JS only in library mode.
+//
+// Why this matters (giti remotes.scrml): remotes is a `--mode library` module that
+// defensively JSON.parses a config file. The idiomatic replacement for its
+// try/catch is exactly this safeCall + !{} shape — blocked here, so the try/catch
+// is retained (and now also warns W-TRY-CATCH-IN-SCRML-SOURCE).
+
+${
+  import { safeCall, HostError } from "scrml:host"
+
+  export function tryParse(raw) {
+    return safeCall(() => JSON.parse(raw)) !{
+      | ::Thrown(message, name) :> not
+    }
+  }
+}
