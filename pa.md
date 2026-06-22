@@ -6,8 +6,9 @@
 
 ## Current state
 
-- **CLI:** 88 tests pass, 1,079 LOC across 10 commands (save, switch, merge, undo, history, status, land, init, describe, sync)
-- **Engine:** jj-lib wrapper (jj 0.40). This stays until scrml compiler can do AST-level conflict resolution — at that point we revisit native engine (giti spec §3.7).
+- **CLI:** 375 tests pass, ~2,495 LOC hand-written JS across 15 commands (save, switch, merge, undo, history, status, land, init, describe, sync, serve, private, remote, link-private, check)
+- **Engine:** jj-cli wrapper (jj 0.40). This stays until scrml compiler can do AST-level conflict resolution — at that point we revisit native engine (giti spec §3.7).
+- **scrml dogfood:** giti runs on scrml — 17 `src/lib/*.scrml` modules (~1,038 LOC) compiled to ESM power the runtime; 7 `ui/*.scrml` pages render the Web UI. Compiler at `../scrml/`.
 - **Spec:** `giti-spec-v1.md` — 1,531 lines, debate-ratified (jj conflict-as-data, layered collaboration, typed change review)
 - **Strategy:** Skip CLI-only beta, go straight for hosted web forge. GitHub is the stopgap.
 
@@ -27,26 +28,18 @@ giti/
 ├── README.md
 ├── src/
 │   ├── cli.js               CLI entry
-│   ├── commands/            10 commands
-│   │   ├── save.js
-│   │   ├── switch.js
-│   │   ├── merge.js
-│   │   ├── undo.js
-│   │   ├── history.js
-│   │   ├── status.js
-│   │   ├── land.js
-│   │   ├── init.js
-│   │   ├── describe.js
-│   │   └── sync.js
-│   └── engine/              jj-cli wrapper
-│       ├── index.js
-│       ├── interface.js
-│       └── jj-cli.js
-├── tests/
-│   ├── cli.test.js          81 tests
-│   └── jj-integration.test.js (7 tests)
+│   ├── commands/            15 commands (save, switch, merge, undo, history,
+│   │                          status, land, init, describe, sync, serve,
+│   │                          private, remote, link-private, check)
+│   ├── engine/              jj-cli wrapper (index.js, interface.js, jj-cli.js)
+│   ├── server/              Bun.serve HTTP + compile-ui (giti serve)
+│   ├── private/             private-file marking (remotes, link)
+│   └── lib/                 17 *.scrml dogfood modules → compiled *.js
+├── ui/                      7 *.scrml Web UI pages → dist/ui
+├── tests/                   14 *.test.js files (~375 tests)
 └── docs/
-    └── gauntlet-teams/       reference (team gauntlet data)
+    ├── deep-dives/          canonical giti design DDs
+    └── gauntlet-teams/      reference (team gauntlet data)
 ```
 
 ## Cross-repo references

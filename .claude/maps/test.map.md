@@ -1,64 +1,51 @@
 # test.map.md
 # project: giti
-# updated: 2026-04-11T00:00:00Z  commit: 3c4a7c3
+# updated: 2026-06-22T00:00:00Z  commit: b2fde19
 
 ## Test Framework
 Runner: bun:test (bundled with Bun runtime)
 Config: no separate config file; `bun test` auto-discovers *.test.js
 Run all:    bun test
-Run single: bun test tests/cli.test.js  OR  bun test tests/jj-integration.test.js
+Run single: bun test tests/<file>.test.js
+
+## Test Files (14 files)
+| File                              | Approx tests | Focus                                                        |
+|-----------------------------------|-------------|--------------------------------------------------------------|
+| tests/cli.test.js                 | 92          | CLI command dispatch, arg parsing, engine method coverage    |
+| tests/auto-split.test.js          | 25          | save --split auto-split routing (public/private/mixed)       |
+| tests/check.test.js               | 13          | giti check dry-run, --quick, --diff flags                    |
+| tests/compile-ui.test.js          | 9           | compileUi() and copySharedCss() (mocked compiler)            |
+| tests/history.test.js             | 21          | history command, --since duration filtering                  |
+| tests/jj-integration.test.js      | 7           | real jj subprocess: init/save/status/history/undo (skips if no jj) |
+| tests/land.test.js                | 13          | resolveCompilerPath (env, sibling, legacy), findScrmlFiles   |
+| tests/private-jj-integration.test.js | 6        | private scope with real jj subprocess                        |
+| tests/private.test.js             | 48          | private scope manifest, glob matching, partitionByScope      |
+| tests/remote.test.js              | 48          | remote add/remove/set-scope/list                             |
+| tests/save-routing.test.js        | 22          | save routing: classifyFromStatus, planBookmarkMoves          |
+| tests/server.test.js              | 40          | HTTP route handler (mocked engine): GET/POST endpoints, CSRF, WS |
+| tests/sync-pull.test.js           | 15          | sync pull, private overlay bootstrap                         |
+| tests/sync-push.test.js           | 16          | sync push, scope-aware push safety                           |
+Total (approx): ~375 tests
 
 ## Test Categories
-Unit:        tests/cli.test.js — 81 tests (mocked Bun.spawn; no jj required)
-Integration: tests/jj-integration.test.js — 7 tests (real jj in PATH required; skips if absent)
-
-## Test Count
-Total: 88 (81 unit + 7 integration)
-
-## What is tested (cli.test.js — unit)
-| Suite                         | Tests |
-|-------------------------------|-------|
-| friendlyError                 | 10    |
-| jj not installed (ENOENT)     | 3     |
-| generic spawn errors          | 1     |
-| non-zero exit code            | 2     |
-| init                          | 2     |
-| save                          | 4     |
-| listBranches                  | 3     |
-| switchTo                      | 2     |
-| createBranch                  | 1     |
-| merge                         | 1     |
-| undo                          | 1     |
-| history                       | 5     |
-| status                        | 1     |
-| conflicts (new method)        | 4     |
-| diff (new method)             | 3     |
-| land (new method)             | 6     |
-| _rawDescribe                  | 1     |
-| _rawSync                      | 3     |
-| constructor / repoPath        | 1     |
-| friendlyError expanded catalog| 6     |
-| parseStatus                   | 8     |
-| formatStatus                  | 7     |
-| generateMessage               | 6     |
-
-## What is tested (jj-integration.test.js — integration)
-Real jj subprocess in a temp directory: init, status, save, history, diff, conflicts, undo.
+Unit:        tests/*.test.js (all except jj-integration and private-jj-integration) — mocked engine/spawn
+Integration: tests/jj-integration.test.js, tests/private-jj-integration.test.js — real jj subprocess in tmpdir
 
 ## Fixtures & Factories
-mockSpawn(calls)           — injectable Bun.spawn mock, records calls, returns predetermined results
-mockSpawnNotInstalled()    — throws ENOENT to simulate jj missing
-mockSpawnGenericError(msg) — throws arbitrary error
+mockEngine(overrides)         — inline engine stub in server.test.js; overrides specific methods
+fakeFs(existingPaths: Set)    — injectable fs stub in land.test.js for resolveCompilerPath tests
+check.setRunners / land.setRunners — injectable runner overrides for compiler/test mocking
+mkdtempSync + rmSync          — inline tmpdir management in compile-ui.test.js, land.test.js, jj-integration tests
 
 ## Pattern
-Tests import from source modules directly. Unit tests inject a mock spawn function into JjCliEngine
-via the `{ spawn }` constructor option. Each test suite uses `describe` + `test` blocks. Assertions
-use `expect(...).toBe()`, `.toContain()`, `.toEqual()`, `.toHaveLength()`, `.toBeGreaterThanOrEqual()`,
-`.toEndWith()`. Integration tests use `beforeAll`/`afterAll` to create and clean up a real temp repo.
-No shared test fixtures on disk — all setup is inline.
+Tests import directly from src/ modules. Unit tests inject mocks via constructor options (`{ spawn }` for
+JjCliEngine) or module-level setRunners() hooks. Server tests construct a handler with a mock engine and
+issue synthetic Request objects. Assertions use `expect(...).toBe()`, `.toContain()`, `.toEqual()`,
+`.toHaveLength()`, `.toBeGreaterThanOrEqual()`, `.toEndWith()`. Integration tests use beforeAll/afterAll to
+create and clean up real temp repos. No shared fixture files on disk — all setup is inline.
 
 ## Tags
-#giti #map #test #bun-test #unit #integration #mock
+#giti #map #test #bun-test #unit #integration #mock #scrml
 
 ## Links
 - [primary.map.md](./primary.map.md)

@@ -1,51 +1,72 @@
 # api.map.md
 # project: giti
-# updated: 2026-04-11T00:00:00Z  commit: 3c4a7c3
+# updated: 2026-06-22T00:00:00Z  commit: b2fde19
 
-## CLI Command Surface
+## CLI Command Surface (15 commands)
+All registered in src/cli.js and dispatched via `command(args.slice(1))`.
 
-This project is a CLI tool, not an HTTP API. The command surface is the public API.
-All commands are registered in src/cli.js and dispatched via `command(args.slice(1))`.
+| Command                           | File                          | Args / Flags                                 | Effect                                                                |
+|-----------------------------------|-------------------------------|----------------------------------------------|-----------------------------------------------------------------------|
+| giti save [message]               | src/commands/save.js          | optional freeform string; --split            | Describe+new in jj; auto-message from changed files; scope-aware bookmark advance |
+| giti switch <name>                | src/commands/switch.js        | required bookmark name                       | jj edit bookmarks(name)                                               |
+| giti merge <name>                 | src/commands/merge.js         | required bookmark name                       | jj new @ bookmarks(name) — merge commit                               |
+| giti undo                         | src/commands/undo.js          | none                                         | jj undo — reverts last operation                                      |
+| giti history [--since <dur>]      | src/commands/history.js       | --since 30m|2h|1d|7d                         | Shows last N changes, filtered by duration window                     |
+| giti status                       | src/commands/status.js        | none                                         | Parses jj status; shows changed files, conflicts, bookmark            |
+| giti land [message]               | src/commands/land.js          | optional freeform string                     | Private-path check → conflict check → compiler gate → test gate → save + merge to main |
+| giti init [path]                  | src/commands/init.js          | optional directory path                      | jj git init at path (default: cwd)                                    |
+| giti describe <hash> <msg>        | src/commands/describe.js      | change hash + message                        | jj describe target -m message                                         |
+| giti sync [--remote N] [--push] [--pull] | src/commands/sync.js   | --remote <name>; --push; --pull              | fetch + push with scope-aware safety and bookmark targeting           |
+| giti serve [--port N] [--local-dev] | src/commands/serve.js       | --port N; --local-dev                        | Compile UI → start Bun HTTP server on 127.0.0.1 (default 3737)       |
+| giti private <sub> [args]         | src/commands/private.js       | add|remove|check|list|status                 | Manage .giti/private glob patterns                                    |
+| giti remote <sub> [args]          | src/commands/remote.js        | add|remove|set-scope|list                    | Manage .giti/remotes.json entries                                     |
+| giti link-private <url>           | src/commands/link-private.js  | required URL                                 | Register a private remote and configure tracking                      |
+| giti check [--quick|--diff]       | src/commands/check.js         | --quick (compiler only); --diff (list scrml) | Dry-run land validation without landing                               |
 
-| Command                      | File                        | Args                      | Effect                                                   |
-|------------------------------|-----------------------------|---------------------------|----------------------------------------------------------|
-| giti save [message]          | src/commands/save.js        | optional freeform string  | Describes current change in jj, creates new empty change |
-| giti switch [name]           | src/commands/switch.js      | optional bookmark name    | Switches to bookmark; creates if missing; lists if no arg |
-| giti merge <name>            | src/commands/merge.js       | required bookmark name    | jj new @ bookmarks(name) — merge commit                  |
-| giti undo                    | src/commands/undo.js        | none                      | jj undo — reverts last operation                         |
-| giti history [limit]         | src/commands/history.js     | optional integer limit    | Shows last N changes (default 20)                        |
-| giti status                  | src/commands/status.js      | none                      | Parses jj status; shows changed files, conflicts, bookmark |
-| giti land [message]          | src/commands/land.js        | optional freeform string  | Conflict check → compiler gate → test gate → save + merge to main |
-| giti init [path]             | src/commands/init.js        | optional directory path   | jj git init in path (default: cwd)                       |
-| giti describe <hash> <msg>   | src/commands/describe.js    | change hash + message     | jj describe target -m message                            |
-| giti sync                    | src/commands/sync.js        | none                      | jj git fetch then jj git push                            |
-| giti --help / -h             | src/cli.js                  | none                      | Prints HELP string                                        |
-| giti --version / -v          | src/cli.js                  | none                      | Prints "giti 0.1.0"                                      |
+## HTTP REST Endpoints  [src/server/index.js]
+Server always binds 127.0.0.1. Write endpoints require `localDev: true`.
 
-## Engine Internal API (JjCliEngine methods)  [src/engine/jj-cli.js]
+| Method | Path             | Auth         | Notes                                                      |
+|--------|------------------|------------- |------------------------------------------------------------|
+| GET    | /health          | none         | Returns { ok: true, localDev }                             |
+| GET    | /version         | none         | Returns { version: "0.1.0" }                               |
+| GET    | /api/status      | none         | Calls engine.status(); returns parseStatus result          |
+| GET    | /api/history     | none         | Calls engine.history(limit); ?limit= param (default 20)    |
+| POST   | /api/save        | localDev     | Body: { message? }; calls engine.save()                    |
+| POST   | /api/switch      | localDev     | Body: { name }; calls engine.switchTo()                    |
+| POST   | /api/merge       | localDev     | Body: { name }; calls engine.merge()                       |
+| POST   | /api/undo        | localDev     | No body; calls engine.undo()                               |
+| GET    | /*               | none         | Static file serving from ui/dist/ (compiled scrml UI)      |
+| WS     | /_scrml_ws/<ch>  | none         | §38 channel WebSocket upgrade routes from scrml UI pages   |
 
-| Method                          | jj command(s)                              | Returns (data shape)                         |
-|---------------------------------|--------------------------------------------|----------------------------------------------|
-| init(path?)                     | jj git init                                | { path: string }                             |
-| save(message?)                  | jj describe -m; jj new; jj log            | { changeId: string, description: string }    |
-| listBranches()                  | jj bookmark list --all-remotes             | { name, info, active }[]                     |
-| switchTo(name)                  | jj edit bookmarks(name) [fallback: jj edit name] | { name: string }                      |
-| createBranch(name)              | jj bookmark create name                    | { name: string }                             |
-| merge(name)                     | jj new @ bookmarks(name)                   | { merged: string }                           |
-| undo()                          | jj undo                                    | { undone: true }                             |
-| history(limit=10)               | jj log --no-graph -n N -T <template>       | { changeId, description, author, timestamp }[] |
-| status()                        | jj status                                  | { raw: string }                              |
-| conflicts()                     | jj status (parsed)                         | { hasConflicts: boolean, files: string[] }   |
-| diff(target?)                   | jj diff [--from target]                    | string (raw diff)                            |
-| land(bookmark, opts?)           | jj bookmark set target --to bookmarks(bm); jj bookmark delete bm | { landed, onto } |
-| _rawDescribe(target, message)   | jj describe target -m message              | { ok, data }                                 |
-| _rawSync(direction)             | jj git fetch / jj git push                 | { ok, data }                                 |
+scrml-generated /_scrml/* routes (from ui/dist/*.server.js) run first; first non-null Response wins.
 
-## Auth
-No authentication. CLI operates on local jj repository. Remote auth delegated to jj/git credential store.
+## JjCliEngine Internal Methods  [src/engine/jj-cli.js, src/engine/interface.js]
+All return { ok: true, data } or { ok: false, error }.
+
+| Method                      | jj command(s)                                       | data shape                                              |
+|-----------------------------|-----------------------------------------------------|---------------------------------------------------------|
+| init(path?)                 | jj git init                                         | { path: string }                                        |
+| save(message?)              | jj describe -m; jj new; jj log                      | { changeId: string, description: string }               |
+| listBranches()              | jj bookmark list --all-remotes                      | { name, info, active }[]                                |
+| switchTo(name)              | jj edit bookmarks(name) [fallback: jj edit name]    | { name: string }                                        |
+| createBranch(name)          | jj bookmark create name                             | { name: string }                                        |
+| merge(name)                 | jj new @ bookmarks(name)                            | { merged: string }                                      |
+| undo()                      | jj undo                                             | { undone: true }                                        |
+| history(limit=10)           | jj log --no-graph -n N -T <template>                | { changeId, description, author, timestamp }[]          |
+| status()                    | jj status                                           | { raw: string }                                         |
+| conflicts()                 | jj status (parsed)                                  | { hasConflicts: boolean, files: string[] }              |
+| setBookmark(name, target)   | jj bookmark set name --to target                    | (varies)                                                |
+| bookmarkExists(name)        | jj bookmark list filtered                           | boolean                                                 |
+| changedFilesInRange(range)  | jj diff --stat (revset range)                       | { kind, path }[]                                        |
+| push(opts)                  | jj git push [--remote N] [--bookmark B...]          | (varies)                                                |
+| fetch(opts)                 | jj git fetch [--remote N]                           | (varies)                                                |
+| split(opts)                 | jj split (paths, message, revision)                 | (varies)                                                |
+| newChange()                 | jj new                                              | (varies)                                                |
+| files()                     | jj files (at working copy)                          | string[]                                                |
 
 ## Tags
-#giti #map #api #cli #commands #jj #engine
+#giti #map #api #cli #commands #jj #engine #http #scrml
 
 ## Links
 - [primary.map.md](./primary.map.md)
