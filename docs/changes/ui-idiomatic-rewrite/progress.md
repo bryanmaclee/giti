@@ -34,6 +34,13 @@ Compiler: `../scrml` @ `ca712295` (s212, self-id scrml-0.7.0)
 
 - 2026-06-22 — **feed.scrml DONE** (task #8, inert). Same engine-block as live → typed `Phase` (Idle|Ok|Error) state field + `<match for=Phase on=@status.state>` instead of `<engine>`; generator yields `Phase.Ok`/`Phase.Error` (was `"ok"/"error"` strings). Seeded `<status>` at `.Idle` for a type-sound first paint. Page stays INERT (GITI-026/CG-4 dead SSE binding) — landed the idiomatic SHAPE per S15 user decision. **NEW compiler bug found:** `on mount { @status = watchStatus() }` (SSE generator binding in on mount) → `E-CODEGEN-INVALID-JS` (emitted unparseable JS). Workaround: module-top `${ @status = watchStatus() }` (matches original placement). **→ report to scrml.** Clean compile, node --check OK, 375 tests green.
 
+- 2026-06-22 — **remotes.scrml — try/catch RETAINED (compiler-gap, not converted)** (task #9). Attempted the audit's try/catch→`!{}` failable. Path: `safeCall` (scrml:host) is THE sanctioned JS-host-throw containment primitive (parseVariant is enum-only; §19 host-throws aren't auto-converted in lib `!` fns). BUT probed `safeCall(...) !{}` → **`E-CODEGEN-INVALID-JS` in `--mode library`** (remotes' compile mode); compiles fine in program mode. So it's blocked by a lib-mode compiler bug. Reverted to the working try/catch (load-bearing for §12.3 remote-scope security), updated the comment to document the gap + the filed bug. Note: compiler now also emits `W-TRY-CATCH-IN-SCRML-SOURCE` flagging it. Re-emitted remotes.js in-place (comment-only diff, logic identical), 375 tests green.
+
+### Compiler findings to report to scrml (3 new, all surfaced during this rewrite)
+1. **engine-cannot-drive-a-channel/SSE-cell** — `<engine>` cell can't be a server-written `<channel>`/SSE cell (`E-RI-002`); blocks the audit's `<engine>` for live/feed. Worked around with `<match>` on a typed state field.
+2. **SSE-binding-in-on-mount codegen** — `on mount { @x = watchStatus() }` → `E-CODEGEN-INVALID-JS`. Workaround: module-top `${ @x = watchStatus() }`.
+3. **safeCall-in-library-mode codegen** — `safeCall(...) !{}` → `E-CODEGEN-INVALID-JS` under `--mode library` (fine in program mode). Blocks the remotes.scrml try/catch→safeCall conversion.
+
 ### Notes / follow-ups
 - W-DEPRECATED-SERVER-MODIFIER: the `server` keyword is deprecated when body uses a server-only resource. giti uses `server function` throughout; modernizing to inference-based is a separate repo-wide task, NOT part of this idiomatic rewrite. Loaders that only call getEngine() (history/bookmarks) are NOT auto-inferred and still REQUIRE the keyword.
 

@@ -3,7 +3,9 @@
 //
 // New surface tested in this port:
 //   - JSON.parse + JSON.stringify (untested in prior ports)
-//   - try { ... } catch { ... } (parameterless catch — untested)
+//   - try { ... } catch { ... } — RETAINED as a compiler-gap workaround: the
+//     idiomatic replacement is `safeCall` (scrml:host), but `safeCall(...) !{}`
+//     emits invalid JS in --mode library (this file's mode). See loadRemoteConfig.
 //   - Array.isArray, .find, .some, .filter, .map, .includes
 //   - Multi-stdlib (scrml:path + scrml:fs)
 
@@ -22,6 +24,12 @@ ${
         const abs = join(repoRoot, REMOTES_PATH)
         if (!existsSync(abs)) return emptyConfig()
 
+        // NOTE (S15): the idiomatic replacement here is `safeCall` (scrml:host)
+        // wrapping the throwing readFileSync / JSON.parse, with the emptyConfig
+        // fallback in an `!{}` error arm. That is BLOCKED by a compiler bug:
+        // `safeCall(...) !{}` emits invalid JS in `--mode library` (this file's
+        // compile mode) — it compiles fine in program mode. Filed to scrml.
+        // Until the lib-mode safeCall codegen is fixed, the try/catch stays.
         try {
             const raw = readFileSync(abs, "utf8")
             const parsed = JSON.parse(raw)

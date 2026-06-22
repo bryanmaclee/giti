@@ -15,6 +15,12 @@ import { dirname, join } from "./_scrml/path.js"
         const abs = join(repoRoot, REMOTES_PATH)
         if (!existsSync(abs)) return emptyConfig()
 
+        // NOTE (S15): the idiomatic replacement here is `safeCall` (scrml:host)
+        // wrapping the throwing readFileSync / JSON.parse, with the emptyConfig
+        // fallback in an `!{}` error arm. That is BLOCKED by a compiler bug:
+        // `safeCall(...) !{}` emits invalid JS in `--mode library` (this file's
+        // compile mode) — it compiles fine in program mode. Filed to scrml.
+        // Until the lib-mode safeCall codegen is fixed, the try/catch stays.
         try {
             const raw = readFileSync(abs, "utf8")
             const parsed = JSON.parse(raw)
