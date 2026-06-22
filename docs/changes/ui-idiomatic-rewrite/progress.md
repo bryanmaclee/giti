@@ -18,4 +18,8 @@ Compiler: `../scrml` @ `ca712295` (s212, self-id scrml-0.7.0)
 ## Log (append-only)
 
 - 2026-06-22 — Probe `/tmp/giti-idiom-probe/history-shape.scrml` compiled clean, node --check OK, match/each wired. Template validated.
-- 2026-06-22 — CG-5 verified resolved: `@import url('theme.css')` emitted intact. history.scrml stale comment removed + scrmlTS→scrml (L14).
+- 2026-06-22 — CG-5 verified resolved: `@import url('theme.css')` emitted intact. history.scrml stale comment removed + scrmlTS→scrml (L14). Committed `a267163` (375 tests green).
+- 2026-06-22 — **RESUMED.** Concurrent doctrine refactor committed as `724500b` (pa-base v1 + giti overlay); tree quiet. New pa.md commit rules confirmed consistent (explicit pathspec, manual `bun test` gate, no installed hook).
+- 2026-06-22 — **history.scrml DONE** (task #2). TimelinePhase enum + variant-returning `loadTimeline` + `on mount` + `<match for=TimelinePhase on=@timeline>` + `<each in=entries key=@.changeId>`+`<empty>`. Dropped `${}` wrapper (bare top-level) → W-PROGRAM-REDUNDANT-LOGIC gone. Compiles clean (only SPA-inferred info), node --check OK on client+server.
+
+### (earlier) — **PAUSED before Tier-1 rewrites.** Detected a concurrent git actor mutating the index during the session (pa.md/pa-base.md base+overlay doctrine refactor: pa.md edited→reverted, pa-base.md staged→unstaged, audit msg `git add -N`). Per-file commits to main are unsafe while another process churns the shared index. User chose "pause until tree is stable." RESUME when user confirms the tree is quiet. Validated template above is ready; next unit = history.scrml (task #2). When resuming, use path-limited commits (`git commit -- <files>`) as defense-in-depth.

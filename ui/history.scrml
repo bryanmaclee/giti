@@ -1,8 +1,9 @@
 // giti — history timeline
 //
 // Dedicated screen listing the recent save log. Parallel to status.scrml —
-// same shell chrome, different data focus. Uses the same hydration-with-
-// defaults pattern to dodge GITI-006.
+// same shell chrome, different data focus. Models the async load as a
+// TimelinePhase enum (Loading/Loaded/Failed) rendered via <match>, so the
+// .Loading initial variant replaces the old defaults-dodge (no GITI-006 hack).
 //
 // Engine: giti's jj-cli wrapper returns
 //   { changeId, description, author, timestamp }
@@ -10,23 +11,29 @@
 
 <program>
 
-${
-  // GITI-009 fixed upstream: scrml rewrites relative-import paths for dist/ui/.
-  import { getEngine } from '../src/engine/index.js'
+// GITI-009 fixed upstream: scrml rewrites relative-import paths for dist/ui/.
+import { getEngine } from '../src/engine/index.js'
 
-  // Distinct from status.scrml's loadHistory — this fetches a larger window.
-  // Different name also avoids any per-file route-collision ambiguity in
-  // composeScrmlFetch.
-  server function loadTimeline() {
-    const engine = getEngine()
-    const res = await engine.history(50)
-    if (!res.ok) return { error: res.error, entries: [] }
-    return { error: not, entries: res.data }
-  }
-
-  @timeline = { error: not, entries: [] }
-  @timeline = loadTimeline()
+type Entry:struct = { changeId: string, description: string, author: string, timestamp: string }
+type TimelinePhase:enum = {
+  Loading
+  Loaded(entries: Entry[])
+  Failed(err: string)
 }
+
+// Distinct from status.scrml's loadHistory — this fetches a larger window.
+// Different name also avoids any per-file route-collision ambiguity in
+// composeScrmlFetch. Returns a TimelinePhase variant straight off the engine
+// Result tuple — no error-tuple, no defaults-dodge.
+server function loadTimeline() {
+  const engine = getEngine()
+  const res = await engine.history(50)
+  if (!res.ok) return TimelinePhase.Failed(res.error)
+  return TimelinePhase.Loaded(res.data)
+}
+
+<timeline> = TimelinePhase.Loading
+on mount { @timeline = loadTimeline() }
 
 <div class="app">
 
@@ -51,26 +58,23 @@ ${
       <h2>Timeline</h2>
       <p class="muted">Most recent 50 saves. Run <code>giti history</code> in the terminal for the full log.</p>
 
-      ${
-        if (@timeline.error) {
-          lift <p class="error">Could not read history: ${@timeline.error}</p>
-        } else if (@timeline.entries.length == 0) {
-          lift <p class="muted">No saves yet. Try <code>giti save "first"</code>.</p>
-        } else {
-          lift <ol class="history-list">
-            ${
-              for (let e of @timeline.entries) {
-                lift <li class="entry">
-                  <code class="change-id">${e.changeId}</code>
-                  <span class="desc">${e.description || "(no message)"}</span>
-                  <span class="author muted">${e.author}</span>
-                  <span class="time muted">${e.timestamp}</span>
-                </li>
-              }
-            }
+      <match for=TimelinePhase on=@timeline>
+        <Loading><p class="muted">Loading…</p></Loading>
+        <Failed(err)><p class="error">Could not read history: ${err}</p></Failed>
+        <Loaded(entries)>
+          <ol class="history-list">
+            <each in=entries key=@.changeId>
+              <li class="entry">
+                <code class="change-id">${@.changeId}</code>
+                <span class="desc">${@.description || "(no message)"}</span>
+                <span class="author muted">${@.author}</span>
+                <span class="time muted">${@.timestamp}</span>
+              </li>
+              <empty><p class="muted">No saves yet. Try <code>giti save "first"</code>.</p></empty>
+            </each>
           </ol>
-        }
-      }
+        </Loaded>
+      </match>
     </section>
 
   </main>
