@@ -1,0 +1,58 @@
+// repro-27 — enum definitions are not emitted into the SERVER bundle, so any
+//   `server function` that references an enum variant throws ReferenceError at
+//   runtime. Compile is exit-0; `node --check` passes. Silent miscompile (Bug-51).
+//
+// Compiler: ../scrml @ df6f747b (s214, pkg v0.7.0).
+//   Command: scrml compile repro-27-...scrml -o out
+//
+// Expected: the page-local enum (`Load`) is emitted into BOTH the client bundle
+//   AND the server bundle (it is referenced in a server-function body), so the
+//   server route resolves `Load.Ok` / `Load.Loaded(...)` at runtime.
+// Actual:   `Load` is emitted ONLY into *.client.js (`const Load = Object.freeze(...)`).
+//   *.server.js references `Load.Ok` / `Load.Loaded(...)` but never defines `Load`.
+//   At runtime the route handler throws `ReferenceError: Load is not defined`.
+//   - For a regular `server function`, the throw surfaces as a 500.
+//   - For a `server function*` (SSE), the throw is swallowed by the stream's
+//     internal try/catch → the event-stream closes with ZERO frames (the
+//     symptom that made giti's feed.scrml look inert).
+//
+// Runtime proof (giti, this session): feed SSE route delivered 0 frames as
+//   emitted; injecting `globalThis.Phase` made 3 real frames flow. status.scrml's
+//   `loadStatus` handler threw exactly `StatusPhase is not defined`.
+//
+// Blast radius: ALL 7 giti UI pages (every S15-rewritten loader). The enum-typed
+//   Phase + "server fn returns the variant" shape is precisely what the scrml
+//   S210 idiomatic audit directed — the compiler can't yet compile the idiom it
+//   recommended.
+//
+// Two variant shapes are covered below: a BARE enum value (probeBare) and a
+// PAYLOAD-CARRYING variant constructor (probePayload). Both miscompile identically.
+
+<program>
+
+type Load:enum = {
+  Pending
+  Ok
+  Loaded
+  Bad
+}
+
+${
+  // Shape 1 — bare enum value (as in feed.scrml / live.scrml).
+  server function probeBare() {
+    const ok = true
+    return ok ? Load.Ok : Load.Bad
+  }
+
+  // Shape 2 — payload-carrying variant constructor (as in status/history/etc.).
+  server function probePayload() {
+    const n = 3
+    return n > 0 ? Load.Loaded({ count: n }) : Load.Bad
+  }
+}
+
+<div>
+  <p>repro-27 — enum undefined in server bundle</p>
+</div>
+
+</program>

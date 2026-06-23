@@ -2,7 +2,7 @@
 
 **Purpose:** Live inventory of the giti collaboration platform.
 
-**Last updated:** 2026-06-20 (S13 — moved 5 giti-domain deep-dives to canonical `docs/deep-dives/` home, cross-ref blocks stripped)
+**Last updated:** 2026-06-23 (S16 — SSE probe → GITI-028: page-local enum defs not emitted into server bundle; ALL 7 UI loaders runtime-broken; P0 filed to scrml, idiomatic source retained)
 
 ---
 
@@ -434,9 +434,24 @@ Executed the scrml-PA idiomatic audit's rewrite directive (`scrml-support/docs/d
 **Ledger reconciliation (audit vs this repo's master-list):** the audit (S210) treated CG-1/CG-3 (GITI-020/021) as OPEN and feed as inert (CG-4/GITI-026 open). This repo's S12-close record says **GITI-020/021/025/026 were all CLOSED** (`8e7f18fe` / `e2dcde7b`, 2026-05-30, on scrmlTS v0.7.0 **before** the scrml migration). Not re-verified on the migrated compiler this session. **feed.scrml's actual runtime SSE on the migrated compiler is UNVERIFIED** — a quick SSE runtime probe is the open follow-up; the idiomatic shape is correct either way (compiles + serves 200).
 
 **Verification:** all 7 pages compile clean (only `W-PROGRAM-SPA-INFERRED` info) + every emitted JS `node --check` OK; `giti serve` boots and all 7 pages serve HTTP 200 end-to-end; **375/0** throughout. CG-5 (CSS `@import` mangling) confirmed NOT-REPRODUCED — stale `history.scrml` comment dropped.
+> ⚠ **S16 correction:** "serve HTTP 200 end-to-end" verified only the **static GET page-load**, NOT the loader **POST**s. The loaders are in fact runtime-broken on the current compiler — see GITI-028 (S16). The enum-returning server-fn idiom this rewrite adopted miscompiles (enum defs emitted to client bundle only). Source is correct; compiler bug. Idiomatic source RETAINED pending the scrml fix (user dir S16, option A).
 
 ### Lesson from GITI-010 (narrow)
 If recompilation-after-filing shows the bug gone, the fix may have just shipped on the upstream — check `git log` in scrmlTS for commits touching the relevant codegen since the report time before concluding the original report was wrong. GITI-010's 0805 "retraction" mis-attributed a fresh upstream fix (`40e162b`, pushed ~5 min earlier) as "bug was never there." scrmlTS explicitly flagged the self-flagellation as over-tuned; dated SHA-stamped reports are adequate and stale-dist is normal. The 0814 corrected ack supersedes both the retraction and the mis-framing.
+
+### S16 — SSE probe → GITI-028 (whole-UI runtime miscompile), 2026-06-23, compiler `../scrml`@`df6f747b` (s214, v0.7.0)
+
+Ran the deferred feed.scrml SSE runtime probe (the S15 verification debt). It uncovered a far broader bug than feed.
+
+**GITI-028 (OPEN, P0, filed 2026-06-23):** page-local `enum` definitions are emitted into the **client bundle only**, never the **server bundle**. Any `server function` that references an enum variant (bare `X.Ok` OR payload `X.Loaded({...})`) hits an undefined identifier → `ReferenceError: X is not defined` at runtime. Compile exit-0; `node --check` exit-0 — silent Bug-51 class.
+- **Regular server fn** → 500. **`server function*` (SSE)** → throw swallowed by the stream try/catch → **0 frames** (the "inert feed" symptom).
+- **Blast radius: ALL 7 UI pages.** Every S15-rewritten loader is runtime-broken (status/history/bookmarks/land/diff 500; live/feed 0 frames). The enum-typed-Phase + server-fn-returns-variant shape is exactly what the S210 idiomatic audit directed — the compiler can't compile the idiom it recommended. Regression in effect (pre-S15 plain-object loaders worked).
+- **Runtime proof:** feed SSE route 0 frames as emitted, 3 real frames once `globalThis.Phase` injected (isolates the cause); `loadStatus` handler threw `StatusPhase is not defined` with valid CSRF. Minimal repro `ui/repros/repro-27-enum-undefined-in-server-bundle.scrml` (both variant shapes throw `ReferenceError: Load is not defined`).
+- **Meta-pattern:** same server-function-lowering-path gap as GITI-020/021/022 (`8e7f18fe`) — the client/program path emits the enum def, the server path doesn't.
+- **Disposition (user dir S16, option A):** filed P0 to scrml (`../scrml/handOffs/incoming/2026-06-23-1223-giti-to-scrml-enum-undefined-in-server-bundle.md`); **idiomatic source RETAINED** (don't contort source around a compiler bug); UI flagged runtime-broken-pending-fix; `localDev`+127.0.0.1 write-gate unaffected, stays. Resume UI verification when the fix lands.
+- **Harness:** `tests/manual/sse-runtime.mjs` (two-phase: as-emitted vs Phase-injected). Reusable for the post-fix re-verify.
+
+**Ledger reconciliation (resolved):** GITI-026 (SSE client reactive binding) **is** genuinely still CLOSED — the emitted `feed.client.js` wires the correct per-event callback + `addEventListener("status")`. feed is dead for the NEW, distinct reason above (server-side enum), not GITI-026. GITI-025 (param wiring) not re-exercised (feed's generator is parameterless) but the server route binds `route.query` correctly.
 
 
 ### Cleanup (post-split)
