@@ -10,7 +10,7 @@
 
 **Entry:** `src/cli.js`, bin name: `giti`
 **Commands:** 15 (save, switch, merge, undo, history, status, land, init, describe, sync, serve, private, remote, link-private, **check**)
-**Tests:** 371 pass / 0 fail / 0 skip (14 test files). jj 0.41 installed + colocated this session.
+**Tests:** 375 pass / 0 fail / 0 skip (14 test files). jj 0.41 installed + colocated.
 **Engine:** jj-cli wrapper (jj 0.41)
 **Engine:** jj-lib 0.40 wrapper
 
