@@ -1,0 +1,33 @@
+// repro-29 — inside an `<each>` body, a `${@.FIELD}` interpolation whose FIELD is
+//   the same one used in `key=@.FIELD` is emitted as a LITERAL text node
+//   (`createTextNode("${_scrml_each_item.FIELD}")`) instead of being substituted.
+//   Non-key fields in the same row substitute correctly. Compile exit-0, no warning.
+//
+// Compiler: ../scrml @ 7c01b22a (pkg v0.7.0). Command: scrml compile repro-29.scrml -o out
+//
+// Expected: every `${@.x}` in the each body renders the item's `x`.
+// Actual:   the field used as the `key=` (`id` below) renders the literal text
+//   `${_scrml_each_item.id}`; the non-key field (`label`) renders correctly.
+//
+// Emitted (out/repro-29.client.js):
+//   _scrml_frag.appendChild(document.createTextNode("${_scrml_each_item.id}"));  // ← key field, LITERAL
+//   _scrml_each_tn.textContent = String(_scrml_each_item.label);                 // ← non-key, correct
+//
+// giti impact: bookmarks.scrml (name column shows `${_scrml_each_item.name}`),
+//   diff.scrml (changeId column), history.scrml (changeId column). Any <each> that
+//   displays the same field it keys on.
+
+<program>
+
+${ const rows = [{ id: "a1", label: "first" }, { id: "b2", label: "second" }] }
+
+<div>
+  <ul>
+    <each in=rows key=@.id>
+      <li><code>${@.id}</code> <span>${@.label}</span></li>
+      <empty><p>none</p></empty>
+    </each>
+  </ul>
+</div>
+
+</program>

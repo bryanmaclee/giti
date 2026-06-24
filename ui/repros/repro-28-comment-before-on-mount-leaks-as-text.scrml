@@ -1,0 +1,30 @@
+// repro-28 — a line comment immediately before an `on mount {}` block makes the
+//   whole block emit as LITERAL TEXT in the HTML instead of compiling to a
+//   lifecycle hook. The on-mount loader never fires. Compile exit-0, no warning.
+//
+// Compiler: ../scrml @ 7c01b22a (pkg v0.7.0). Command: scrml compile repro-28.scrml -o out
+//
+// Expected: `on mount { @a = f() }` compiles to a mount lifecycle hook (as it does
+//   with NO preceding comment).
+// Actual:   the literal string `on mount { @a = f() }` appears as a text node in
+//   out/repro-28.html; the hook never runs.
+//
+// Isolation: the trigger is specifically a `//` comment line DIRECTLY before the
+//   `on mount`. A blank line in the same position does NOT trigger it; removing the
+//   comment fixes it. (Bisected from giti status.scrml, where 3 on-mount loaders
+//   sit under a comment and all three leak → the page is stuck on "Loading…".)
+//
+// giti impact: status.scrml (3 dashboard loaders never fire → page never leaves the
+//   Loading skeleton in a browser).
+
+<program>
+
+${ function f() { return 1 } }
+
+<a> = 0
+// this comment defeats the on-mount directive on the next line
+on mount { @a = f() }
+
+<div><p>${@a}</p></div>
+
+</program>

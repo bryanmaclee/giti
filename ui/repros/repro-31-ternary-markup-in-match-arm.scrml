@@ -1,0 +1,44 @@
+// repro-31 — a `${ cond ? <markup> : "" }` (ternary returning markup) INSIDE a
+//   `<match>` arm body is broken: a single one emits `E-CODEGEN-INVALID-JS` (the
+//   compiler emits JS it can't parse); multiple of them (as in giti status.scrml)
+//   compile exit-0 but the arm's render function returns only static whitespace —
+//   every conditional section is silently dropped → the arm renders empty.
+//
+// Compiler: ../scrml @ 7c01b22a (pkg v0.7.0). Command: scrml compile repro-31.scrml -o out
+//
+// Expected: the conditional markup renders when the condition is true (it works fine
+//   at TOP LEVEL — `${ @x == "yes" ? <p>SHOWN</p> : "" }` outside a match emits the
+//   `SHOWN` markup and wires it correctly).
+// Actual (single, below): E-CODEGEN-INVALID-JS — compile FAILS.
+// Actual (multiple, as in status.scrml): exit-0, but
+//   `_scrml_match_..._render_Loaded(d)` returns "\n\n   \n\n   ..." (pure whitespace);
+//   the `d` payload is ignored; no conditional section renders.
+//
+// giti impact: status.scrml's `<Loaded(d)>` arm has five `${ d.x ? <section> : "" }`
+//   blocks (clean message / on-bookmark / conflicts / public changes / private
+//   changes / mixed hint). After the GITI-029 fix unblocked its loaders, the
+//   "Current status" panel still renders EMPTY because of this — the loaded data is
+//   present but none of the conditional sections emit. The Bookmarks/Recent-saves
+//   panels render because their arms use `<each>` (which works in match arms), not
+//   conditional markup.
+//
+// Secondary note (latent, masked by this bug): the <match> arm payload binds by the
+//   DECLARED variant param name, so the arm param must equal it. status declares
+//   `Loaded(data: StatusData)` but the arm is `<Loaded(d)>` — once this bug is fixed,
+//   that name mismatch would bind nothing (`_data["d"]` vs wrapper key `data`). Worth
+//   considering whether arm params should bind positionally instead.
+
+<program>
+
+type P:enum = { Loading  Loaded(d: string) }
+
+<x> = P.Loading
+
+<div>
+  <match for=P on=@x>
+    <Loading><p>loading…</p></Loading>
+    <Loaded(d)>${ d == "yes" ? <p>SHOWN</p> : "" }</Loaded>
+  </match>
+</div>
+
+</program>

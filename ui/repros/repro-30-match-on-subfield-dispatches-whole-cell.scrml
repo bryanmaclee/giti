@@ -1,0 +1,33 @@
+// repro-30 — `<match for=P on=@cell.subfield>` ignores the `.subfield` member access
+//   and dispatches on the WHOLE cell object, so no variant arm ever matches → the
+//   match mount renders blank (not even the initial/seed variant). Compile exit-0.
+//
+// Compiler: ../scrml @ 7c01b22a (pkg v0.7.0). Command: scrml compile repro-30.scrml -o out
+//
+// Expected: the match dispatch reads `@cell.state` (an enum variant) and renders the
+//   matching arm — here the .Idle seed should paint "IDLE".
+// Actual:   the emitted dispatch is `__scrml_match_..._dispatch(_scrml_reactive_get("cell"))`
+//   — it passes the whole `{ state, n }` object, never `.state`. The dispatcher's
+//   `_tag = (_v.variant) ? _v.variant : _v` then gets the object, matches no arm, and
+//   the mount stays empty. (Identical emit to `on=@cell`, i.e. the `.state` path is dropped.)
+//
+// giti impact: live.scrml (`on=@snapshot.state`) and feed.scrml (`on=@status.state`)
+//   render a blank State — the channel/SSE cells carry extra fields (changed,
+//   conflicts, …) so they must be a struct with an enum `state` subfield, which this
+//   bug makes unrenderable. (feed additionally crashes — see the SSE seed-clobber in
+//   the 2026-06-22 three-codegen-findings report, finding #2.)
+
+<program>
+
+type P:enum = { Idle  Ok }
+
+<cell> = { state: P.Idle, n: 0 }
+
+<div>
+  <match for=P on=@cell.state>
+    <Idle><p>IDLE</p></Idle>
+    <Ok><p>OK</p></Ok>
+  </match>
+</div>
+
+</program>
