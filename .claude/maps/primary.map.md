@@ -1,25 +1,25 @@
 # primary.map.md
 # project: giti
-# updated: 2026-06-22T00:00:00Z  commit: b2fde19
+# updated: 2026-06-24T14:00:00Z  commit: 36e0fb4
 
 ## Project Fingerprint
 Language:   JavaScript (ES modules, no TypeScript)
 Framework:  Bun (Bun.serve HTTP, Bun.spawn subprocess, bun:test)
 Runtime:    Bun; jj 0.40+ in PATH; scrml compiler at ../scrml/ (for land/check/serve)
 Type:       CLI tool + HTTP server + scrml-dogfood project
-Size:       ~80 source files, ~375 tests across 14 test files
+Size:       ~80 source files, ~375 tests across 14 test files + 3 manual harnesses
 
 ## Map Index
 | Map                  | Status  | Contents                                                         |
 |----------------------|---------|------------------------------------------------------------------|
-| structure.map.md     | present | directory layout, 15 CLI commands, scrml module list             |
+| structure.map.md     | present | directory layout, 15 CLI commands, 7 UI pages, 32 repros, scrml module list |
 | dependencies.map.md  | present | 0 declared packages; Bun builtins + jj + scrml compiler deps     |
 | schema.map.md        | present | 8 domain shapes; JSDoc typedefs; engine result pattern           |
 | config.map.md        | present | 4 env vars (GITI_LOCAL_DEV, GITI_SERVER_LOG, SCRML_PATH, SCRMLTS_PATH) |
 | build.map.md         | present | dev/test commands; scrml compile step; serve startup sequence    |
 | error.map.md         | present | 15 friendly error codes; gate error codes; result-object pattern |
-| test.map.md          | present | bun:test, ~375 tests, 14 test files                              |
-| api.map.md           | present | 15 CLI commands + 8 HTTP endpoints + 17 engine methods           |
+| test.map.md          | present | bun:test, ~375 tests, 14 test files, 3 manual harnesses          |
+| api.map.md           | present | 15 CLI commands + 10 HTTP endpoints + 19 engine methods          |
 | state.map.md         | absent  | no state management library                                      |
 | events.map.md        | absent  | no event bus (scrml §38 channel WebSocket handled inline in server) |
 | auth.map.md          | absent  | no auth (remote auth delegated to jj/git; HTTP server 127.0.0.1 only) |
@@ -36,11 +36,13 @@ CLI commands / HTTP endpoints           → api.map.md
 engine methods (jj wrapper)             → api.map.md
 environment variables / config keys     → config.map.md
 test patterns / mock helpers            → test.map.md
+manual harnesses (channel/sse/browser)  → test.map.md
 build commands / scrml compile steps    → build.map.md
 directory layout / entry points         → structure.map.md
 external packages / internal graph      → dependencies.map.md
 error codes / handling patterns         → error.map.md
 scrml lib modules (src/lib/)            → structure.map.md + dependencies.map.md
+UI page Phase enums / idioms            → structure.map.md
 
 ## Task-Shape Routing (agents — read this section first)
 
@@ -75,10 +77,16 @@ scrml lib modules (src/lib/)            → structure.map.md + dependencies.map.
 4. test.map.md — tests/private.test.js, tests/sync-push.test.js, tests/auto-split.test.js
 
 **Web UI page work (ui/*.scrml):**
-1. structure.map.md — UI page list and repros/ distinction
+1. structure.map.md — UI page table (Phase enum, server fns, notes per page) + repros/ distinction
 2. build.map.md — serve startup sequence; compile command
-3. api.map.md — HTTP static serving and /_scrml_ws/ channel routes
+3. api.map.md — HTTP static serving and /_scrml_ws/ channel routes; SSE /_scrml/__ri_route_* routes
 4. config.map.md — SCRML_PATH for compiler, GITI_SERVER_LOG for debugging
+All 7 pages use the typed Phase:enum + <match for=Phase> idiom introduced in S15.
+
+**Compiler bug reproducer work (ui/repros/):**
+1. structure.map.md — full repro list with short descriptions (repro-01..31)
+2. test.map.md — sse-runtime.mjs and browser-paint.mjs for runtime verification
+These files are NOT compiled by `giti serve`; run the compiler directly against them.
 
 **New CLI command:**
 1. structure.map.md — confirm command slot in src/commands/
@@ -102,12 +110,14 @@ trigger a map-design review.
 
 ## Key Facts
 - Entry point: src/cli.js — 15 commands dispatched from a plain process.argv switch; no framework
-- Engine: JjCliEngine in src/engine/jj-cli.js wraps jj CLI subprocess; all ops return { ok, data|error }
+- Engine: JjCliEngine in src/engine/jj-cli.js wraps jj CLI subprocess; all ops return { ok, data|error }; 19 methods total including diff() + diffChange()
 - Compiler dependency: scrml at ../scrml/ (renamed from scrmlTS ~2026-06); resolved via $SCRML_PATH env or sibling path; legacy $SCRMLTS_PATH / ../scrmlTS honored as fallback
-- scrml dogfood: 17 src/lib/*.scrml modules compiled to .js siblings (library mode); 6 ui/*.scrml pages compiled to ui/dist/ by `giti serve`
-- HTTP server: Bun.serve on 127.0.0.1 (hardcoded); read-only by default; write endpoints gated on localDev flag; scrml-generated WinterCG handlers run first (first-match wins)
+- scrml dogfood: 17 src/lib/*.scrml modules compiled to .js siblings (library mode); 7 ui/*.scrml pages compiled to ui/dist/ by `giti serve`
+- Web UI idiom (S15): all 7 pages use typed Phase:enum state + `<match for=Phase on=@cell>` + `<each>`/`<empty>`; server functions return enum variants off the engine Result tuple; loads trigger via `on mount {}`
+- HTTP server: Bun.serve on 127.0.0.1 (hardcoded); read-only by default; write endpoints gated on localDev flag; scrml-generated WinterCG handlers run first (first-match wins); SSE routes under /_scrml/__ri_route_*
 - Private-path model: .giti/private manifest of glob patterns; save/sync/land all enforce public/private separation (spec §12)
-- Test injection: JjCliEngine accepts a `spawn` option; commands expose setRunners() for compiler/test mocking; ~375 tests, 0 external deps
+- Test injection: JjCliEngine accepts a `spawn` option; commands expose setRunners() for compiler/test mocking; ~375 tests, 0 external deps; 3 manual harnesses in tests/manual/ (channel-runtime, sse-runtime, browser-paint) are NOT run by `bun test`
+- Compiler bug reproducers: 32 files in ui/repros/ (repro-01..31 + repro-06-helper.js); S16 added repro-24..31 targeting engine-cell/SSE-binding/enum-undefined/match-dispatch codegen bugs
 
 ## Tags
 #giti #map #primary #cli #bun #javascript #jj #scrml

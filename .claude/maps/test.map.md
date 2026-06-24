@@ -1,6 +1,6 @@
 # test.map.md
 # project: giti
-# updated: 2026-06-22T00:00:00Z  commit: b2fde19
+# updated: 2026-06-24T14:00:00Z  commit: 36e0fb4
 
 ## Test Framework
 Runner: bun:test (bundled with Bun runtime)
@@ -31,6 +31,15 @@ Total (approx): ~375 tests
 Unit:        tests/*.test.js (all except jj-integration and private-jj-integration) — mocked engine/spawn
 Integration: tests/jj-integration.test.js, tests/private-jj-integration.test.js — real jj subprocess in tmpdir
 
+## Manual Harnesses (tests/manual/ — NOT run by `bun test`)
+These are invoked by hand or by the PA for runtime/browser verification. They are not discovered by bun test.
+
+| File                         | Invocation                                              | What it checks                                                                                    |
+|------------------------------|---------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| tests/manual/channel-runtime.mjs | bun run tests/manual/channel-runtime.mjs          | §38 channel: boots real server, opens 2 WS clients, fires refreshStatus, asserts both get __sync broadcast with real jj data |
+| tests/manual/sse-runtime.mjs     | bun run tests/manual/sse-runtime.mjs <dist-dir>   | §37 SSE: loads compiled feed.server.js, counts delivered frames; 2-phase probe isolates enum-undefined (repro-27) root cause |
+| tests/manual/browser-paint.mjs   | bun run tests/manual/browser-paint.mjs [baseURL]  | Headless Chromium (playwright from ../scrml, chromium from ~/.cache/ms-playwright) drives all 7 UI pages; waits for loaders, inspects painted DOM, screenshots to /tmp/giti-paint/ |
+
 ## Fixtures & Factories
 mockEngine(overrides)         — inline engine stub in server.test.js; overrides specific methods
 fakeFs(existingPaths: Set)    — injectable fs stub in land.test.js for resolveCompilerPath tests
@@ -45,7 +54,7 @@ issue synthetic Request objects. Assertions use `expect(...).toBe()`, `.toContai
 create and clean up real temp repos. No shared fixture files on disk — all setup is inline.
 
 ## Tags
-#giti #map #test #bun-test #unit #integration #mock #scrml
+#giti #map #test #bun-test #unit #integration #mock #scrml #manual
 
 ## Links
 - [primary.map.md](./primary.map.md)

@@ -1,27 +1,30 @@
 # non-compliance.report.md
 # project: giti
-# generated: 2026-06-22T00:00:00Z
-# scan mode: FULL_COLD_START
+# generated: 2026-06-24T14:00:00Z
+# scan mode: INCREMENTAL_UPDATE
 
 ## Summary
 
-Total docs scanned: 13
-Compliant: 7
-Non-compliant: 5 (1 RESOLVED S14 — see pa.md below; 4 remaining are deep-dive location flags)
+Total docs scanned: 15  (13 from prior scan + 2 new since b2fde19)
+Compliant: 9
+Non-compliant: 5 (all are deep-dive location flags — see standing note below)
 Uncertain: 1
 
-> **S14 note (2026-06-22):** The 5 `docs/deep-dives/` location flags are FALSE POSITIVES under
-> current policy — those DDs were deliberately moved into giti as canonical-home per the 2026-05-17
-> inbox request (acted on S13). They are intentional, not misplaced. Do not deref them.
+> **Standing note (carried from S14, 2026-06-22):** The 5 `docs/deep-dives/` location flags are
+> FALSE POSITIVES under current policy — those DDs were deliberately moved into giti as
+> canonical-home per the 2026-05-17 inbox request (acted on S13). They are intentional, not
+> misplaced. Do not deref them.
 
 Docs scanned:
 - giti-spec-v1.md
 - README.md
 - pa.md
+- pa-base.md  ← NEW since b2fde19
 - master-list.md
 - hand-off.md
 - user-voice.md
 - LICENSE.md
+- docs/changes/ui-idiomatic-rewrite/progress.md  ← NEW since b2fde19
 - docs/deep-dives/giti-027b-per-role-ssr-content-stripping-2026-05-30.md
 - docs/deep-dives/giti-collaboration-primitive-2026-04-09.md
 - docs/deep-dives/giti-conflict-resolution-2026-04-09.md
@@ -31,47 +34,52 @@ Docs scanned:
 
 ---
 
-## Non-compliant docs
+## New docs assessed this scan
 
-### pa.md — RESOLVED 2026-06-22 (S14)
-**Reason:** content-heuristic — stale counts and stale command list
-**Detail:** pa.md §"Current state" said: "88 tests pass, 1,079 LOC across 10 commands". Actual counts:
-~375 tests (14 test files), 15 commands (15 files under src/commands/). The repo layout diagram showed
-10 commands and omitted src/lib/, src/private/, src/server/, ui/.
-**Disposition:** FIXED this session — §"Current state" now reads "375 tests, ~2,495 LOC across 15
-commands" + a scrml-dogfood line; layout diagram expanded to show src/server/, src/private/, src/lib/,
-ui/, docs/deep-dives/, and the full 15-command list.
+### pa-base.md — COMPLIANT
+Vendored copy of the project-agnostic PA-base doctrine (`pa-base v1`, 2026-06-11). Per its own
+provenance note, consuming projects carry an inline copy — this is by design. No aspirational
+content, no stale identifiers.
+
+### docs/changes/ui-idiomatic-rewrite/progress.md — COMPLIANT
+Append-only WIP log for the S15 idiomatic UI rewrite. Describes completed work (7 pages rewritten,
+compiler findings reported). Content matches what is now in the ui/*.scrml source files. Standard
+change-tracking artifact.
+
+---
+
+## Non-compliant docs
 
 ### docs/deep-dives/giti-collaboration-primitive-2026-04-09.md
 **Reason:** location — deep-dive doc belongs in scrml-support, not the project repo
 **Detail:** doc is under docs/deep-dives/ with a dated filename (2026-04-09). Per mapping rules,
 deep-dives belong in scrml-support/docs/. This is a historical design rationale document, not a
 current reference used by dev agents working on this codebase.
-**Suggested disposition:** deref to scrml-support/docs/
+**Suggested disposition:** deref to scrml-support/docs/  [STANDING NOTE: FALSE POSITIVE per S13 canonical-home move]
 
 ### docs/deep-dives/giti-conflict-resolution-2026-04-09.md
 **Reason:** location — deep-dive doc belongs in scrml-support, not the project repo
 **Detail:** Same reason as above; dated filename 2026-04-09, historical design rationale.
-**Suggested disposition:** deref to scrml-support/docs/
+**Suggested disposition:** deref to scrml-support/docs/  [STANDING NOTE: FALSE POSITIVE]
 
 ### docs/deep-dives/giti-design-constraints-from-friction-2026-04-10.md
 **Reason:** location — deep-dive doc belongs in scrml-support, not the project repo
 **Detail:** Same reason as above; dated filename 2026-04-10, historical design rationale.
-**Suggested disposition:** deref to scrml-support/docs/
+**Suggested disposition:** deref to scrml-support/docs/  [STANDING NOTE: FALSE POSITIVE]
 
 ### docs/deep-dives/giti-radical-doubt-2026-04-09.md
 **Reason:** location — deep-dive doc belongs in scrml-support, not the project repo
 **Detail:** Same reason as above; dated filename 2026-04-09, historical design rationale.
-**Suggested disposition:** deref to scrml-support/docs/
+**Suggested disposition:** deref to scrml-support/docs/  [STANDING NOTE: FALSE POSITIVE]
 
 ### docs/deep-dives/giti-vcs-model-2026-04-09.md
 **Reason:** location — deep-dive doc belongs in scrml-support, not the project repo
 **Detail:** Same reason as above; dated filename 2026-04-09, historical VCS model design rationale.
-**Suggested disposition:** deref to scrml-support/docs/
+**Suggested disposition:** deref to scrml-support/docs/  [STANDING NOTE: FALSE POSITIVE]
 
 ---
 
-## scrmlTS References — Status
+## scrmlTS References — Status (unchanged from prior scan)
 
 The following `scrmlTS` occurrences were found and assessed. **None are non-compliant** — they are all
 correctly categorized as either (a) intentional legacy back-compat code, (b) historical test fixtures
@@ -84,16 +92,19 @@ for the legacy path, or (c) historical narrative in master-list.md and hand-off.
   verify that the legacy path still works, which is the stated backward-compatibility contract.
 
 **Cosmetic historical comments in scrml source (compliant — low priority):**
-- `ui/status.scrml:3` — "Built against scrmlTS d23fd54+" (historical version stamp)
-- `ui/history.scrml:14` — "scrmlTS rewrites relative-import paths" (cosmetic comment; hand-off.md §notes records this as intentionally left to avoid a recompile)
-- `ui/live.scrml:3`, `ui/diff.scrml:16`, `ui/feed.scrml:3`, `ui/bookmarks.scrml:10` — similar historical version stamps in comments
-- `tests/compile-ui.test.js:7` — comment referencing "scrmlTS" in a historical note about GITI-011
-- `ui/repros/repro-*.scrml` — multiple repro files have `scrmlTS`-versioned comments (e.g., "compiled against scrmlTS@v0.6.7"). These are compiler-bug reproducers, not production code; historical version stamps in comments are expected.
+- `ui/live.scrml`, `ui/diff.scrml`, `ui/feed.scrml`, `ui/bookmarks.scrml` — historical version stamps
+  in comments ("scrmlTS rewrites…", "GITI-009 fixed upstream"). Post-S15 the scrmlTS→scrml rename
+  references in page headers are stale flavor text; `ui/status.scrml` and `ui/history.scrml` had them
+  cleaned as part of S15; remaining 5 pages retain them. Cosmetic only — no incorrect claims about
+  current behavior.
+- `tests/compile-ui.test.js:7` — comment referencing "scrmlTS" in a historical note about GITI-011.
+- `ui/repros/repro-*.scrml` — repro files have `scrmlTS`-versioned comments. Expected in reproducers.
 
 **Historical narrative (compliant — expected in a live dev log):**
-- `master-list.md` — extensive `scrmlTS` references in the session log narrative (S11, S12, etc.). These are historical records of bug-filing interactions; they should not be updated. Not flagged.
-- `hand-off.md` — explicitly notes the rename and the known lingering cosmetic references. Compliant.
-- `docs/deep-dives/giti-027b-per-role-ssr-content-stripping-2026-05-30.md` — external path citations like `scrmlTS/compiler/SPEC.md:...`. These are historical cross-references to where spec sections lived at time of authoring; hand-off.md records them as intentionally left.
+- `master-list.md` — extensive `scrmlTS` references in the session log narrative (S11, S12, etc.).
+- `hand-off.md` — explicitly notes the rename and the known lingering cosmetic references.
+- `docs/deep-dives/giti-027b-per-role-ssr-content-stripping-2026-05-30.md` — external path citations like `scrmlTS/compiler/SPEC.md:...`.
+- `docs/changes/ui-idiomatic-rewrite/progress.md` — references to `scrmlTS` in historical compiler-finding notes.
 
 ---
 

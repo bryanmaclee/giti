@@ -1,6 +1,6 @@
 # structure.map.md
 # project: giti
-# updated: 2026-06-22T00:00:00Z  commit: b2fde19
+# updated: 2026-06-24T14:00:00Z  commit: 36e0fb4
 
 ## Entry Points
 src/cli.js — CLI binary entry; registers all 15 commands, dispatches to command handlers, prints help/version
@@ -14,9 +14,10 @@ src/lib/_scrml/     — hand-written scrml stdlib shims: fs.js, path.js, process
 src/lib/dist/       — stale intermediate artifacts from src/lib scrml pages (generated; superceded by ui/dist/)
 src/private/        — private-path scope helpers; thin re-export shims over src/lib counterparts
 src/server/         — Bun HTTP server, compile-ui orchestration, WinterCG/channel handler wiring
-tests/              — Bun test suite (~375 tests across 14 .test.js files + 1 manual script)
-ui/                 — scrml Web UI source: 6 production `.scrml` pages + theme.css
-ui/repros/          — compiler bug reproducer `.scrml` files (23 files; skipped by `giti serve`)
+tests/              — Bun test suite (~375 tests across 14 .test.js files + 3 manual scripts)
+tests/manual/       — manual harnesses: channel-runtime.mjs (§38 WS), sse-runtime.mjs (§37 SSE), browser-paint.mjs (headless Chromium)
+ui/                 — scrml Web UI source: 7 production `.scrml` pages + theme.css
+ui/repros/          — compiler bug reproducer `.scrml` files (32 files; skipped by `giti serve`)
 ui/dist/            — compiled output from ui/*.scrml (generated; skipped by mapper)
 docs/deep-dives/    — historical design deep-dives (6 .md files; belong in scrml-support)
 docs/spec-types/    — illustrative scrml domain shapes in .scrml (reference only, not compiled)
@@ -46,10 +47,36 @@ save-message.scrml, save-routing-async.scrml, save-routing-pure.scrml,
 scope-manifest.scrml, scope-match.scrml, server-helpers.scrml
 (* delay.scrml compiled to delay.js; no .scrml found — delay.js is hand-written)
 
-## scrml Web UI pages (6 production pages in ui/)
-bookmarks.scrml, diff.scrml, feed.scrml, history.scrml, live.scrml, status.scrml
+## scrml Web UI pages — 7 production pages in ui/ (S15 idiomatic rewrite)
+All 7 pages use typed `Phase:enum` state + `<match for=Phase on=@cell>` + `<each>`/`<empty>`.
+Server functions return enum variants directly off the engine Result tuple.
+Loads trigger via `on mount {}` blocks; no hydrate-with-defaults GITI-006 dodge.
+
+| Page           | Phase enum(s)                                          | Server fn(s)                              | Notes                                         |
+|----------------|--------------------------------------------------------|-------------------------------------------|-----------------------------------------------|
+| status.scrml   | StatusPhase, BookmarksPhase, HistoryPhase              | loadStatus, loadHistory, loadBookmarks    | 3 parallel on-mount loads (§13.5.5)           |
+| history.scrml  | TimelinePhase                                          | loadTimeline                              | 50-entry window                               |
+| bookmarks.scrml| BookmarksPhase                                         | loadBookmarkList                          | includes remote-tracking branches             |
+| diff.scrml     | DiffMode, DiffPhase, HistoryPhase                      | loadHistory, loadDiff                     | ?change= URL param selects working-copy vs change |
+| land.scrml     | PreflightPhase                                         | loadLandingPreflight                      | runs all 4 gates (private/conflicts/compiler/tests) |
+| live.scrml     | Phase (Idle/Ok/Error, field on channel <snapshot>)     | refreshStatus (channel server fn)         | §38 channel; <match> on snapshot.state field  |
+| feed.scrml     | Phase (Idle/Ok/Error, field on SSE struct)             | watchStatus (server function*)            | §37 SSE generator; binding at module top      |
+
 Compiled by `giti serve` to ui/dist/*.{html,client.js,server.js,css}
-ui/repros/ (23 .scrml) are compiler-bug reproducers — skipped by serve
+
+## ui/repros/ — compiler bug reproducers (32 files total)
+repro-01..23: pre-S16 reproducers (23 files)
+repro-24..31: S16 additions (8 files) — repro-24 (engine-cell-not-server-writable),
+  repro-25 (sse-binding-in-on-mount-invalid-js), repro-26 (safecall-library-mode-invalid-js),
+  repro-27 (enum-undefined-in-server-bundle), repro-28 (comment-before-on-mount-leaks-as-text),
+  repro-29 (each-key-field-interp-leaks), repro-30 (match-on-subfield-dispatches-whole-cell),
+  repro-31 (ternary-markup-in-match-arm)
+All skipped by `giti serve` — not app pages.
+
+## tests/manual/ — 3 harnesses (not part of `bun test`)
+channel-runtime.mjs — §38 WS: boots real server wiring, opens 2 WS clients, fires refreshStatus via HTTP, asserts both receive snapshot __sync broadcast
+sse-runtime.mjs     — §37 SSE: loads compiled feed.server.js directly, counts delivered frames; two phases isolate enum-undefined root cause (repro-27)
+browser-paint.mjs   — drives headless Chromium (playwright from ../scrml/node_modules) over giti serve; visits all 7 pages, waits for loaders, inspects painted DOM + screenshots
 
 ## Ignored / Generated Paths
 node_modules/, ui/dist/, src/lib/dist/, .git/, .jj/

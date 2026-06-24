@@ -1,6 +1,6 @@
 # api.map.md
 # project: giti
-# updated: 2026-06-22T00:00:00Z  commit: b2fde19
+# updated: 2026-06-24T14:00:00Z  commit: 36e0fb4
 
 ## CLI Command Surface (15 commands)
 All registered in src/cli.js and dispatched via `command(args.slice(1))`.
@@ -26,20 +26,21 @@ All registered in src/cli.js and dispatched via `command(args.slice(1))`.
 ## HTTP REST Endpoints  [src/server/index.js]
 Server always binds 127.0.0.1. Write endpoints require `localDev: true`.
 
-| Method | Path             | Auth         | Notes                                                      |
-|--------|------------------|------------- |------------------------------------------------------------|
-| GET    | /health          | none         | Returns { ok: true, localDev }                             |
-| GET    | /version         | none         | Returns { version: "0.1.0" }                               |
-| GET    | /api/status      | none         | Calls engine.status(); returns parseStatus result          |
-| GET    | /api/history     | none         | Calls engine.history(limit); ?limit= param (default 20)    |
-| POST   | /api/save        | localDev     | Body: { message? }; calls engine.save()                    |
-| POST   | /api/switch      | localDev     | Body: { name }; calls engine.switchTo()                    |
-| POST   | /api/merge       | localDev     | Body: { name }; calls engine.merge()                       |
-| POST   | /api/undo        | localDev     | No body; calls engine.undo()                               |
-| GET    | /*               | none         | Static file serving from ui/dist/ (compiled scrml UI)      |
-| WS     | /_scrml_ws/<ch>  | none         | §38 channel WebSocket upgrade routes from scrml UI pages   |
+| Method | Path             | Auth         | Notes                                                                |
+|--------|------------------|--------------|----------------------------------------------------------------------|
+| GET    | /health          | none         | Returns { ok: true, localDev }                                       |
+| GET    | /version         | none         | Returns { version: "0.1.0" }                                         |
+| GET    | /api/status      | none         | Calls engine.status(); returns parseStatus result                    |
+| GET    | /api/history     | none         | Calls engine.history(limit); ?limit= param (default 20)              |
+| POST   | /api/save        | localDev     | Body: { message? }; calls engine.save()                              |
+| POST   | /api/switch      | localDev     | Body: { name }; calls engine.switchTo()                              |
+| POST   | /api/merge       | localDev     | Body: { name }; calls engine.merge()                                 |
+| POST   | /api/undo        | localDev     | No body; calls engine.undo()                                         |
+| GET    | /*               | none         | Static file serving from ui/dist/ (7 compiled scrml pages)          |
+| WS     | /_scrml_ws/<ch>  | none         | §38 channel WebSocket upgrade routes from scrml UI pages             |
 
 scrml-generated /_scrml/* routes (from ui/dist/*.server.js) run first; first non-null Response wins.
+SSE routes (from feed.scrml) are emitted as GET routes under /_scrml/__ri_route_*.
 
 ## JjCliEngine Internal Methods  [src/engine/jj-cli.js, src/engine/interface.js]
 All return { ok: true, data } or { ok: false, error }.
@@ -56,6 +57,8 @@ All return { ok: true, data } or { ok: false, error }.
 | history(limit=10)           | jj log --no-graph -n N -T <template>                | { changeId, description, author, timestamp }[]          |
 | status()                    | jj status                                           | { raw: string }                                         |
 | conflicts()                 | jj status (parsed)                                  | { hasConflicts: boolean, files: string[] }              |
+| diff(target?)               | jj diff (working copy or target revision)           | { raw: string } (raw unified diff text)                 |
+| diffChange(changeId)        | jj diff -r changeId (change vs its parent)          | { raw: string } (raw unified diff text)                 |
 | setBookmark(name, target)   | jj bookmark set name --to target                    | (varies)                                                |
 | bookmarkExists(name)        | jj bookmark list filtered                           | boolean                                                 |
 | changedFilesInRange(range)  | jj diff --stat (revset range)                       | { kind, path }[]                                        |
