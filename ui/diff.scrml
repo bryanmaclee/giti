@@ -34,14 +34,14 @@ type HistoryPhase:enum = {
   Failed(err: string)
 }
 
-// The ?change= URL param is a client-only read (window.location). Two pure
-// derivations off it: the view mode, and the raw id to hand the server fn.
-fn modeFromUrl() {
-  const param = new URLSearchParams(window.location.search).get('change')
-  return param is some ? DiffMode.Change(param) : DiffMode.WorkingCopy
-}
-fn changeIdFromUrl() {
+// The ?change= URL param is a client-only read (window.location) — a mutable
+// browser global, so the read lives in a `function` (client-effect boundary
+// inferred per §12.2). Two pure `fn` derivations take that value as input.
+function changeParam() {
   return new URLSearchParams(window.location.search).get('change')
+}
+fn modeFromParam(param: string?) {
+  return param is some ? DiffMode.Change(param) : DiffMode.WorkingCopy
 }
 
 server function loadHistory() {
@@ -67,9 +67,9 @@ server function loadDiff(changeId) {
 <history>: HistoryPhase = HistoryPhase.Loading
 <diff>:    DiffPhase   = DiffPhase.Loading
 
-on mount { @mode    = modeFromUrl() }
+on mount { @mode    = modeFromParam(changeParam()) }
 on mount { @history = loadHistory() }
-on mount { @diff    = loadDiff(changeIdFromUrl()) }
+on mount { @diff    = loadDiff(changeParam()) }
 
 <div class="app">
 

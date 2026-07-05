@@ -1,0 +1,36 @@
+<program>
+  // repro-32 — GITI-033: `<each>` item accessor `@.` is not lowered when the
+  // `<each>` is nested inside a ternary-markup expression `${ cond ? <markup> : "" }`.
+  // Emits raw `(@.)` / `@.field` into the client bundle → E-CODEGEN-INVALID-LOGIC
+  // ("Unexpected character '@'"). Compiler: ../scrml @94e156c5 (s239, v0.2.0).
+  //
+  // CONTROL (compiles clean): the identical <each> bodies OUTSIDE the ternary-markup
+  // lower correctly — so the trigger is specifically the ternary-markup nesting,
+  // not the `@.` accessor itself.
+  const strs = ["a", "b"]
+  const rows = [{ kind: "add", path: "x" }, { kind: "mod", path: "y" }]
+  const show = true
+
+  <main>
+    <!-- FAILS: each with bare item `${@.}` inside ternary-markup -->
+    ${ show ? <ul>
+        <each in=strs>
+          <li>${@.}</li>
+        </each>
+      </ul> : "" }
+
+    <!-- FAILS: each with field `${@.kind}` (text + class-attr) inside ternary-markup -->
+    ${ show ? <ul>
+        <each in=rows key=@.path>
+          <li><span class="tag tag-${@.kind}">${@.kind}</span> ${@.path}</li>
+        </each>
+      </ul> : "" }
+
+    <!-- CONTROL (compiles): identical each, NOT inside a ternary-markup -->
+    <ul>
+      <each in=rows key=@.path>
+        <li><span class="tag tag-${@.kind}">${@.kind}</span> ${@.path}</li>
+      </each>
+    </ul>
+  </main>
+</program>
