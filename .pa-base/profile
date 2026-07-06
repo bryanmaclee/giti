@@ -1,0 +1,75 @@
+# .pa-base/profile — the giti PA boot manifest (boot rehydrates from this; do not re-derive)
+# giti · /flobase-assembled 2026-07-06. The flobase /boot reads this to know the module-set +
+# the Profile-A read-set. It does NOT replace pa.md — it POINTS at it. Authority always defers
+# to ./pa.md (giti's authored PA contract, ~18KB).
+
+IDENTITY:
+  git config user.name -> slugify -> first token -> ../scrml-support/pa-profile-<slug>.md
+  bryan maclee -> bryan -> ../scrml-support/pa-profile-bryan.md   (shared cross-project register;
+    default: bryan if unset/unmatched)
+
+STACK:  JS/Bun (ESM CLI, bin `giti`, run/tested via Bun) + scrml (dogfood-as-logic: 17 lib modules +
+        7-page UI, 61 .scrml). The JS/Bun stack has no packaged stack-pack — its conventions live in
+        pa.md + .claude/maps/. scrml on-ramp = stack-pack-scrml (PRIMER + anti-patterns + SPEC-INDEX).
+        Compiler is ../scrml (re-verify HEAD at each compile — it moves fast; language v0.7.x).
+STAGE:  mid-flight — CLI mature (15 commands, 375/0), the front is the scrml UI dogfood (get 7 pages
+        rendering in a browser; currently compiler-gated on GITI-033). Beyond that: "giti proper" =
+        auth + multi-repo -> deploy (the Hosted Forge, master-list §E, M4.1). Product = a VCS/forge on
+        an invisible jj engine; goal = giti authored 100% in scrml (excl. jj — waits on AST con-res).
+SCOPE:  medium — ~1.9K LOC across CLI (46 .js) + dogfood (61 .scrml) · 14 test files · single operator.
+GATE:   tests-as-gate + runtime-verify + (no types — plain JS).
+  - merge gate: `bun test` -> 375/0 across 14 files. NO commit hook installed — the manual run IS the
+    gate. Green-compile / node --check clean proves nothing alone (the Bug-51 class): run it.
+  - runtime-verify (UI): `giti serve` + `tests/manual/browser-paint.mjs` (real DOM paint — server-200
+    != renders). This is the ONLY check that catches the client-render codegen class.
+  - compiler-gate: `giti land` resolves ../scrml + compiles changed .scrml. A scrml compiler bug
+    blocking a giti page = P0 -> file to ../scrml/handOffs/incoming/ (standing auth), keep idiomatic
+    source (option A). Overseer discipline: classify compiler-bug vs giti-error via a minimal repro.
+
+MODULES (lean — flobase default-minimum, /flobase-assembled 2026-07-06):
+  loaded:    CORE (~/.claude/CLAUDE.md), role-pa (-> ./pa.md), continuity:light (hand-off + /wrap; no
+             delta-log), maps (.claude/maps/), stack-pack-scrml
+  on-demand: role-dpa + deliberation (a design fork — giti-proper/auth, the 100%-scrml roadmap),
+             role-spa (queued work-list), role-cpa (multi-project), role-vpa (maintenance deputy),
+             vcs-drive (covered by pa.md push discipline), dock (0 coverage)
+
+PROFILE-A read-set (FULL boot — design/deliberation/multi-arc; the DEFAULT):
+  read IN FULL, in order:
+  1. ./pa.md                        IN FULL   (giti's authored PA contract — 5 Rules, dispatch, wrap, all addenda)
+  2. master-list.md                 (the live inventory: CLI · spec · dogfood scoreboard · §E open work · GITI-ledger)
+  3. hand-off.md                    IN FULL   (current session state — caught-up + open threads + next priority)
+  4. handOffs/incoming/*.md         (inbox — move read -> read/)
+  5. user-voice.md (giti repo root) (last ~10 CONTENTFUL entries; skip acks/"go"/"keep going")
+  6. .claude/maps/primary.map.md    (navigation; project-mapper refresh at wrap)
+PROFILE-B read-set (THIN — ONE landed arc whose hand-off+brief carry the sweep):
+  pa.md (core sections) + hand-off.md + named spec/master-list sections + .claude/maps/.
+  scope_blindness guardrail: escalate to A if the arc needs design/context the thin reads don't carry.
+  DEFAULT = Profile A when no signal. The USER picks; PA may recommend, never auto-switch.
+
+CONTINUITY store (PA is single-writer to main's HEAD + durable state):
+  live hand-off: hand-off.md   rotate -> handOffs/hand-off-<N>.md
+  ledger/inventory: master-list.md (GITI-0xx compiler-bug ledger + dogfood scoreboard + §E roadmap)
+  inbox: handOffs/incoming/ (move read -> read/)   outbox: ../scrml/handOffs/incoming/ (cross-repo, standing auth)
+  memory: ~/.claude/projects/-home-bryan-scrmlMaster-giti/memory/ (+ MEMORY.md index)
+  NO delta-log (continuity:light — hand-off is the durable carrier).
+
+MAP: .claude/maps/primary.map.md  (10 map files: api/build/config/deps/error/primary/schema/structure/test + non-compliance report)
+
+CROSS-REPO (giti <-> the scrmlMaster ecosystem):
+  compiler ../scrml (giti compiles against the local checkout — verify HEAD each compile).
+  personal layer in ../scrml-support (pa-profile-bryan.md). At WRAP surface push-state for every repo
+  touched (giti + any sibling inbox written); NEVER silent unpushed work.
+
+CONVENTIONS (load-bearing; full text in pa.md):
+  5 Rules (CORE) · Profile A default · commit-to-main ONLY after explicit in-session auth · PA pushes
+  origin DIRECTLY (master-push retired 2026-05-30) · pathspec commits · never --no-verify without authz ·
+  standing auth to file sibling bug reports (push still needs auth) · dogfood: author in scrml where
+  possible, keep idiomatic source around compiler bugs (option A), commit repros to ui/repros/ ·
+  0/0 with origin after push (S147 coherence).
+
+PROJECT-INTENT: giti replaces git+GitHub — a collaboration platform / forge over an INVISIBLE jj engine
+  (jj-cli/jj-lib wrapped; user never sees jj). Novel primitives (deep-dives, docs/deep-dives/): layered
+  collaboration (Landing -> Stack -> TypedChange), conflict-as-data, compiler-assisted AST conflict
+  resolution (the engine-independence gate — revisit/replace jj once scrml does AST con-res). Licensed
+  FSL-1.1-MIT (source-available, -> MIT after 2yr). Two strategic threads: (1) the Hosted Forge
+  (auth+multi-repo -> deploy); (2) giti as scrml's premier dogfood (stress-test -> file -> fix -> harden).
