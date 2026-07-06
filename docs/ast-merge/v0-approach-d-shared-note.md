@@ -10,6 +10,12 @@
 > needs from scrml — not the whole conflict taxonomy. Narrow on purpose: prove the driver shape on one case,
 > hand scrml a sharp ask, iterate.
 
+> **v0.1 UPDATE — the first slice is BUILT + gate-verified** (`prototype/`, giti PA 2026-07-06). The
+> `.scrml` state-type field-add merge works end-to-end on shipping tech (`--emit-block-analysis`, no compiler
+> `--merge` entrypoint): git conflicts on the case → the driver produces `AppState { count, name, theme, locale }`
+> → **the merged file compiles clean**; the same-field collision case correctly conflicts. This empirically
+> answers **§6 Q2 (consumer path) = YES for the first slice**, and sharpens §7 (the two findings below).
+
 ---
 
 ## 1. Why now — the convergence (not a new pitch)
@@ -110,18 +116,25 @@ block-analysis spans). What `--emit-block-analysis` gives **today**: per top-lev
 `{id, kind, name, span:{line,endLine}, reads:[cell...], writes:[cell...]}`, pure CLI, JSON sidecar. The
 load-bearing questions for the driver:
 
-- **Q1 — spans+footprints vs sub-trees.** For a state-type field-add 3-way merge (§5), is block span +
-  reactive W/R footprint *enough* to (a) match the entity across base/A/B and (b) produce the combined field
-  set? Or do we need the compiler to emit **per-block sub-ASTs** (or a stable **per-entity content hash**) to
-  do a real entity-level 3-way? _[flogence: assessment + what block-analysis would need to add]_
-- **Q2 — consumer vs entrypoint.** Two shapes: **(a)** giti/flogence *assemble* the merged file from
-  block-analysis of base/A/B (buildable on shipping tech **today**); **(b)** the compiler exposes a
-  **`--merge base A B → merged | conflict-list`** entrypoint (the bigger scrml ask, and the literal answer to
-  OQ-3). Which does the first slice need — and is (a) a sufficient v2 with (b) as the v3/§4.4 target?
-  _[flogence: recommendation]_
-- **Q3 — headless completeness.** `--emit-block-analysis` is pure-CLI ✓. Does a merge-time invocation need
-  any state the current headless mode doesn't expose (stdlib resolution, the full cell graph, cross-file
-  entity refs)? _[flogence: headless reality check]_
+- **Q1 — spans+footprints vs sub-trees.** _giti v0.1 empirical:_ block-analysis emits the `type` entity
+  as a block with `{id, kind:"type", name, span, reads:[], writes:[]}` — enough to **match** the entity
+  across base/A/B (by `kind`+`name`), but it gives **no field-level structure**. The prototype re-parses the
+  struct body from the span text itself (a flat-struct parser) — works for the first slice. **The general
+  case** (nested types, refinement types, and merge type-*validation*) is where the compiler emitting
+  **field-level sub-structure** (or a `--merge`/type-diff entrypoint = §4.4 v3) earns its keep. _[flogence:
+  confirm against your richer apps — does re-parse-from-span hold, or do your blocks need sub-ASTs sooner?]_
+- **Q2 — consumer vs entrypoint.** _ANSWERED by the prototype:_ **(a) the consumer path works TODAY** —
+  giti assembles the merged file from block-analysis of base/A/B, no compiler change (`prototype/`, gate-passed).
+  **(b) a compiler `--merge base A B → merged | conflict-list` entrypoint** (the literal OQ-3 answer) is the
+  *v3/§4.4 target*, not needed for the v2 first slice. So v2 ships on (a); (b) is the type-validation upgrade.
+  _[flogence: agree (a)-now / (b)-later, or does region-leasing need (b) sooner?]_
+- **Q3 — headless completeness.** `--emit-block-analysis` is pure-CLI ✓ (prototype invokes it per-version,
+  no server). Does a merge-time invocation need any state the current headless mode doesn't expose (stdlib
+  resolution, the full cell graph, cross-file entity refs)? _[flogence: headless reality check]_
+- **Q4 (NEW, giti v0.1) — tight `bodySpan`.** block-analysis `span.end` extends past the entity's closing
+  `}` into trailing trivia; a splice-merge must re-derive a tight end (the prototype welded `}appState>`
+  until fixed). A compiler-emitted **tight body span** would remove that. Low-cost, concrete — fold into the
+  ask. _[flogence: do you want this too, or does line-based hunk-overlap not care?]_
 
 ## 7. [joint] The minimal compiler ask to scrml
 
@@ -130,9 +143,9 @@ Scoped **after** §6 is answered, then carried via flogence's standing **compile
 oracle) — a single minimal joint ask is strictly stronger than two. Target shape: the smallest compiler
 addition (sub-AST/content-hash emit, and/or a `--merge` entrypoint) that unblocks the §8 first slice — no more.
 
-## 8. First slice (the narrow proof)
+## 8. First slice (the narrow proof) — ✅ BUILT + gate-verified (`prototype/`)
 
-**`.scrml` state-type field-add merge** — giti's own §4.3 example.
+**`.scrml` state-type field-add merge** — giti's own §4.3 example. **Built, runs, compiles.**
 - **Input:** base + sideA (adds field `x` to `S`) + sideB (adds field `y` to `S`), same file.
 - **Steps:** block-analysis each → entity-match `S` across the three → detect disjoint field-adds → emit
   combined `S {x, y}` → hand jj a clean change.
@@ -156,6 +169,7 @@ addition (sub-AST/content-hash emit, and/or a `--merge` entrypoint) that unblock
 | Engage the tag-team | **now, in parallel** (UI-dogfood is GITI-033-blocked → idle capacity) | operator 2026-07-06 |
 | AST source | **scrml-parser primary + tree-sitter fallback** | operator 2026-07-06 |
 | Who drives v0 note | **giti** (merge semantics), flogence fills §6 + reviews | operator 2026-07-06 |
-| First slice | **`.scrml` state-type field-add merge** | joint proposal |
-| Consumer vs compiler entrypoint (§6 Q2) | **OPEN** — flogence to recommend | — |
-| Entity-identity key (§5) | **OPEN** — block-analysis `{id,kind,name}` vs content-hash | — |
+| First slice | **`.scrml` state-type field-add merge** — ✅ BUILT + gate-verified (`prototype/`) | giti PA 2026-07-06 |
+| Consumer vs compiler entrypoint (§6 Q2) | **ANSWERED** — consumer path (a) works today for v2; compiler `--merge` (b) is the v3/§4.4 target | giti prototype 2026-07-06 |
+| Entity-identity key (§5) | **prototype uses `(kind,name)`** — sufficient for the slice; content-hash still open for rename-robustness | giti PA 2026-07-06 |
+| Compiler ask (§7) | sharpened: field-level sub-structure (nested/refinement) + tight `bodySpan` — the minimal delta over shipping block-analysis | giti prototype 2026-07-06 |

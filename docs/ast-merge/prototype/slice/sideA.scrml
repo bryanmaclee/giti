@@ -1,0 +1,6 @@
+<program>
+  type AppState:struct = { count: int, name: string, theme: string }
+  <appState>: AppState = { count: 0, name: "x" }
+  fn label(s: AppState) { return s.name }
+  <p>${@appState.name}</p>
+</program>
