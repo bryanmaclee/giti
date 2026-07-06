@@ -1,0 +1,25 @@
+<program>
+  // repro-33 — RUNTIME seed-clobber: binding a `server function*` (SSE generator) to a
+  // reactive cell via `${ @cell = gen() }` emits a spurious `_scrml_reactive_set(cell, null)`
+  // that OVERWRITES the typed seed. Between that null-set and the first SSE event, the cell is
+  // null, so any synchronous render of `@cell.<field>` crashes at runtime
+  // (`Cannot read properties of null`). Compile + node --check are clean → Bug-51 class.
+  //
+  // Emitted (client): set(status, {seed})  →  set(status, null)  ←clobber→  sse_sub(d => set(status, d))
+  // Distinct from repro-25 (that compile error E-CODEGEN-INVALID-JS is fixed); this is the
+  // RUNTIME half of giti's feed finding #2, still reproducing post-GITI-033 (scrml @59dc5287).
+  type Phase:enum = { Idle  Active }
+  ${
+    server function* tick() {
+      while (true) { yield { state: Phase.Active, n: 1 } }
+    }
+  }
+  <status> = { state: Phase.Idle, n: 0 }
+  ${ @status = tick() }
+
+  <p>n: ${@status.n}</p>
+  <match for=Phase on=@status.state>
+    <Idle>idle</Idle>
+    <Active>active</Active>
+  </match>
+</program>

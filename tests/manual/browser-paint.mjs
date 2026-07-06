@@ -40,7 +40,10 @@ for (const name of PAGES) {
 
   let text = "", title = "", err = null;
   try {
-    await page.goto(`${BASE}/${name}.html`, { waitUntil: "networkidle", timeout: 15000 });
+    // land's on-mount preflight runs the REAL gate (compile all .scrml + full `bun test`,
+    // ~20s+), so its loader legitimately holds the connection well past a normal budget.
+    const navTimeout = name === "land" ? 45000 : 15000;
+    await page.goto(`${BASE}/${name}.html`, { waitUntil: "networkidle", timeout: navTimeout });
     // give SSE/WS-driven pages (live, feed) time for the first event to paint
     await page.waitForTimeout(name === "live" || name === "feed" ? 2500 : 1200);
     title = await page.title();
