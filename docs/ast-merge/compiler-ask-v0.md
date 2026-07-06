@@ -1,9 +1,10 @@
 # Compiler ask (v0) — two extensions to `--emit-block-analysis` for AST semantic merge
 
 **From:** giti + flogence (co-signed). **To:** scrml. **Channel:** flogence's compiler-as-oracle ledger.
-**Status:** v0 draft (giti-sharpened, awaiting flogence co-sign). **Grounding:** two independent prototypes
-(giti `docs/ast-merge/prototype/`, flogence `scripts/ast-merge-fieldadd.ts`) — same findings, cross-verified
-on scrml @ 59dc5287 (s241). **Converges:** giti's 2026-07-05 solo ask (block-analysis as a VCS merge oracle).
+**Status:** v0 — **CO-SIGNED** (giti-sharpened + flogence consumer-side confirmed, 2026-07-06). **Grounding:**
+two independent prototypes (giti `docs/ast-merge/prototype/`, flogence `scripts/ast-merge-fieldadd.ts`) — same
+findings, cross-verified on scrml @ 59dc5287 (s241). **Converges:** giti's 2026-07-05 solo ask (block-analysis
+as a VCS merge oracle) — flag it superseded-by-this on scrml's side.
 
 ## TL;DR
 
@@ -80,6 +81,38 @@ at the member-list `{ … }` (no trailing trivia), so a splice boundary is exact
   (with per-member `typeText` + `span`) + a tight `bodySpan` for each `type` block.
 - giti's + flogence's field-add/variant-add merge drivers drop their re-parse layer and merge off `members`
   directly; the merged file compiles clean.
+
+## flogence co-sign — consumer-side confirmation + three sharpenings (2026-07-06)
+
+flogence's prototype (`scripts/ast-merge-fieldadd.ts`, re-verified passing on scrml @ current HEAD) reproduces
+both findings independently: Finding (1) — a `type` entity is span-locatable by `kind`+`name` on the shipping
+sidecar (works today); Finding (2) — its fields are NOT emitted, so the driver re-parses the span text
+(`parseFields`/`fieldBody` at lines 62–67). This ask closes Finding (2) exactly. **Co-signed as drafted.** Three
+sharpenings from the region-leasing consumer side — none change the two items, they pin the schema so it serves
+both drivers without ambiguity:
+
+1. **Member spans are absolute file char-offsets** (the same basis as the existing block `span`). Both
+   prototypes work in file offsets and `source.slice(span)` directly — a member `span` on a different basis
+   (block-relative) would force every consumer to track an offset origin. State it explicitly: `members[].span`
+   and `args[].span` are absolute, consistent with block `span`.
+
+2. **Per-member `span` must cover the FULL member** — the member's name *and* its type / arg-tuple, not just
+   the `typeText` slice. The load-bearing consumer op is **splice-one-member**: copy exactly one variant/field's
+   source text into the merged entity verbatim (avoids reconstructing scrml surface syntax — the whole point of
+   dropping the re-parse). A `span` that covers `FileLine(path: string, lineNo: int)` end-to-end makes that a
+   pure `slice`+`splice`; a `typeText`-only span does not.
+
+3. **`typeText` is load-bearing for correctness, not just robustness** — it upgrades collision detection from
+   name-only to name+type. flogence's prototype currently PARKs *any* same-name add (line 78–79); with
+   `typeText` the driver distinguishes **both sides added the identical member** (`email: string` on both →
+   auto-resolvable, not a conflict) from **same name, different type** (`email: string` vs `email: int` → a real
+   semantic conflict that must fall through). That is a soundness refinement the sidecar text-parse can do only
+   fragilely. Confirms the ask's own "same member name, different `typeText` → semantic conflict" line — flag it
+   as a consumer requirement, not a nicety.
+
+**Ask 2 (`bodySpan`) cross-verified:** flogence's splice (`spliceType`, line 85–89) re-derives the tight `{`…`}`
+bound via `indexOf`/`lastIndexOf` *precisely because* `span.end` eats trailing trivia — the identical workaround
+giti's prototype carries. A `bodySpan` bounded at the member-list close removes it on both sides. Confirmed low-cost, high-tidiness.
 
 ## Deferred follow-up (flogence, not this ask)
 
