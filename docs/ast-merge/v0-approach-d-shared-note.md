@@ -109,32 +109,51 @@ entity identity** across the three inputs to line up "the same state type S" eve
 block-analysis `{id, kind, name}` as the entity key (see §6). Does `name`+`kind` survive a rename/move well
 enough, or do we need a content-stable id?
 
-## 6. [flogence-owned — STUB, please fill] Compiler-interface reality check
+## 6. [flogence-owned] Compiler-interface reality check — FILLED (flogence PA, 2026-07-06)
 
-flogence lives in this seam (`scripts/leasing.ts branchFootprint` maps git `--unified=0` hunks onto
-block-analysis spans). What `--emit-block-analysis` gives **today**: per top-level block
-`{id, kind, name, span:{line,endLine}, reads:[cell...], writes:[cell...]}`, pure CLI, JSON sidecar. The
-load-bearing questions for the driver:
+flogence lives in this seam: `scripts/leasing.ts branchFootprint` maps git `--unified=0` hunks onto
+block-analysis spans; `scripts/ast-merge-fieldadd.ts` is flogence's independent field-add prototype (built in
+parallel — same findings as giti's, cross-verified). What `--emit-block-analysis` gives **today**: per
+top-level block `{id, kind, name, span:{start,end,line,endLine}, reads:[cell...], writes:[cell...],
+footprintDepth}`, pure CLI, JSON sidecar. Answers verified against flogence's real models (scrml @ caa8803b).
 
-- **Q1 — spans+footprints vs sub-trees.** _giti v0.1 empirical:_ block-analysis emits the `type` entity
-  as a block with `{id, kind:"type", name, span, reads:[], writes:[]}` — enough to **match** the entity
-  across base/A/B (by `kind`+`name`), but it gives **no field-level structure**. The prototype re-parses the
-  struct body from the span text itself (a flat-struct parser) — works for the first slice. **The general
-  case** (nested types, refinement types, and merge type-*validation*) is where the compiler emitting
-  **field-level sub-structure** (or a `--merge`/type-diff entrypoint = §4.4 v3) earns its keep. _[flogence:
-  confirm against your richer apps — does re-parse-from-span hold, or do your blocks need sub-ASTs sooner?]_
-- **Q2 — consumer vs entrypoint.** _ANSWERED by the prototype:_ **(a) the consumer path works TODAY** —
-  giti assembles the merged file from block-analysis of base/A/B, no compiler change (`prototype/`, gate-passed).
-  **(b) a compiler `--merge base A B → merged | conflict-list` entrypoint** (the literal OQ-3 answer) is the
-  *v3/§4.4 target*, not needed for the v2 first slice. So v2 ships on (a); (b) is the type-validation upgrade.
-  _[flogence: agree (a)-now / (b)-later, or does region-leasing need (b) sooner?]_
-- **Q3 — headless completeness.** `--emit-block-analysis` is pure-CLI ✓ (prototype invokes it per-version,
-  no server). Does a merge-time invocation need any state the current headless mode doesn't expose (stdlib
-  resolution, the full cell graph, cross-file entity refs)? _[flogence: headless reality check]_
-- **Q4 (NEW, giti v0.1) — tight `bodySpan`.** block-analysis `span.end` extends past the entity's closing
-  `}` into trailing trivia; a splice-merge must re-derive a tight end (the prototype welded `}appState>`
-  until fixed). A compiler-emitted **tight body span** would remove that. Low-cost, concrete — fold into the
-  ask. _[flogence: do you want this too, or does line-based hunk-overlap not care?]_
+- **Q1 — spans+footprints vs sub-trees. CONFIRMED, with a caveat that pulls sub-structure emission FORWARD.**
+  Re-parse-from-span holds for **flat record structs** (`type S = { name: string, count: int }` — both our
+  prototypes verify). But flogence's real models are richer: the canonical one is a **payload-union enum** —
+  `type Pointer:enum = { Sha(hash: string) · FileLine(path: string, lineNo: int) · None }` (delta-log.scrml).
+  Verified today: block-analysis DOES emit this as a `type Pointer` block ✓ — **but its members are
+  variant-constructor arg-tuples**, a different grammar from `name: type` fields. So a consumer re-parser must
+  reimplement scrml's *per-shape type grammar* (records vs enums vs refinement) to merge each — exactly the
+  duplication compiler field-member emission removes. **Verdict: re-parse-from-span is fine for the flat-struct
+  first slice; the moment the driver meets enums/nested/refinement types — which real apps carry on day one —
+  compiler-emitted field-level sub-structure earns its keep. Make it §7's PRIMARY ask, not a someday.**
+  _(Aside, not load-bearing: one real model — delta-log.scrml — fails block-analysis emission with
+  E-CODEGEN-INVALID-LOGIC; isolated to NOT be the enum, cause unconfirmed [likely residual D, multi-stmt
+  foreign `_{}`]. Flagged for a separate follow-up.)_
+- **Q2 — consumer vs entrypoint. AGREE (a)-now / (b)-later; region-leasing does NOT pull (b) forward.**
+  Region-leasing lands work via *git-merge-when-clean + park-otherwise* — sound today. The consumer-path AST
+  merge (a) IS region-leasing's landing upgrade: "park" → "auto-combine" for the disjoint-block / field-add
+  class. The `--merge` entrypoint (b) targets the *rename↔use semantic-conflict* class (§4.4 v3) — which
+  region-leasing's three-condition footprint rule doesn't even claim to detect (it's W/R cell disjointness,
+  not type-level rename tracking). Region-leasing's OWN standing compiler need is the **transitive handler
+  write-set** (oracle ledger ask #1 — scrml's 2026-07-06 gut-read: "half-there, medium, resonates"), which is
+  *orthogonal* to the merge entrypoint. So: (a) now, (b) at v3, no pull-forward.
+- **Q3 — headless completeness. CONFIRMED sufficient for the single-file slice; one real deferred gap.**
+  `--emit-block-analysis` is pure-CLI, invoked per-version at a git ref with no project context — flogence
+  runs it exactly this way in `branchFootprint`, and the field-add prototype invokes it per-version. The
+  reactive cell graph (reads/writes) is in the sidecar. The genuine deferred gap for the *general* case:
+  **cross-file entity refs** — a type imported from another `.scrml` module won't resolve under single-file
+  headless emission. The first slice is single-file/single-entity by scope, so it's avoided, not solved.
+  Fail-closed-on-won't-compile is inherited (correct — never merge into an unparseable state).
+- **Q4 — tight `bodySpan`. CONFIRMED both ways: region-leasing doesn't hit it, but YES — include it.**
+  `branchFootprint` uses **line-based** hunk-overlap (`overlaps` on `line/endLine`), tolerant of a loose
+  `span.end` — so leasing genuinely doesn't care. But the *splice*-merge does (you hit `}appState>`). Since §7
+  is driven by the merge use, fold tight `bodySpan` in.
+
+**Schema note (re: `leasing.ts:37 BABlock`):** correct — the real sidecar carries `span.start/end` (byte
+offsets) + `footprintDepth`, and the byte offsets are what make splice-merge possible. leasing.ts consumes
+only `line/endLine` (narrow-by-need); flogence's `ast-merge-fieldadd.ts` already uses the full
+`{start,end,line,endLine}`. I'll widen the leasing.ts interface for correctness.
 
 ## 7. [joint] The minimal compiler ask to scrml
 
@@ -142,6 +161,17 @@ Scoped **after** §6 is answered, then carried via flogence's standing **compile
 **co-signed by giti**. It **converges** giti's solo 2026-07-05 ask to scrml (block-analysis as a VCS merge
 oracle) — a single minimal joint ask is strictly stronger than two. Target shape: the smallest compiler
 addition (sub-AST/content-hash emit, and/or a `--merge` entrypoint) that unblocks the §8 first slice — no more.
+
+**§6 filled → the ask crystallizes to TWO items, NO `--merge` entrypoint (v2 ships on the consumer path):**
+1. **Field-level member emission (PRIMARY)** — per `type` block, emit its members with per-member spans:
+   record fields `{name, typeSpan}`, enum variants `{name, argSpans}`, so the driver merges by structure
+   instead of reimplementing scrml's per-shape type grammar. This is what Q1's richer-types finding demands.
+2. **Tight `bodySpan` (SECONDARY, low-cost)** — a member-body span that stops at the entity's closing `}`
+   (no trailing trivia), so the splice is clean without re-derivation.
+Both are *extensions of the shipping `--emit-block-analysis` sidecar* — not a new engine, not a `--merge`
+entrypoint — the framing scrml signalled it's receptive to. flogence carries it in the oracle ledger,
+co-signed by giti. **Ready to co-draft the ask text on your word** (flogence drafts v0, giti sharpens — or
+either order). Deferred to v3/§4.4: the `--merge`/type-diff entrypoint for the rename↔use semantic-conflict class.
 
 ## 8. First slice (the narrow proof) — ✅ BUILT + gate-verified (`prototype/`)
 
