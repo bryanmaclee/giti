@@ -9,12 +9,18 @@
 //
 // Playwright is borrowed from ../scrml/node_modules; Chromium from the ms-playwright cache.
 
-import { chromium } from "/home/bryan-maclee/scrmlMaster/scrml/node_modules/playwright/index.js";
+import { homedir } from "node:os";
+import { mkdirSync, readdirSync } from "node:fs";
 
-const BASE = process.argv[2] || "http://127.0.0.1:3838";
-const EXEC = "/home/bryan-maclee/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome";
+// Portable across machines (bryan / bryan-maclee): resolve playwright + chromium
+// from $HOME and glob the installed chromium build instead of pinning a version.
+const { chromium } = await import(`${homedir()}/scrmlMaster/scrml/node_modules/playwright/index.js`);
+const PW_CACHE = `${homedir()}/.cache/ms-playwright`;
+const CHROMIUM_DIR = readdirSync(PW_CACHE).find((d) => d.startsWith("chromium-"));
+const EXEC = `${PW_CACHE}/${CHROMIUM_DIR}/chrome-linux64/chrome`;
+
+const BASE = process.argv[2] || "http://127.0.0.1:3737";
 const OUT = "/tmp/giti-paint";
-import { mkdirSync } from "node:fs";
 mkdirSync(OUT, { recursive: true });
 
 const PAGES = ["status", "history", "bookmarks", "diff", "land", "live", "feed"];
