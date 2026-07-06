@@ -2,7 +2,7 @@
 
 **Purpose:** Live inventory of the giti collaboration platform.
 
-**Last updated:** 2026-06-23 (S16 — SSE probe → GITI-028 (server-enum; scrml FIXED `83afdcdb`, verified). Then browser paint → 3 MORE client-render bugs GITI-029/030/031 (on-mount-comment / each-key-field / match-subfield); 6 of 7 UI pages don't render in a browser. Filed; idiomatic source retained. land blank-content not yet root-caused.)
+**Last updated:** 2026-07-06 (S17 — compiler s214→s241/v0.7.1. GITI-033 LANDED (scrml `690d7739`) → all 7 compile; §4.17 `<code>`→`<span>` cleanup + browser re-verify → **6 of 7 pages now PAINT clean** (only feed red). Full re-verify sweep: GITI-015 + repro-25/26 defects verified FIXED, E-RI-002 reclassified (§51.0.E). feed seed-clobber filed GITI-035; GITI-016 open (scrml staging). giti **flobase-assembled** (`.pa-base/profile`). AST semantic merge (§4.3) pillar: flogence tag-team → built first-slice prototype + joint compiler-ask co-signed + carried to scrml as oracle ask #6.)
 
 ---
 
@@ -472,6 +472,30 @@ After GITI-028 (server-side) was fixed + verified, ran the browser-paint pass S1
 - **S217 resolution (2026-06-23 overnight, verified local `062165a5`):** scrml FIXED GITI-029/030/031. My GITI-029 source workaround (comment relocation, applied earlier S16) was **REVERTED** — compiler now handles the original form. Remaining giti-side work: (a) §4.17 `<code>`→`<span>` cleanup to display the id/name columns; (b) GITI-032 (Current-status + land panels) — wait for compiler OR restructure the Loaded arms off conditional-markup; (c) feed SSE seed-clobber (finding #2, still open upstream).
 - **Disposition (user dir S16, option A — same as GITI-028):** filed; **idiomatic source RETAINED** (trivial source workarounds exist — relocate the comment / don't display the key field / split the enum into a whole-cell — but per policy fix the codegen, not the source). Resume browser-verify when fixes land. **land's blank-content is not yet root-caused** — open triage item.
 - **Method correction:** S15's "all 7 pages serve HTTP 200 end-to-end" + my own earlier "loaders return 200 → GITI-028 verified" were both **server-side only**. A real browser render is the only check that catches this class. `tests/manual/browser-paint.mjs` is now the reusable gate.
+
+### S17 — GITI-033 landed → 6/7 UI paint; full re-verify sweep; flobase; AST-merge pillar (2026-07-06, compiler `../scrml`@`59dc5287`, s241, v0.7.1)
+
+The compiler moved ~27 sessions (s214→s241) between S16 and S17. Session re-grounded the whole ledger against the current gate, then rode GITI-033's landing to the best UI-render state yet.
+
+**GITI-033 (CLOSED — scrml `690d7739`, s241):** `<each>` item-accessor `@.` inside a ternary-markup consequent → E-CODEGEN-INVALID-LOGIC (renamed from -INVALID-JS in s237). Blocked status + land from compiling. Filed S17, fixed same-day. repro-32. **Latent bonus:** the fix also closed a silent quote-loss miscompile (string literals in a text-position `${cond ? "a":"b"}` were dropped → comparison to undefined identifier, silent always-false; status:122 `${d.scope=="empty"?…}` was affected — now correct).
+
+**Full re-verify sweep vs s239/s241 (ledger reconciliation):**
+- **GITI-015** (`is some` ternary, computed LHS) → **verified FIXED** (repro-11 all cases lower to `(x!==null&&x!==undefined)?…`; giti source already direct-form, no workaround present). The S11-era "still broken" ledger rows above are superseded.
+- **repro-25 defect** (SSE-binding-in-`on mount` compile error) → **FIXED** (valid ESM). **repro-26 defect** (`safeCall !{}` library-mode) → **FIXED** (valid ESM).
+- **repro-24 / E-RI-002** → **reclassified: enforced-as-designed.** scrml verified `<engine for=T server=@source>` (§51.0.E) is the wired server-authoritative-engine form and resolves E-RI-002; live/feed can move back to `<engine>` off the Phase-cell workaround (optional enhancement).
+- **GITI-016** (`match` id) → still OPEN; scrml STAGING (`b42492aa`). **GITI-034** (attr-interp nested-quote, scrml-filed) → giti NOT affected.
+
+**diff E-FN-004 (giti-side fix):** s241 added a purity rule rejecting `fn` bodies that read `window.location`. Refactored diff's two url-reading `fn`s → `function changeParam()` + pure `fn modeFromParam(param)`.
+
+**§4.17 `<code>`/`<pre>` cleanup:** confirmed empirically that BOTH `<code>` and `<pre>` are raw-content (ship `${...}` verbatim; only `<span>`/`<p>` interpolate). Moved every interpolated field out — inline `<code>`→`<span class="mono">` (new theme.css `.mono` utility), block `<pre class="X">`→`<div class="X">` (`.diff-pane`/`.gate-error` CSS already had `white-space:pre`). Fixed the literal `${@.changeId}` columns on status/history/diff and the diff-pane / land gate-error blocks.
+
+**Browser-paint re-verify (the gate that catches what compile hides): 6 of 7 PAINT CLEAN** — status · history · bookmarks · diff · land · live. (S16 was 6-of-7-broken.) Findings: **land** was a false-timeout — its on-mount preflight runs the REAL gate (compile-all + full `bun test`, ~20s+); harness now gives land a 45s nav budget and it paints (textLen 114k). status's earlier 404 was transient. **feed** ❌ → **GITI-035 (NEW, OPEN, filed `2026-07-06-0959`):** `${ @cell = serverGenerator() }` emits a spurious `_scrml_reactive_set(cell, null)` clobbering the typed seed → runtime `null.<field>` crash. repro-33 (byte-identical). Feed is the last page between us and 7/7. Harness also made portable (cross-machine `$HOME`/glob; default port 3737).
+
+**flobase:** giti assembled via `/flobase` — `.pa-base/profile` + fenced `.claude/CLAUDE.md`. Lean module set; individualisation reuses `../scrml-support/pa-profile-bryan.md`. Next boot = cheap rehydrate. Authority defers to `pa.md`.
+
+**AST semantic merge (spec §4.3) — the engine-independence-gate pillar (§3.7) moved from spec-stage to a built slice.** Operator-directed flogence↔giti tag-team. `docs/ast-merge/`: (a) **v0 shared note** (`v0-approach-d-shared-note.md`, §6 filled by flogence); (b) **BUILT + gate-verified first-slice prototype** (`prototype/` — `.scrml` state-type field-add merge on the compiler's `--emit-block-analysis` sidecar, consumer path, NO compiler `--merge` entrypoint: git conflicts → driver combines disjoint fields → merged file compiles clean; collision → conflict); (c) **joint compiler-ask v0** (`compiler-ask-v0.md`, **co-signed by flogence**, carried to scrml as **oracle ask #6**) — two additive `--emit-block-analysis` items: [PRIMARY] field-level member emission (per-member spans + typeText, records + enum variants), [secondary] tight `bodySpan`. `--merge`/type-diff entrypoint deferred to v3/§4.4. AST source DECIDED: scrml-parser primary + tree-sitter fallback. Ball with scrml (feasibility-read).
+
+**100%-scrml roadmap** filed to scrml (`2026-07-05-1339`): subprocess primitive + §64 tool-target + cross-scrml library imports + close GITI-016 = the path to giti-authored-entirely-in-scrml (excl. jj). Awaiting scrml.
 
 ### Cleanup (post-split)
 - [ ][ ] Non-compliance audit

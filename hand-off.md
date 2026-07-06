@@ -1,143 +1,66 @@
-# giti — Session 16 Hand-Off
+# giti — Session 17 Hand-Off
 
-**Date:** 2026-06-23
-**Previous session file:** `handOffs/hand-off-15.md`
-**Next hand-off filename:** `handOffs/hand-off-16.md`
+**Date:** 2026-07-06
+**Previous session file:** `handOffs/hand-off-16.md`
+**Next hand-off filename:** `handOffs/hand-off-17.md`
 
-## Caught-up state (entering S16)
+## Caught-up state (entering S18)
 
-- **Compiler:** lives at `../scrml` (renamed from `scrmlTS` ~2026-06). As of S15: HEAD `ca712295` (s212, pkg v0.2.0, emitted self-id `scrml-0.7.0`). giti's gate resolves to `../scrml` directly; legacy `../scrmlTS`/`$SCRMLTS_PATH` kept as harmless back-compat fallback. **Re-verify compiler HEAD at next compile** (may have advanced since S15).
-- **CLI:** 15 commands. **375 pass / 0 fail** across 14 test files (per S15 close).
-- **Web UI:** 7 scrml pages — status, history, bookmarks, diff, land, live, feed. All rewritten to idiomatic `Phase:enum` + `<match for=Phase>` + `<each>`/`<empty>` in S15. `giti serve` works end-to-end (7/7 HTTP 200).
-- **scrml-as-logic dogfood:** 17 scrml lib modules power giti's runtime.
-- **Git:** clean on `main`, HEAD `e96668f`, fully synced with origin (0/0).
-- **Maps:** `.claude/maps/` stamped at `b2fde19` — **15 commits STALE** (predates the S15 UI rewrite). Refresh via `project-mapper` before any dev/writer dispatch.
+- **Compiler:** `../scrml` @ `59dc5287` (s241, language **v0.7.1**). Moved ~27 sessions during S17 (s214→s241); re-verify HEAD at next compile as always.
+- **CLI:** 15 commands, **375 pass / 0 fail** (14 files). Unchanged this session.
+- **UI dogfood:** 7 scrml pages. **6 of 7 now paint clean in a browser** (status · history · bookmarks · diff · land · live) — the exact inversion of S16's "6-of-7-broken." Only **feed** is red (GITI-035, filed). This is the headline S17 outcome.
+- **Git:** clean on `main`, HEAD `ccad5ba`, **ahead 1** of origin at wrap-start (wrap commit + push to follow).
+- **flobase:** giti is now **flobase-assembled** — `.pa-base/profile` (boot manifest) + `.claude/CLAUDE.md` (fenced region) exist. **Next boot is a cheap rehydrate off `.pa-base/profile`** (no more cold re-derivation). Authority still defers to `pa.md`. Module set: CORE + stack-pack-scrml + role-pa + maps + continuity:light (no delta-log — hand-off is the carrier).
+- **Maps:** refreshed via project-mapper at wrap (step 6c) — watermark advanced to the S17 HEAD.
 
-## Inbox at S16 start
+## GITI-bug ledger — CURRENT TRUTH (reconciled S17 via full re-verify sweep)
 
-- **Empty** (`handOffs/incoming/` has only `read/`). Last drained: S15.
+**CLOSED this session:**
+- **GITI-033** (each-item `@.` accessor inside ternary-markup → E-CODEGEN-INVALID-LOGIC) — **scrml FIXED `690d7739`** (s241); status + land compile clean. repro-32. *Also closed a latent quote-loss bug* (string literals in text-position `${cond ? "a":"b"}` were dropping quotes → silent always-false; status:122 was affected — now correct).
+- **GITI-015** (`is some` ternary, computed LHS) — **verified FIXED** on s239 (repro-11 all cases lower clean; giti source already used the direct form — no workaround to revert). Ledger had it stale-open.
+- **repro-25 defect** (SSE-binding-in-`on mount` → E-CODEGEN-INVALID-JS) — **compile FIXED** (valid ESM now). *NB: the RUNTIME half is GITI-035, still open — see below.*
+- **repro-26 defect** (`safeCall !{}` under `--mode library`) — **FIXED** (valid ESM).
+- **diff E-FN-004** (new s241 purity rule: `fn` reading `window.location`) — **fixed giti-side** (`fn modeFromUrl/changeIdFromUrl` → `function changeParam()` + pure `fn modeFromParam(param)`).
 
-## Open items carried from S15
+**OPEN:**
+- **GITI-035** (NEW, filed S17 `2026-07-06-0959`) — `${ @cell = serverGenerator() }` emits a spurious `_scrml_reactive_set(cell, null)` that clobbers the typed seed → runtime `null.<field>` crash. **Root of feed's non-render.** repro-33 (byte-identical emit). Bug-51 class. **This is the ONLY thing between us and 7/7 UI paint.** Watch for scrml fix → re-run browser-paint.
+- **GITI-016** (identifier `match` → E-SCOPE-001, now via E-EQ-005 first) — still open; `match`→`m` workaround stays. **scrml is STAGING it** (`b42492aa` "stage GITI-016/residual-D briefs"). repro-12.
+- **GITI-006** (cosmetic `${@var.path}` pre-init) — untested, cosmetic, low-priority.
 
-### Compiler-bug ledger
-| ID | Status |
-|---|---|
-| GITI-006 | open (cosmetic) — workaround DISSOLVED by S15 status.scrml rewrite (Phase enum seeded `.Loading`); underlying behavior may still exist, giti no longer triggers it |
-| GITI-015 | open — `is some` ternary + computed LHS; hoist-to-const workaround retained |
-| GITI-016 | open — `match` identifier `E-SCOPE-001`; rename `match`→`m` workaround retained. Why `repros/` is excluded from `giti serve` |
-| GITI-027 Part-B | still NOT shipped (retested S14 @ca712295) — keep `localDev`+127.0.0.1 write-gate, do NOT relax |
+**Reclassified:**
+- **repro-24 / E-RI-002** (server-escalated fn can't write an `<engine>` cell) — **NOT a bug; enforced-as-designed.** scrml verified the resolution path: **`<engine for=T server=@source>` (§51.0.E)** drives an engine from server-authoritative state guard-free and resolves E-RI-002. (See §51.0.E answer, `read/2026-07-06-0923`.) So live/feed CAN move back to `<engine>` off the Phase-cell workaround — **optional enhancement, not done yet** (see threads).
 
-### 3 codegen/RI findings FILED to scrml (S15) — awaiting reply
-Filed `../scrml/handOffs/incoming/2026-06-22-1443-giti-to-scrml-three-codegen-findings.md` (needs:action). giti-side repros committed at `ui/repros/repro-24..26`:
-1. `<engine>` cell can't be a server-written `<channel>`/SSE cell (`E-RI-002`) — blocks `<engine>` on channel/SSE pages.
-2. `on mount { @x = watchStatus() }` (SSE binding in on-mount) → `E-CODEGEN-INVALID-JS`; workaround = module-top `${ @x = watchStatus() }`.
-3. `safeCall(...) !{}` → `E-CODEGEN-INVALID-JS` under `--mode library` (fine in program mode). Blocks the idiomatic try/catch replacement in `remotes.scrml`.
+**Not-affected (filed by scrml, giti clear):** GITI-034 (attribute-position `${}` with nested quote/brace) — giti's attr interps have no nested string literals.
 
-### Verification debt
-- **feed.scrml runtime SSE on the migrated compiler is UNVERIFIED.** Idiomatic shape compiles + serves 200, but the actual SSE event-to-cell delivery was not runtime-probed on `../scrml` post-migration. **Ledger reconciliation:** the S210 audit treated GITI-020/021 (CG-1/CG-3) as OPEN and feed as inert (GITI-026 open); this repo's master-list records GITI-020/021/025/026 all CLOSED (`8e7f18fe`/`e2dcde7b`, on scrmlTS v0.7.0 **before** the scrml migration). Not re-verified on the migrated compiler. A quick SSE runtime probe is the open follow-up.
+## Threads in flight (open questions for S18)
 
-### Carried (unchanged, low-priority)
-- `../scrmlTS/` legacy checkout still on disk (superseded). Fallback in `resolve-compiler.scrml` harmless; prune only on user request.
-- Optional tidy: `rm -rf src/lib/dist/` (gitignored stray build output).
-- `ui/history.scrml:14` — comment says "scrmlTS rewrites…"; cosmetic.
+1. **feed → 7/7 UI paint** — blocked on **GITI-035** (scrml). When it lands: `tests/manual/browser-paint.mjs` over all 7 → expect 7/7. This closes the UI-dogfood render goal that S15/S16/S17 chased.
+2. **AST semantic merge (spec §4.3) — the pillar.** flogence↔giti operator-directed tag-team. Landed this session: `docs/ast-merge/` = the v0 shared note (§6 filled by flogence) + a **BUILT + gate-verified first-slice prototype** (`.scrml` state-type field-add merge on `--emit-block-analysis`, consumer path, no compiler `--merge` needed) + the **joint compiler-ask v0** (`compiler-ask-v0.md`, **co-signed by flogence**). flogence **carried the ask to scrml as oracle ask #6** (feasibility-read; my 2026-07-05 solo ask flagged superseded). **Ball with scrml.** The ask = two additive `--emit-block-analysis` items: (1) [PRIMARY] field-level member emission (per-member spans + typeText, for record fields + enum variants); (2) tight `bodySpan`. **Next when scrml responds:** build slice 2 (enum variant-add merge) off member-emission; the `--merge` entrypoint + compiler type-diff is deferred to giti-spec v3/§4.4. This is the §3.7 engine-independence-gate work.
+3. **100%-scrml roadmap** — filed to scrml (`read/2026-07-05-1339`): to author giti entirely in scrml (excl. jj), the compiler needs a **subprocess primitive** (unblocks the 471-LOC jj wrapper), **§64 Standalone-Tool-Target** maturity (CLI + HTTP-server entrypoints), **cross-scrml imports in library mode** (deletes the JS shims), + close GITI-016. Awaiting scrml. (§64 landed s238-239 — partial.)
+4. **§51.0.E live/feed → `<engine>` migration** — OPTIONAL enhancement now unblocked (see reclassified E-RI-002). `<engine for=Phase server=@source initial=.Idle>` where `@source` is server-owned. Would move live/feed off the typed-Phase-cell + `<match>` workaround. Not urgent.
+5. **giti proper** — auth + multi-repo → deploy (Hosted Forge, master-list §E, M4.1). The real product horizon once the UI dogfood settles. Will trigger role-dpa/deliberation when opened.
 
-## S16 OUTCOME (done) → S17 priorities
+## Cross-repo state (S17)
 
-**S16 did:** SSE probe → found+verified GITI-028 (server-enum; scrml fixed same day). Then the browser-paint pass (new `tests/manual/browser-paint.mjs`) → found GITI-029/030/031/032 (client-render). scrml fixed 029/030/031 overnight (S217). Filed all; built reusable browser gate. **375/0** throughout.
+- **Outbound to scrml:** GITI-033 (fixed) · repro-sweep reconciliation (`0742`) · 100%-scrml roadmap (`1339`) · GITI-035 (`0959`) · §51.0.E question (answered). All in scrml's `read/`.
+- **Outbound to flogence:** tag-team accept · v0-built ping · ask co-sign request. flogence co-signed + carried oracle ask #6 to scrml.
+- **Inbound (all drained to `read/`):** scrml GITI-033-landed, §51.0.E answer; flogence §6-fill + ask co-sign+carry. Inbox EMPTY at wrap.
 
-**S17 should pick up (in priority order):**
-1. **GITI-030 §4.17 `<code>`→`<span>` cleanup** — quick, clear giti-source win. Move every interpolated `${@.x}` / `${d.x}` OUT of `<code>`/`<pre>` (raw-content) into `<span class="mono">` + monospace CSS. Sites: status (changeId line 206, bookmark line 124), bookmarks (name line ~182 uses `<span>` already — check), diff (changeId), history (changeId line 206). Fixes the literal-placeholder columns. Re-run browser-paint after.
-2. **GITI-032** (Current-status + land panels empty) — **watch for scrml fix** (filed 2026-06-24 0801; they're fast) OR restructure the `<Loaded>` arms off `${cond?<markup>:""}`. Also align `<Loaded(d)>` vs `Loaded(data:…)` param name once 032 lands.
-3. **feed SSE seed-clobber** (finding #2, still crashes `null.state`) — watch for scrml fix; feed stays out of nav meanwhile.
-4. **giti proper** — auth+multi-repo, license, deploy roadmap (hosted-forge blocker; master-list §E). The real product direction once the UI dogfood settles.
+## Push / commit / standing auth (unchanged)
 
-**Re-verify protocol when any scrml fix lands:** recompile + `tests/manual/browser-paint.mjs` over all 7 pages (real DOM paint), not just HTTP 200 (see memory: browser-render-verify-for-ui).
+- Commits + pushes to `main` require explicit per-session user auth; **PA pushes origin directly**. Pathspec commits. `bun test` is the gate (no commit hook). Standing auth: file cross-repo bug reports to siblings (`../scrml`, `../flogence`) without per-report permission (push still needs auth).
 
-## Push / commit
-
-Per `pa.md`: commits + pushes to `main` require explicit per-session user auth; **the PA pushes origin directly** (master-coordination retired 2026-05-30). Manual `bun test` is the only gate (NO commit hook installed). Use explicit pathspec commits.
-
-## Standing authorizations
-- **File legit cross-repo bug reports to siblings without per-report permission** (S15 standing auth; push still needs auth). Reports carry minimal version-stamped repro + expected-vs-actual.
-
-## Dogfood — how to regen a scrml lib / UI page
+## Dogfood — regen a page / lib
 
 ```
-# lib module (ESM, names preserved):
-bun run ../scrml/compiler/src/cli.js compile src/lib/<name>.scrml -o src/lib --mode library
-# UI page:
-bun run ../scrml/compiler/src/cli.js compile ui/<page>.scrml -o ui/dist
+bun run ../scrml/compiler/src/cli.js compile ui/<page>.scrml -o ui/dist          # UI page
+bun run ../scrml/compiler/src/cli.js compile src/lib/<name>.scrml -o src/lib --mode library   # lib
 ```
-`giti serve` compiles top-level `ui/*.scrml` → `dist/ui` automatically (skips `repros/`).
+`giti serve` compiles top-level `ui/*.scrml` → `dist/ui` (fail-fast; skips `repros/`), serves on **127.0.0.1:3737**. Browser gate: `tests/manual/browser-paint.mjs http://127.0.0.1:3737` (start serve + paint in ONE shell — the server must outlive the paint; land needs the 45s budget the harness now gives it).
 
-## S16 WRAP (2026-06-24)
-- **Tests:** 375 pass / 0 fail / 0 skip (14 files).
-- **Commits pushed this session:** `27cf1d5` (GITI-028 SSE probe + repro-27 + sse-runtime harness), `36e0fb4` (browser-paint → GITI-029/030/031/032 + repro-28..31 + browser-paint.mjs), + a maps-refresh commit (step 6c).
-- **Cross-repo filed to scrml** (in scrml's inbox, scrml PA commits): GITI-028 enum-in-server-bundle; the 029/030/031 render cluster; GITI-032 conditional-markup-in-match-arm; + the bug51-verified reply. scrml resolved 028 (same day) + 029/030/031 (overnight, S217).
-- **Tree:** clean, pushed (0/0 with origin). Dev server stopped. No worktrees created this session (all PA-direct).
-- **Maps:** refreshed via project-mapper (step 6c).
-- **user-voice.md:** no append — this session's user statements were task commands ("sse probe go", "apply the on fix", etc.), not durable directives.
-- **Memory:** added `browser-render-verify-for-ui` (server-200 ≠ renders; use browser-paint.mjs).
-- **Open for S17:** see "S16 OUTCOME → S17 priorities" above (GITI-030 §4.17 cleanup is the quick win; GITI-032 + feed seed-clobber awaiting scrml).
+## S17 WRAP
 
-## S16 log
-
-**SSE probe → GITI-028 (whole-UI runtime miscompile). 2026-06-23, compiler `../scrml`@`df6f747b` (s214, v0.7.0).**
-Ran the deferred feed.scrml SSE runtime probe (the S15 verification debt). It uncovered a P0 compiler bug far broader than feed.
-
-- **Finding (GITI-028, OPEN, P0):** page-local `enum` defs are emitted into the **client bundle only**, never the **server bundle**. Any `server function` referencing an enum variant (bare `X.Ok` or payload `X.Loaded({...})`) → `ReferenceError: X is not defined` at runtime. Compile + `node --check` both exit-0 → silent Bug-51 class. Regular server fn → 500; `server function*` SSE → throw swallowed by stream try/catch → **0 frames** (the "inert feed" symptom S15 wrongly dismissed as a harness artifact).
-- **Blast radius: ALL 7 UI pages.** Every S15-rewritten loader is runtime-broken. The enum-typed-Phase + server-fn-returns-variant idiom is exactly what the S210 audit directed → the compiler can't compile the idiom it recommended. Regression in effect (pre-S15 plain-object loaders worked).
-- **Proof:** feed SSE 0 frames as-emitted, 3 real frames with `globalThis.Phase` injected (isolates cause); `loadStatus` threw `StatusPhase is not defined` w/ valid CSRF. Minimal repro both shapes throw.
-- **Ledger reconciliation RESOLVED:** GITI-026 (SSE client binding) genuinely still CLOSED — emitted `feed.client.js` wires the correct per-event callback + `addEventListener`. feed is dead for the NEW distinct server-side-enum reason, not GITI-026. GITI-025 not re-exercised (parameterless generator) but route binds `route.query` correctly.
-
-**Disposition — user dir S16: option A (file P0, keep source, wait).**
-- Filed P0 → `../scrml/handOffs/incoming/2026-06-23-1223-giti-to-scrml-enum-undefined-in-server-bundle.md` (standing auth). scrml PA picks it up / commits on its side.
-- Idiomatic source RETAINED (don't contort source around a compiler bug). UI flagged runtime-broken-pending-fix in master-list (S16 section + S15 Verification correction banner). `localDev`+127.0.0.1 write-gate unaffected, stays.
-- Resume UI verification when scrml ships the fix.
-
-### Artifacts created this session (UNCOMMITTED — need user auth to commit/push)
-- `ui/repros/repro-27-enum-undefined-in-server-bundle.scrml` — minimal repro (both variant shapes).
-- `tests/manual/sse-runtime.mjs` — two-phase SSE runtime harness (as-emitted vs Phase-injected); reusable for post-fix re-verify.
-- `master-list.md` — S16 section + GITI-028 ledger + S15 Verification correction banner + header.
-- `hand-off.md` (this rotation) + `handOffs/hand-off-15.md` (archived S15).
-- Cross-repo: scrml inbox bug report (in scrml's tree, committed by scrml PA).
-
-**GITI-028 RESOLVED same day — scrml `83afdcdb` (S216), verified.**
-scrml turned it around in <4h. Fix: `generateServerJs` emits page-local enum-variant objects into `*.server.js` (reachability-gated, byte-identical to client bundle) + new `E-CG-016` collision guard. **Verified on local `../scrml@5e3a1dbf`** (contains `83afdcdb`; giti compiles against this local checkout, so verified without waiting for origin push):
-- all 7 pages compile exit-0, server bundles carry enum defs, every emitted JS `node --check` clean, 375/0;
-- feed SSE delivers 3 real frames **as emitted** (phase-1 of the harness, no Phase crutch); `loadStatus` returns **200** with a real `Loaded` variant carrying live jj status.
-- **Server-side runtime + emit verified PA-side. Full browser paint of all 7 pages = remaining USER-verify** (serve + browser pass).
-- scrml fix is local-landed, **NOT pushed to scrml origin** yet (push notice will follow) — irrelevant to giti.
-- Replied to scrml: `2026-06-23-1616-giti-to-scrml-bug51-verified-no-toenum.md`. Moved `2026-06-23-1537-…bug51-resolved.md` → `read/`.
-
-**Separate scrml gap — does NOT affect giti:** `g-enum-toenum-not-lowered-server-side` (server-side `X.toEnum(row.field)` throws). giti uses zero `.toEnum(` (grep-confirmed; no `<db>`/`?{}` paths). Replied fyi — no escalation needed on giti's account.
-
-**Browser paint (S16b) → 3 MORE client-render compiler bugs (GITI-029/030/031). compiler `7c01b22a`.**
-Ran the real browser pass S15 never did — headless Chromium (`tests/manual/browser-paint.mjs`, playwright borrowed from `../scrml/node_modules`, chromium-1228) over `giti serve`, painted DOM + screenshots (`/tmp/giti-paint/*.png`). **GITI-028's server fix works (loaders 200), but 6 of 7 pages don't render.** Triaged each to a minimal repro:
-- **GITI-029** — `//` comment directly before `on mount {}` → block emits as literal HTML text, hook never fires. (status: 3 loaders under a comment → stuck "Loading…".) repro-28.
-- **GITI-030** — `<each>` body `${@.FIELD}` where FIELD == `key=@.FIELD` → literal `createTextNode("${_scrml_each_item.FIELD}")`. (bookmarks/diff/history key column.) repro-29.
-- **GITI-031** — `<match for=P on=@cell.subfield>` dispatches the whole cell, drops `.subfield` → no arm matches → blank. (live `@snapshot.state`, feed `@status.state`.) repro-30.
-- feed ALSO crashes (`null.changed`) — SSE seed-clobber, downstream of S15 finding #2.
-- All Bug-51 (exit-0, node --check clean, silent). Filed one report: `../scrml/handOffs/incoming/2026-06-23-2018-giti-to-scrml-three-client-render-codegen-bugs.md`. Repros committed `ui/repros/repro-28/29/30`.
-- **Disposition: option A** (keep idiomatic source, file, wait). Trivial source workarounds exist but per policy fix codegen.
-- **OPEN triage item: land's blank content** not yet root-caused (on-mount fires/200, Loaded match arm content empty; NOT comment-preceded so not GITI-029). Needs a focused bisect next.
-
-**S217 UPDATE (2026-06-24): scrml FIXED GITI-029/030/031 overnight** (verified local `../scrml@062165a5`). 029 (comment-before-on-mount) + 031 (`<match on=@cell.subfield>` deep path) confirmed fixed via repro recompile; live now renders "State: idle". **GITI-029 source workaround REVERTED** (`git checkout ui/status.scrml`) — compiler handles the original form, no workaround needed. **GITI-030 fixed BUT** §4.17: `<code>`/`<pre>` are raw-content, `${...}` ships verbatim by design → giti must move interpolated fields out of `<code>`→`<span>` (status changeId, bookmarks name, diff/history changeId). **GITI-032 still OPEN** (Current-status + land panels). **feed still crashes** (SSE seed-clobber, finding #2). Re-painted all 7 on S217: status (Bookmarks+Recent-saves render, Current-status empty), live ✅, feed ❌crash. Message `2026-06-23-2224-...FIXED.md` → read/.
-
-— historical (now superseded by the S217 update above) —
-**GITI-029 source workaround was APPLIED to status.scrml (user dir "apply the on fix").**
-Relocated the comment off the on-mount lines (comment now above the seeds; blank line before the 3 `on mount` blocks). Browser-verified on the post-fix compile:
-- on-mount text leak GONE; all 3 loaders fire. **Bookmarks + Recent saves panels now render real data** (was: all 3 stuck on "Loading…").
-- **Two residuals surfaced** (separate from GITI-029, pre-existing, only now visible because the loaders fire):
-  1. **Recent saves `${@.changeId}` column leaks** — GITI-030 (key-field). Expected.
-  2. **"Current status" panel renders EMPTY** — root-caused to **GITI-032 (NEW compiler bug, filed)**: `${ cond ? <markup> : "" }` inside a `<match>` arm is broken. A single one → `E-CODEGEN-INVALID-JS`; multiple (status has five `${ d.X ? <section> : "" }` blocks) → exit-0 but `render_Loaded(d)` returns pure whitespace (all sections dropped, `d` ignored). Works at top level; `<each>`-in-arm works (so bookmarks/recent-saves render). NOT a source-rename (I tried `data`→`d`; reverted — the binding was never the cause). **Not source-fixable without abandoning the idiomatic conditional-markup pattern** (would need a restructure). Repro `ui/repros/repro-31`; filed `../scrml/handOffs/incoming/2026-06-24-0801-giti-to-scrml-conditional-markup-in-match-arm.md`.
-     - Secondary latent note in that report: arm payload binds by DECLARED param name, so `<Loaded(d)>` vs `Loaded(data:…)` will mismatch once GITI-032 is fixed — align names then.
-- status.scrml EDIT = the GITI-029 fix ONLY (the `data`→`d` rename was reverted). Carries a `// GITI-029 WORKAROUND` comment to revert once upstream-fixed.
-
-### Open follow-ups carried
-- **"Current status" panel** blocked on **GITI-032** (filed). Options when picked up: wait for compiler fix, OR restructure status.scrml's Loaded arm to avoid conditional-markup-in-match-arm (e.g. always-render the each-sections + drop the `${cond?…:""}` wrappers; the pure-conditional bits — clean msg / on-bookmark / mixed hint — need a different construct). Also align the `<Loaded(d)>`/`Loaded(data)` param name.
-- **Watch for scrml reply on GITI-029/030/031/032** (+ the still-open S15 findings E-RI-002 / SSE-on-mount / safeCall-in-library). When fixes land: recompile + re-run `tests/manual/browser-paint.mjs` over all 7 pages (expect real paint, no `${_scrml_each_item}` leaks, no blank match, no crash).
-- **Root-cause land.scrml blank Loaded content** (the one symptom not yet minimized).
-- **`tests/manual/browser-paint.mjs` is the reusable browser-render gate** — the only check that catches this class (server-200 ≠ renders).
-- The 3 S15 findings (E-RI-002 / SSE-on-mount / safeCall-in-library) still awaiting scrml reply — independent of GITI-028. (Note: `../scrml` HEAD `5e3a1dbf` mentions a `g-e-ri-002-targeted-diagnostic` — scrml may be working the E-RI-002 thread.)
-- Everything else from "Open items carried from S15" above unchanged.
+- **Tests:** 375 / 0 / 0 (14 files).
+- **Landed + pushed (pre-wrap):** diff E-FN-004 fix + repro-32 · flobase assembly · AST-merge note + prototype + ask (+ flogence co-sign) · §4.17 `<code>`→`<span>` cleanup · repro-33 + browser-paint portability/land-budget · inbox drains. (~10 commits.)
+- **Maps:** refreshed (6c). **6d:** N/A (no regen scripts / `@generated` in giti). **Worktrees:** none created.
+- **user-voice:** see meta-docs note in the wrap (this session's user messages were task drives — "keep going", "run it", "inbox", "push it" — plus two load-bearing forks answered via /flobase + AST-merge questions, captured in the profile + note decisions logs, not durable voice directives).
