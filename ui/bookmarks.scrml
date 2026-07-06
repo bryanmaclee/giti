@@ -59,7 +59,7 @@ on mount { @bookmarks = loadBookmarkList() }
           <ul class="bookmark-list">
             <each in=list key=@.name>
               <li class="bookmark">
-                <code class="name">${@.name}</code>
+                <span class="name">${@.name}</span>
                 <span class="info muted">${@.info}</span>
                 ${ @.active ? <span class="badge active">active</span> : "" }
               </li>

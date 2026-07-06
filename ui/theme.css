@@ -136,6 +136,9 @@ main {
 .muted { color: var(--muted); }
 .error { color: var(--err); }
 code { font-family: var(--mono); font-size: 0.85em; background: var(--bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
+/* .mono — inline code-chip look for INTERPOLATED values (${...}); <code> is raw-content
+   and ships ${...} verbatim (§4.17), so interpolated fields use <span class="mono"> instead. */
+.mono { font-family: var(--mono); font-size: 0.85em; background: var(--bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
 
 /* ----- footer ----- */
 

@@ -65,7 +65,7 @@ on mount { @timeline = loadTimeline() }
           <ol class="history-list">
             <each in=entries key=@.changeId>
               <li class="entry">
-                <code class="change-id">${@.changeId}</code>
+                <span class="change-id">${@.changeId}</span>
                 <span class="desc">${@.description || "(no message)"}</span>
                 <span class="author muted">${@.author}</span>
                 <span class="time muted">${@.timestamp}</span>

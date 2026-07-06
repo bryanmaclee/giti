@@ -141,7 +141,7 @@ on mount { @preflight = loadLandingPreflight() }
                 : <span class="badge badge-fail">fail</span> }
               ${ r.privateGate.files.length > 0 ? <ul class="gate-detail">
                   <each in=r.privateGate.files key=@.path>
-                    <li><span class="tag tag-${@.kind}">${@.kind}</span> <code>${@.path}</code></li>
+                    <li><span class="tag tag-${@.kind}">${@.kind}</span> <span class="mono">${@.path}</span></li>
                   </each>
                 </ul> : "" }
             </li>
@@ -154,7 +154,7 @@ on mount { @preflight = loadLandingPreflight() }
                 : <span class="badge badge-fail">fail</span> }
               ${ r.conflictsGate.files.length > 0 ? <ul class="gate-detail">
                   <each in=r.conflictsGate.files>
-                    <li><code>${@.}</code></li>
+                    <li><span class="mono">${@.}</span></li>
                   </each>
                 </ul> : "" }
             </li>
@@ -167,7 +167,7 @@ on mount { @preflight = loadLandingPreflight() }
                 : r.compilerGate.ok
                   ? <span class="badge badge-ok">pass — ${r.compilerGate.fileCount} file(s)</span>
                   : <span class="badge badge-fail">fail</span> }
-              ${ !r.compilerGate.ok && r.compilerGate.error ? <pre class="gate-error">${r.compilerGate.error}</pre> : "" }
+              ${ !r.compilerGate.ok && r.compilerGate.error ? <div class="gate-error">${r.compilerGate.error}</div> : "" }
             </li>
 
             <!-- Gate 4: tests -->
@@ -176,7 +176,7 @@ on mount { @preflight = loadLandingPreflight() }
               ${ r.testsGate.ok
                 ? <span class="badge badge-ok">pass — ${r.testsGate.count}</span>
                 : <span class="badge badge-fail">fail</span> }
-              ${ !r.testsGate.ok && r.testsGate.error ? <pre class="gate-error">${r.testsGate.error}</pre> : "" }
+              ${ !r.testsGate.ok && r.testsGate.error ? <div class="gate-error">${r.testsGate.error}</div> : "" }
             </li>
 
           </ul>

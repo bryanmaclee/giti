@@ -121,7 +121,7 @@ on mount { @history   = loadHistory() }
         <Loaded(d)>
           ${ d.scope == "empty" && d.conflicts.length == 0 ? <p class="muted">Working copy is clean. No pending changes.</p> : "" }
 
-          ${ d.bookmark ? <p class="kv"><span class="k">On</span> <code>${d.bookmark}</code></p> : "" }
+          ${ d.bookmark ? <p class="kv"><span class="k">On</span> <span class="mono">${d.bookmark}</span></p> : "" }
 
           ${ d.conflicts.length > 0 ? <div class="conflicts">
               <h3>Conflicts</h3>
@@ -203,7 +203,7 @@ on mount { @history   = loadHistory() }
           <ol class="history-list">
             <each in=entries key=@.changeId>
               <li class="entry">
-                <code class="change-id">${@.changeId}</code>
+                <span class="change-id">${@.changeId}</span>
                 <span class="desc">${@.description || "(no message)"}</span>
                 <span class="author muted">${@.author}</span>
                 <span class="time muted">${@.timestamp}</span>

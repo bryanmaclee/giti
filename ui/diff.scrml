@@ -106,7 +106,7 @@ on mount { @diff    = loadDiff(changeParam()) }
             <each in=entries key=@.changeId>
               <li>
                 <a href="/diff.html?change=${@.changeId}">
-                  <code class="change-id">${@.changeId}</code>
+                  <span class="change-id">${@.changeId}</span>
                   <span class="desc">${@.description || "(no message)"}</span>
                 </a>
               </li>
@@ -121,7 +121,7 @@ on mount { @diff    = loadDiff(changeParam()) }
       <h2>
         <match for=DiffMode on=@mode>
           <WorkingCopy><span>Pending changes</span></WorkingCopy>
-          <Change(id)><span>Diff for <code>${id}</code></span></Change>
+          <Change(id)><span>Diff for <span class="mono">${id}</span></span></Change>
         </match>
       </h2>
 
@@ -134,7 +134,7 @@ on mount { @diff    = loadDiff(changeParam()) }
                 <WorkingCopy><span>No pending changes. Working copy is clean.</span></WorkingCopy>
                 <Change(id)><span>This change introduced no file modifications.</span></Change>
               </match>
-            </p> : <pre class="diff-pane">${diffText}</pre> }
+            </p> : <div class="diff-pane">${diffText}</div> }
         </Loaded>
       </match>
     </section>
