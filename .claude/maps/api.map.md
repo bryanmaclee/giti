@@ -1,6 +1,6 @@
 # api.map.md
 # project: giti
-# updated: 2026-06-24T14:00:00Z  commit: 36e0fb4
+# updated: 2026-07-15T16:04:15-06:00  commit: 513ef41
 
 ## CLI Command Surface (15 commands)
 All registered in src/cli.js and dispatched via `command(args.slice(1))`.
@@ -42,6 +42,16 @@ Server always binds 127.0.0.1. Write endpoints require `localDev: true`.
 scrml-generated /_scrml/* routes (from ui/dist/*.server.js) run first; first non-null Response wins.
 SSE routes (from feed.scrml) are emitted as GET routes under /_scrml/__ri_route_*.
 
+## scrml UI server-fn idiom (S18 — the shape that produces *.server.js)
+The compiled `*.server.js` handlers above are lowered from `server function` / `server function*` bodies
+in ui/*.scrml. As of S18 (scrml @7d5fda26, §19.9.8) the canonical body shape is:
+    import { safeCallAsync } from "scrml:host"
+    const res = safeCallAsync(() => engine.X()) !{ | ::Thrown(msg) :> ({ ok: false, error: msg }) }
+Source-level `await` is now a HARD compile error (`E-AWAIT-NOT-IN-SCRML`); the compiler AUTO-AWAITS
+`safeCallAsync` inside a server-fn body. No ui/*.scrml server fn uses `await`. Each of the 8 endpoint
+handlers' underlying engine call flows through this failable, so a JS-host throw becomes an
+`{ ok:false, error }` payload instead of a 500 — same Result contract the HTTP layer already returns.
+
 ## JjCliEngine Internal Methods  [src/engine/jj-cli.js, src/engine/interface.js]
 All return { ok: true, data } or { ok: false, error }.
 
@@ -69,7 +79,7 @@ All return { ok: true, data } or { ok: false, error }.
 | files()                     | jj files (at working copy)                          | string[]                                                |
 
 ## Tags
-#giti #map #api #cli #commands #jj #engine #http #scrml
+#giti #map #api #cli #commands #jj #engine #http #scrml #safecall
 
 ## Links
 - [primary.map.md](./primary.map.md)

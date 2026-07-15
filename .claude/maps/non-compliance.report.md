@@ -1,23 +1,25 @@
 # non-compliance.report.md
 # project: giti
-# generated: 2026-07-06T10:16:06-06:00
+# generated: 2026-07-15T16:04:15-06:00
 # scan mode: INCREMENTAL_UPDATE
 
 ## Summary
 
-Total docs scanned: 19  (15 from prior scan + 4 new since ccad5ba: docs/ast-merge/v0-approach-d-shared-note.md,
-docs/ast-merge/compiler-ask-v0.md, docs/ast-merge/prototype/README.md, .pa-base/profile)
-Compliant: 11
+Total docs scanned: 22  (19 from prior scan + 3 new since ccad5ba:
+docs/ast-merge/slice2-enum-merge-and-measured-boundary.md,
+docs/ast-merge/prototype/slice2-enum/README.md,
+docs/ast-merge/prototype/slice3-multi/README.md)
+Compliant: 13  (11 carried + 2 new slice READMEs)
 Non-compliant: 5 (all are deep-dive location flags — see standing note below)
-Uncertain: 3 (1 carried, 2 new — both in docs/ast-merge/)
+Uncertain: 4 (3 carried + 1 new: the slice-2 narrative note)
 
 > **Standing note (carried from S14, 2026-06-22):** The 5 `docs/deep-dives/` location flags are
 > FALSE POSITIVES under current policy — those DDs were deliberately moved into giti as
 > canonical-home per the 2026-05-17 inbox request (acted on S13). They are intentional, not
 > misplaced. Do not deref them.
 
-> **Scope note (S17):** `.claude/CLAUDE.md` (new this session, fenced flobase region) is EXCLUDED from
-> this scan by the mapper's own rules (`.claude/` is on the doc-glob exclusion list) — not assessed,
+> **Scope note (carried, S17):** `.claude/CLAUDE.md` (fenced flobase region) is EXCLUDED from this
+> scan by the mapper's own rules (`.claude/` is on the doc-glob exclusion list) — not assessed,
 > not an oversight.
 
 Docs scanned:
@@ -36,68 +38,71 @@ Docs scanned:
 - docs/deep-dives/giti-design-constraints-from-friction-2026-04-10.md
 - docs/deep-dives/giti-radical-doubt-2026-04-09.md
 - docs/deep-dives/giti-vcs-model-2026-04-09.md
-- docs/ast-merge/v0-approach-d-shared-note.md  ← NEW since ccad5ba
-- docs/ast-merge/compiler-ask-v0.md  ← NEW since ccad5ba
-- docs/ast-merge/prototype/README.md  ← NEW since ccad5ba
-- .pa-base/profile  ← NEW since ccad5ba
+- docs/ast-merge/v0-approach-d-shared-note.md
+- docs/ast-merge/compiler-ask-v0.md
+- docs/ast-merge/prototype/README.md
+- docs/ast-merge/slice2-enum-merge-and-measured-boundary.md  ← NEW since ccad5ba (S18)
+- docs/ast-merge/prototype/slice2-enum/README.md  ← NEW since ccad5ba (S18)
+- docs/ast-merge/prototype/slice3-multi/README.md  ← NEW since ccad5ba (S18)
+- .pa-base/profile
 
 ---
 
-## New docs assessed this scan
+## New docs assessed this scan (S18)
+
+### docs/ast-merge/prototype/slice2-enum/README.md — COMPLIANT
+Documents `slice2-enum/merge-driver-enum.mjs` (enum variant-add merge) + its fixtures. Every claim is
+verifiable against present, runnable code: the driver consumes the shipped `--emit-block-analysis`
+`members[]` array directly (re-parse layer dropped), splices added variants verbatim by span, keys on
+`{name, typeText}`, and the collide fixtures (`sideA-collide`/`sideB-collide`) correctly CONFLICT.
+Same footing as the existing slice-1 prototype/README.md — docs-for-working-code. Gate is stated
+("must compile" via a direct `scrml compiler compile`). No aspirational claims.
+
+### docs/ast-merge/prototype/slice3-multi/README.md — COMPLIANT
+Documents `slice3-multi/merge-driver-multi.mjs` (multi-entity same-file merge). Claims match the code:
+disjoint entities that git text-conflicts on adjacent lines are combined by whole-entity splice;
+same-entity-both-sides recurses into the shared `mergeMembers` path (struct field-merge and enum
+variant-merge unified because both emit `members[]`). Runnable, gate-verified, docs-for-working-code.
+
+### docs/ast-merge/slice2-enum-merge-and-measured-boundary.md — UNCERTAIN, needs human review
+**Reason:** same mixed-status shape as the carried `v0-approach-d-shared-note.md`. This is a dated
+(2026-07-15) write-up whose §1–§2b describe **shipped, gate-verified** work (slice 2 enum merge + slice 3
+multi-entity — both verified directly against the present, runnable `slice2-enum/` and `slice3-multi/`
+drivers) but whose framing (the "measured #6b boundary", the flogence↔giti #6b co-sign it is building
+toward) is a forward-looking research/ask artifact — it locates where the CURRENT approach breaks and
+argues for a FUTURE compiler `#6b` classification surface that does not exist yet.
+**Grep cross-check:** backticked identifiers split between giti-local prototype files (resolve) and
+sibling-repo / spec references (`semdiff.ts`, `#6b`, `--emit-block-analysis` acceptance-shape) — the
+raw grep-mismatch heuristic fires by construction (cross-repo joint note), not because the doc is stale.
+**What to check:** whether this doc gets the same canonical-home carve-out already granted to
+`docs/deep-dives/` and pending on `v0-approach-d-shared-note.md`. It is functionally the same kind of
+artifact (a §4.3 design/research note co-authored with flogence). Decide the two together. Until decided,
+the BUILT `prototype/slice2-enum/` + `slice3-multi/` code (mapped in structure.map.md) is unaffected —
+only this narrative .md is in question.
+
+---
+
+## Carried assessments (unchanged from prior scan)
 
 ### docs/ast-merge/prototype/README.md — COMPLIANT
-Documents `docs/ast-merge/prototype/merge-driver.mjs`, a real, runnable, gate-verified CLI (3-way merges
-a `.scrml` state-type field-add off the scrml compiler's `--emit-block-analysis` sidecar; gate = the
-merged output must compile). Read merge-driver.mjs directly: its structure (blocksOf/entity/parseStruct/
-mergeFields/mergeDriver, byte-span slicing, tight-end re-derivation) matches every claim in the README
-line for line, including the two documented LIMITS (flat-structs-only, additions-only, single-diverged-
-entity). No aspirational claims beyond what the code does. This is executable source with accurate
-accompanying docs — compliant, same footing as any other README-for-working-code in this repo.
+Slice-1 struct field-add prototype docs; real, runnable, gate-verified. (Full detail in prior scan.)
 
-### .pa-base/profile — COMPLIANT (minor observation, not flagged)
-flobase boot manifest — operational PA/agent config, not a claim-about-code-feature document (parallel
-to the previously-assessed `pa-base.md`). Spot-checked verifiable claims: "46 .js" (hand-authored, non-
-compiled-sibling files under src/, excluding dist/) — confirmed exact match by `find`. "375/0 across 14
-files" — confirmed by re-running `bun test` (375 pass, 0 fail, 14 files). One minor staleness noted, not
-flagged: the STACK line's "61 .scrml" was accurate at the profile's own commit (ce4aeb3) but the repo
-has since grown to 65 (repro-33 + docs/ast-merge/prototype/slice/ fixtures added later in the same
-session). This is expected drift in a living config note mid-session, not a false claim about current
-code behavior — no action needed.
+### .pa-base/profile — COMPLIANT (operational config, not a code-feature claim)
+flobase boot manifest, parallel to pa-base.md. Living config note; minor STACK-line count drift is
+expected mid-session, not a false claim about current code. No action needed.
 
 ### docs/ast-merge/v0-approach-d-shared-note.md — UNCERTAIN, needs human review
-**Reason:** mixed status, same shape as the giti-027b precedent below. This is a live, dated (2026-07-06)
-joint design/research note (giti + flogence, an external project's PA) scoping giti-spec §4.3 (AST
-semantic merge) and §4.4 (v3 compiler type-diff). Sections 1-3, 8-9 describe **shipped, gate-verified**
-work (the first slice IS built — verified directly against `docs/ast-merge/prototype/merge-driver.mjs`,
-which exists and runs). Sections 6-7 and most of the "scoped-later" list (§9: real-time keystroke
-detection, OQ-4 perf-at-scale, v3 type-diff, tree-sitter fallback) describe **unimplemented, future**
-work by design — this is explicitly a forward-looking research/ask note, not a reference doc.
-**Grep cross-check:** >20% of backticked identifiers (`scripts/leasing.ts`, `branchFootprint`,
-`ast-merge-fieldadd.ts`, `delta-log.scrml`) resolve to a SIBLING repo (flogence), not giti's own source
-tree — expected for a joint cross-repo note, but it means the raw grep-mismatch heuristic fires by
-construction, not because the doc is stale.
-**What to check:** (a) Whether this doc should get the same canonical-home carve-out already granted to
-`docs/deep-dives/` (2026-05-17 decision, acted on S13) — it is functionally the same kind of artifact
-(a design/research note for a giti spec section, co-authored with a sibling project). (b) If NOT granted
-canonical-home status, this doc (and its "scoped-later" §9) should be flagged non-compliant as
-aspirational content and dispositioned — likely to `scrml-support/docs/` per the deep-dives convention.
-Until decided, the BUILT prototype/ code itself (mapped in structure.map.md) is unaffected either way —
-only the two narrative/ask .md files are in question.
+Mixed status (shipped slices vs forward-looking §6–§7/§9 scoped-later). Cross-repo joint note (giti +
+flogence) for giti-spec §4.3/§4.4. Grep-mismatch fires by construction (identifiers resolve to the
+flogence sibling repo). **What to check:** the canonical-home carve-out decision (same as the new
+slice-2 narrative above). The BUILT prototype/ code is unaffected either way.
 
 ### docs/ast-merge/compiler-ask-v0.md — UNCERTAIN, needs human review
-**Reason:** content-heuristic — this is, by its own framing, an ASK document: it requests two compiler
-extensions from scrml that do not exist yet (`typeShape`/`members` field-level emission, a `bodySpan`).
-Every acceptance criterion in the doc describes behavior the compiler does NOT currently implement
-("Ask 1", "Ask 2", "Acceptance:" section describing what `--emit-block-analysis` should emit but
-doesn't yet). This is squarely the "planned/proposal, describes behavior the code does not currently
-implement" pattern the mapper is instructed to flag — EXCEPT it is not a giti-source claim at all; it is
-a formal, actively-tracked cross-repo ask (per `pa.md` / `.pa-base/profile`, giti has standing
-authorization to file cross-repo bug/asks to `../scrml` without per-instance permission — this looks like
-that same channel, routed via flogence's compiler-as-oracle ledger rather than `handOffs/incoming/`).
-**What to check:** Confirm whether asks-to-scrml belong committed in giti's own repo (as a durable
-record of what was requested and why) or should live only in the receiving repo / a shared ledger.
-If the former, this doc is compliant as a "sent request, kept for the record" — same category as filed
-bug reports. If the latter, disposition is a deref to `scrml-support/` or wherever the joint ledger lives.
+An ASK document by its own framing — requested two `--emit-block-analysis` extensions (member emission +
+bodySpan) that have SINCE SHIPPED as oracle-ask #6 (confirmed by slice-2's verified-on-real-sidecar
+write-up). It is a formal cross-repo ask filed via giti's standing authorization. **What to check:**
+whether sent asks-to-scrml belong committed in giti's repo (durable record) or only in the receiving
+repo / shared ledger. Now that #6 shipped, this doc reads as a "sent request, resolved" record.
 
 ---
 
@@ -106,8 +111,7 @@ bug reports. If the latter, disposition is a deref to `scrml-support/` or wherev
 ### docs/deep-dives/giti-collaboration-primitive-2026-04-09.md
 **Reason:** location — deep-dive doc belongs in scrml-support, not the project repo
 **Detail:** doc is under docs/deep-dives/ with a dated filename (2026-04-09). Per mapping rules,
-deep-dives belong in scrml-support/docs/. This is a historical design rationale document, not a
-current reference used by dev agents working on this codebase.
+deep-dives belong in scrml-support/docs/. This is a historical design rationale document.
 **Suggested disposition:** deref to scrml-support/docs/  [STANDING NOTE: FALSE POSITIVE per S13 canonical-home move]
 
 ### docs/deep-dives/giti-conflict-resolution-2026-04-09.md
@@ -141,67 +145,62 @@ for the legacy path, or (c) historical narrative in master-list.md and hand-off.
 **Correct back-compat code (compliant — intentional):**
 - `src/lib/resolve-compiler.scrml` and `src/lib/resolve-compiler.js` — `SCRMLTS_PATH` env var and
   `../scrmlTS` sibling path are explicitly documented as legacy fallbacks. This is by design.
-- `tests/land.test.js` — tests the legacy `SCRMLTS_PATH` and `../scrmlTS` fallback paths. These tests
-  verify that the legacy path still works, which is the stated backward-compatibility contract.
+- `tests/land.test.js` — tests the legacy `SCRMLTS_PATH` and `../scrmlTS` fallback paths, verifying the
+  stated backward-compatibility contract.
 
 **Cosmetic historical comments in scrml source (compliant — low priority):**
-- `ui/live.scrml`, `ui/feed.scrml` — historical version stamps in comments ("scrmlTS rewrites…", "GITI-009
-  fixed upstream"). `ui/status.scrml`, `ui/history.scrml`, `ui/diff.scrml`, `ui/bookmarks.scrml`,
-  `ui/land.scrml` had their interpolation-related comments touched/cleaned in S15/S17; cosmetic
-  scrmlTS-era flavor text is low priority, no incorrect claims about current behavior.
+- `ui/*.scrml`, `ui/repros/repro-*.scrml` — historical version stamps in comments. Cosmetic scrmlTS-era
+  flavor text is low priority, no incorrect claims about current behavior. (Note: the S18 UI migration
+  touched every page's server fns — grep confirms no `await` and no `try`/`catch` remain in any
+  ui/*.scrml or src/lib/*.scrml source.)
 - `tests/compile-ui.test.js:7` — comment referencing "scrmlTS" in a historical note about GITI-011.
-- `ui/repros/repro-*.scrml` — repro files have `scrmlTS`-versioned comments. Expected in reproducers.
-  Repro-32/33 (S17) correctly use `scrml @<hash>` version stamps, not `scrmlTS`.
 
 **Historical narrative (compliant — expected in a live dev log):**
-- `master-list.md` — extensive `scrmlTS` references in the session log narrative (S11, S12, etc.).
-- `hand-off.md` — explicitly notes the rename and the known lingering cosmetic references.
-- `docs/deep-dives/giti-027b-per-role-ssr-content-stripping-2026-05-30.md` — external path citations like `scrmlTS/compiler/SPEC.md:...`.
-- `docs/changes/ui-idiomatic-rewrite/progress.md` — references to `scrmlTS` in historical compiler-finding notes.
+- `master-list.md`, `hand-off.md` — extensive `scrmlTS` references in session-log narrative; both note
+  the rename and known lingering cosmetic references.
+- `docs/deep-dives/giti-027b-...md`, `docs/changes/ui-idiomatic-rewrite/progress.md` — external path
+  citations / historical compiler-finding notes.
 
 ---
 
 ## Uncertain docs (needs human review)
 
 ### docs/deep-dives/giti-027b-per-role-ssr-content-stripping-2026-05-30.md
-**Reason:** mixed status — this deep-dive is more recent (2026-05-30) and describes a feature (per-role
-SSR HTML stripping) that is **partially implemented** (Part-A: W-AUTH-CONTENT-NOT-GATED warning exists)
-and **partially deferred** (Part-B: per-role HTML stripping). Some identifiers in the doc (`flagContentNotGated`,
-`auth-graph.ts`) live in the scrml compiler repo, not giti. As a design deep-dive it nominally belongs in
-scrml-support, but it was explicitly relocated to giti as canonical per the 2026-05-17 canonical-home-move
-request (per master-list.md:65).
-**What to check:** Confirm whether the canonical-home decision for deep-dives at giti is still the intent,
-or whether the scrml-support move policy supersedes it. If giti is canonical, the doc is compliant.
-If scrml-support is the home, flag for deref. Also verify whether Part-B deferral status has changed.
+**Reason:** mixed status — deep-dive describing per-role SSR HTML stripping, partially implemented
+(Part-A warning exists) and partially deferred (Part-B). Some identifiers live in the scrml compiler
+repo, not giti. Relocated to giti as canonical per the 2026-05-17 move.
+**What to check:** confirm the canonical-home decision still holds; verify whether Part-B deferral status
+has changed.
 
 ### docs/ast-merge/v0-approach-d-shared-note.md
-See "New docs assessed this scan" above.
+See "Carried assessments" above.
 
 ### docs/ast-merge/compiler-ask-v0.md
-See "New docs assessed this scan" above.
+See "Carried assessments" above.
+
+### docs/ast-merge/slice2-enum-merge-and-measured-boundary.md
+See "New docs assessed this scan (S18)" above.
 
 ---
 
 ## Notes
 
-**giti-spec-v1.md** — authoritative spec, dated 2026-04-09. All code references to spec sections
-(§2.1, §3.2, §12.3, etc.) were spot-checked and resolve correctly. §4.3 and §4.4 (cited by the new
-docs/ast-merge/ note) exist in the spec as-cited. COMPLIANT.
+**giti-spec-v1.md** — authoritative spec, dated 2026-04-09. §4.3 and §4.4 (cited by the docs/ast-merge/
+notes) exist as-cited. COMPLIANT.
 
 **README.md** — single-line (`# giti`). No claims to verify. COMPLIANT.
 
-**hand-off.md** — correctly documents the scrmlTS→scrml rename, stale map status, and known cosmetic
-lingering references. COMPLIANT as a session state artifact.
+**hand-off.md** — documents the scrmlTS→scrml rename, session state, known cosmetic lingering references.
+COMPLIANT as a session state artifact.
 
-**master-list.md** — live dev log. Historical `scrmlTS` narrative is expected content for a dev log.
-All source file paths that could be checked exist. COMPLIANT.
+**master-list.md** — live dev log. Historical `scrmlTS` narrative is expected content. COMPLIANT.
 
 **user-voice.md** — user feedback/design inputs. No code identifiers to verify. COMPLIANT.
 
 **LICENSE.md** — license text. COMPLIANT.
 
 **pa-base.md**, **docs/changes/ui-idiomatic-rewrite/progress.md** — carried COMPLIANT from prior scan,
-unaffected by S17 changes.
+unaffected by S18 changes.
 
 ---
 

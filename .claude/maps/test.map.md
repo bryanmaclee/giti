@@ -1,6 +1,6 @@
 # test.map.md
 # project: giti
-# updated: 2026-07-06T10:16:06-06:00  commit: ccad5ba
+# updated: 2026-07-15T16:04:15-06:00  commit: 513ef41
 
 ## Test Framework
 Runner: bun:test (bundled with Bun runtime)
@@ -25,7 +25,9 @@ Run single: bun test tests/<file>.test.js
 | tests/server.test.js              | 40          | HTTP route handler (mocked engine): GET/POST endpoints, CSRF, WS |
 | tests/sync-pull.test.js           | 15          | sync pull, private overlay bootstrap                         |
 | tests/sync-push.test.js           | 16          | sync push, scope-aware push safety                           |
-Total (confirmed by re-run 2026-07-06): 375 tests, 0 failures, 791 expect() calls, 14 files, 15.51s.
+Total: 375 tests, 0 failures, 14 files (unchanged through S18 — the UI/remotes migration touched only
+`.scrml` sources + their compiled `.js` siblings, which the `bun test` suite exercises via the same
+mocked-engine handlers; no test count delta).
 
 ## Test Categories
 Unit:        tests/*.test.js (all except jj-integration and private-jj-integration) — mocked engine/spawn
@@ -38,7 +40,7 @@ These are invoked by hand or by the PA for runtime/browser verification. They ar
 |------------------------------|-----------------------------------------------------------------------|-------------------------------------------------|
 | tests/manual/channel-runtime.mjs | bun run tests/manual/channel-runtime.mjs          | §38 channel: boots real server, opens 2 WS clients, fires refreshStatus, asserts both get __sync broadcast with real jj data |
 | tests/manual/sse-runtime.mjs     | bun run tests/manual/sse-runtime.mjs <dist-dir>   | §37 SSE: loads compiled feed.server.js, counts delivered frames; 2-phase probe isolates enum-undefined (repro-27) root cause |
-| tests/manual/browser-paint.mjs   | bun run tests/manual/browser-paint.mjs [baseURL]  | Headless Chromium drives all 7 UI pages; waits for loaders, inspects painted DOM, screenshots to /tmp/giti-paint/. **S17: made portable** — playwright + chromium resolved from `$HOME` (glob for the installed `chromium-*` build) instead of a hardcoded machine path; default baseURL `http://127.0.0.1:3737`. `land` gets a 45s nav-timeout budget (its on-mount preflight runs the REAL gate: full compile + full `bun test`, ~20s+); other pages use 15s. As of S17: 6/7 pages paint clean, feed blocked on GITI-035 (repro-33). |
+| tests/manual/browser-paint.mjs   | bun run tests/manual/browser-paint.mjs [baseURL]  | Headless Chromium drives all 7 UI pages; waits for loaders, inspects painted DOM, screenshots to /tmp/giti-paint/. Portable — playwright + chromium resolved from `$HOME` (glob for the installed `chromium-*` build); default baseURL `http://127.0.0.1:3737`. `land` gets a 45s nav-timeout budget (its on-mount preflight runs the REAL gate: full compile + full `bun test`, ~20s+); other pages use 15s. **As of S18: 7/7 pages paint clean** — feed now renders live SSE (GITI-035 CLOSED; the seed null-clobber was fixed upstream). This is the standing UI-render gate (server-200 ≠ renders). |
 
 ## Fixtures & Factories
 mockEngine(overrides)         — inline engine stub in server.test.js; overrides specific methods
@@ -53,8 +55,9 @@ issue synthetic Request objects. Assertions use `expect(...).toBe()`, `.toContai
 `.toHaveLength()`, `.toBeGreaterThanOrEqual()`, `.toEndWith()`. Integration tests use beforeAll/afterAll to
 create and clean up real temp repos. No shared fixture files on disk — all setup is inline.
 
-Note: `docs/ast-merge/prototype/merge-driver.mjs` is a separate, standalone research prototype (not part
-of the `bun test` suite or tests/manual/) — its own gate is "the merged file must compile" via a direct
+Note: `docs/ast-merge/prototype/` holds three standalone research merge-driver prototypes (slice 1 struct
+field-add, slice 2 enum variant-add, slice 3 multi-entity) — NOT part of the `bun test` suite or
+tests/manual/. Each driver's own gate is "the merged file must compile" via a direct
 `scrml compiler compile` invocation. See structure.map.md.
 
 ## Tags
