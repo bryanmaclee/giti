@@ -2,7 +2,7 @@
 
 **Purpose:** Live inventory of the giti collaboration platform.
 
-**Last updated:** 2026-07-06 (S17 — compiler s214→s241/v0.7.1. GITI-033 LANDED (scrml `690d7739`) → all 7 compile; §4.17 `<code>`→`<span>` cleanup + browser re-verify → **6 of 7 pages now PAINT clean** (only feed red). Full re-verify sweep: GITI-015 + repro-25/26 defects verified FIXED, E-RI-002 reclassified (§51.0.E). feed seed-clobber filed GITI-035; GITI-016 open (scrml staging). giti **flobase-assembled** (`.pa-base/profile`). AST semantic merge (§4.3) pillar: flogence tag-team → built first-slice prototype + joint compiler-ask co-signed + carried to scrml as oracle ask #6.)
+**Last updated:** 2026-07-15 (S18 — compiler verified @ `7d5fda26` (moved to `211dc076` by wrap; v0.7.x). **7 of 7 UI pages now PAINT** (first ever — feed renders live SSE): scrml turned `await` into a hard error (E-AWAIT-NOT-IN-SCRML), which broke all 7 UI (0/7 compile) → migrated every server fn to `safeCallAsync`/`::Thrown` → 7/7 paint. GITI-035 (feed) + GITI-016 (`match`) verified FIXED upstream. `remotes.scrml` try/catch → `safeCall` (repro-26 fixed). giti UI scrml now `await`-free + `try/catch`-free. NEW bugs filed: GITI-036 (status `==`→`_scrml_structural_eq` tree-shaken out of client bundle) + GITI-037 (no async idiom for plain library fns — blocks the 2 lib async modules). AST semantic merge: slices **2 (enum) + 3 (multi-entity)** built + measured the **#6b boundary** → grounded flogence #6b co-sign (reply sent). 375/0.)
 
 ---
 
@@ -496,6 +496,30 @@ The compiler moved ~27 sessions (s214→s241) between S16 and S17. Session re-gr
 **AST semantic merge (spec §4.3) — the engine-independence-gate pillar (§3.7) moved from spec-stage to a built slice.** Operator-directed flogence↔giti tag-team. `docs/ast-merge/`: (a) **v0 shared note** (`v0-approach-d-shared-note.md`, §6 filled by flogence); (b) **BUILT + gate-verified first-slice prototype** (`prototype/` — `.scrml` state-type field-add merge on the compiler's `--emit-block-analysis` sidecar, consumer path, NO compiler `--merge` entrypoint: git conflicts → driver combines disjoint fields → merged file compiles clean; collision → conflict); (c) **joint compiler-ask v0** (`compiler-ask-v0.md`, **co-signed by flogence**, carried to scrml as **oracle ask #6**) — two additive `--emit-block-analysis` items: [PRIMARY] field-level member emission (per-member spans + typeText, records + enum variants), [secondary] tight `bodySpan`. `--merge`/type-diff entrypoint deferred to v3/§4.4. AST source DECIDED: scrml-parser primary + tree-sitter fallback. Ball with scrml (feasibility-read).
 
 **100%-scrml roadmap** filed to scrml (`2026-07-05-1339`): subprocess primitive + §64 tool-target + cross-scrml library imports + close GITI-016 = the path to giti-authored-entirely-in-scrml (excl. jj). Awaiting scrml.
+
+### S18 — 7/7 UI paint (await-ban migration); AST-merge slices 2+3 + measured boundary; 2 bugs filed (2026-07-15, compiler `7d5fda26`)
+
+Boot found the compiler had moved ~9 days (s241→`7d5fda26`) with conformance-freeze tightening. Session opened on the AST-merge pillar, then a "what's unblocked?" sweep uncovered a blanket UI regression and drove it to the best UI state yet.
+
+**7/7 UI PAINT — first ever.** scrml promoted source-level `await` from the old I-ASYNC warning to a hard error **`E-AWAIT-NOT-IN-SCRML`** (§19.9.8). Every UI server fn used `await engine.X()` → **all 7 pages failed to compile (0/7)** on the current compiler; `giti serve` was broken. Migrated every server fn to `safeCallAsync(() => engine.X()) !{ | ::Thrown(msg) :> ({ok:false, error:msg}) }` (compiler auto-awaits safeCallAsync in server-fn context; the Thrown arm coerces a host throw to the engine's `{ok:false,error}` shape → downstream unchanged). All 7 compile; **headless browser-paint → 7/7 render real data**, including **feed's live SSE** (GITI-035 fixed upstream). The main harness can't verify feed (SSE keeps `networkidle` from firing) — used an SSE-aware `domcontentloaded` probe.
+
+**`remotes.scrml` try/catch → `safeCall`.** repro-26 (lib-mode `safeCall !{}` codegen bug) verified FIXED → migrated `loadRemoteConfig` to the idiomatic `safeCall`/`::Thrown` failable. giti UI scrml is now **`await`-free AND `try/catch`-free**.
+
+**Unblock sweep (verified @ 7d5fda26):**
+- **GITI-035** (feed null-clobber) → **CLOSED** (feed renders live).
+- **GITI-016** (`match` id) → **verified FIXED**; `match`→`m` workaround in `friendly-error.scrml` now removable (a 100%-scrml blocker cleared). *(cleanup deferred to S19.)*
+- **DF-8** (cross-scrml `.scrml` import rewrite in lib mode) → **still blocked** (emit keeps `./x.scrml`).
+- **subprocess primitive** → **still absent** (`scrml:process` has no spawn). jj wrapper stays JS.
+
+**NEW compiler bugs filed to scrml (standing auth):**
+- **GITI-036** (P1, Bug-51) — status `==` in a client markup-interpolation lowers to `_scrml_structural_eq(...)` but the helper is tree-shaken OUT of the client runtime bundle → `ReferenceError` on match re-dispatch. Reproduces standalone; status still paints (throw caught). Idiomatic source retained. `2026-07-15-from-giti-GITI-036-...md`.
+- **GITI-037** (P2, gap) — no async idiom for plain (non-server) library fns: `async` banned + plain fns don't auto-await `safeCallAsync` (only server fns do). **Blocks migrating `save-routing-async.scrml` + `server-helpers.scrml`** (attempted → 14 test fails → reverted to committed async/await `.js`; latent). `2026-07-15-from-giti-GITI-037-...md`.
+
+**AST semantic merge (§4.3) — consumer-side ceiling reached.** On the shipped **#6 member-emission** (`--emit-block-analysis` now emits `typeShape` + `members[]` + tight `bodySpan` — verified on the real sidecar): built **slice 2** (`docs/ast-merge/prototype/slice2-enum/` — enum variant-add merge, re-parse layer dropped, typeText collision detect) + **slice 3** (`slice3-multi/` — multi-entity same-file merge; structs+enums unified under one `mergeMembers` path; glue-change guard). Then **measured the #6b boundary**: the driver goes unsound/blunt at **rename↔use / arg-retype / constant-footprint-behavioral** — a clean rename and a use-breaking rename are byte-identical at the member level; only the compiler (`E-TYPE-063`) separates them = §4.4 v3 / #6b. **giti's merge hits the same wall flogence's review (semdiff) did, independently** → grounds the #6b co-sign. Write-up: `docs/ast-merge/slice2-enum-merge-and-measured-boundary.md`.
+
+**flogence #6b — grounded co-sign SENT** (`../flogence/handOffs/incoming/2026-07-15-from-giti-reframe-cosign-6b-grounded-concurrency.md`): co-sign the converged **merge+review** #6b (sound cosmetic-vs-behavioral classification), grounded in the measured boundary; + the collaboration-layer reframe (adopted, with the amendment that conflict-as-data + private-scopes already differentiate today) + concurrency read (jj dissolves the local-mutex leg, not the cross-machine CAS). scrml already ledgered #6b agreed-in-principle behind its V1 freeze; ball with flogence to fold the converged ask.
+
+**giti scrml/JS split (Q1/Q2):** ~50/50 — ~2,430 LOC scrml (7 UI + 17 lib) vs ~2,600 LOC hand-written JS (engine/CLI/server). UI fully modern-idiomatic; 100%-scrml is compiler-gated (subprocess, §64, DF-8, GITI-037).
 
 ### Cleanup (post-split)
 - [ ][ ] Non-compliance audit
