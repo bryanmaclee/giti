@@ -1,0 +1,8 @@
+<program>
+  type Ref:enum = {
+    Digest(hash: string)
+    None
+  }
+  <ref>: Ref = .Digest("abc123")
+  <p>a git ref</p>
+</program>

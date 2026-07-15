@@ -1,0 +1,9 @@
+<program>
+  type Ref:enum = {
+    Sha(hash: string)
+    Tag(name: string)
+    None
+  }
+  <ref>: Ref = .None
+  <p>a git ref</p>
+</program>

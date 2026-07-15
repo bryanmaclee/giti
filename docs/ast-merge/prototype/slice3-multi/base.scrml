@@ -1,0 +1,7 @@
+<program>
+  type AppState:struct = { count: int, name: string }
+  type Ref:enum = { Sha(hash: string), None }
+  <app>: AppState = { count: 0, name: "x" }
+  fn label(s: AppState) { return s.name }
+  <p>${@app.name}</p>
+</program>
