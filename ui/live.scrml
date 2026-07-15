@@ -28,6 +28,7 @@ type Phase:enum = {
   ${
     // Server-only imports — preserved in .server.js, pruned from .client.js.
     import { getEngine } from '../src/engine/index.js'
+    import { safeCallAsync } from "scrml:host"
     import { parseStatus } from '../src/lib/parse-status.js'
 
     // V5-strict auto-synced cell (§38.4 — no @shared modifier). The state
@@ -50,7 +51,9 @@ type Phase:enum = {
     //   - every local is a single-assignment `const`; branches are ternaries.
     server function refreshStatus() {
       const engine = getEngine()
-      const res = await engine.status()
+      const res = safeCallAsync(() => engine.status()) !{
+        | ::Thrown(msg) :> ({ ok: false, error: msg })
+      }
       const parsed = res.ok
         ? parseStatus(res.data.raw || "")
         : { bookmark: not, changed: [], conflicts: [] }

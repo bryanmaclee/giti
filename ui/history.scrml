@@ -13,6 +13,7 @@
 
 // GITI-009 fixed upstream: scrml rewrites relative-import paths for dist/ui/.
 import { getEngine } from '../src/engine/index.js'
+import { safeCallAsync } from "scrml:host"
 
 type Entry:struct = { changeId: string, description: string, author: string, timestamp: string }
 type TimelinePhase:enum = {
@@ -27,7 +28,9 @@ type TimelinePhase:enum = {
 // Result tuple — no error-tuple, no defaults-dodge.
 server function loadTimeline() {
   const engine = getEngine()
-  const res = await engine.history(50)
+  const res = safeCallAsync(() => engine.history(50)) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   if (!res.ok) return TimelinePhase.Failed(res.error)
   return TimelinePhase.Loaded(res.data)
 }

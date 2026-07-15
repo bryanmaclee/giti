@@ -20,6 +20,7 @@
 
 // Source-relative paths (GITI-009 fixed upstream).
 import { getEngine } from '../src/engine/index.js'
+import { safeCallAsync } from "scrml:host"
 import { parseStatus } from '../src/commands/status.js'
 import { runCompiler, runTests } from '../src/commands/land.js'
 import { loadPrivateManifest, partitionByScope } from '../src/private/scope.js'
@@ -48,7 +49,9 @@ server function loadLandingPreflight() {
   const engine = getEngine()
 
   // Gate 1: private-files
-  const statusRes = await engine.status()
+  const statusRes = safeCallAsync(() => engine.status()) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   let privateGate = { ok: true, files: [] }
   if (statusRes.ok && statusRes.data.raw) {
     const parsed = parseStatus(statusRes.data.raw)
@@ -62,13 +65,17 @@ server function loadLandingPreflight() {
   }
 
   // Gate 2: conflicts
-  const conflictRes = await engine.conflicts()
+  const conflictRes = safeCallAsync(() => engine.conflicts()) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   const conflictsGate = conflictRes.ok
     ? { ok: !conflictRes.data.hasConflicts, files: conflictRes.data.files || [] }
     : { ok: false, error: conflictRes.error, files: [] }
 
   // Gate 3: compiler (all .scrml files)
-  const compilerRes = await runCompiler()
+  const compilerRes = safeCallAsync(() => runCompiler()) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   const compilerGate = compilerRes.ok
     ? {
         ok: true,
@@ -78,7 +85,9 @@ server function loadLandingPreflight() {
     : { ok: false, error: compilerRes.error }
 
   // Gate 4: tests (full bun test)
-  const testRes = await runTests()
+  const testRes = safeCallAsync(() => runTests()) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   const testsGate = testRes.ok
     ? { ok: true, count: testRes.data.count }
     : { ok: false, error: testRes.error }

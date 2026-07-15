@@ -17,6 +17,7 @@
 
 // GITI-009 fixed upstream: scrml rewrites relative-import paths for dist/ui/.
 import { getEngine } from '../src/engine/index.js'
+import { safeCallAsync } from "scrml:host"
 
 type DiffMode:enum = {
   WorkingCopy
@@ -46,7 +47,9 @@ fn modeFromParam(param: string?) {
 
 server function loadHistory() {
   const engine = getEngine()
-  const res = await engine.history(30)
+  const res = safeCallAsync(() => engine.history(30)) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   if (!res.ok) return HistoryPhase.Failed(res.error)
   return HistoryPhase.Loaded(res.data)
 }
@@ -56,9 +59,9 @@ server function loadHistory() {
 // so the client reads the URL param and passes it in as an explicit arg.
 server function loadDiff(changeId) {
   const engine = getEngine()
-  const res = changeId
-    ? await engine.diffChange(changeId)
-    : await engine.diff()
+  const res = safeCallAsync(() => changeId ? engine.diffChange(changeId) : engine.diff()) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   if (!res.ok) return DiffPhase.Failed(res.error)
   return DiffPhase.Loaded(res.data || "")
 }

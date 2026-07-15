@@ -16,6 +16,7 @@
 // GITI-009 fixed upstream: scrml rewrites relative-import paths for the
 // compiled output location, so source-relative paths are correct.
 import { getEngine } from '../src/engine/index.js'
+import { safeCallAsync } from "scrml:host"
 import { parseStatus } from '../src/commands/status.js'
 import { classifyFromStatus } from '../src/private/save-routing.js'
 
@@ -53,7 +54,9 @@ type HistoryPhase:enum = {
 
 server function loadStatus() {
   const engine = getEngine()
-  const res = await engine.status()
+  const res = safeCallAsync(() => engine.status()) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   if (!res.ok) return StatusPhase.Failed(res.error)
   const cls = classifyFromStatus(res.data.raw || "", process.cwd())
   return StatusPhase.Loaded({
@@ -67,14 +70,18 @@ server function loadStatus() {
 
 server function loadHistory() {
   const engine = getEngine()
-  const res = await engine.history(12)
+  const res = safeCallAsync(() => engine.history(12)) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   if (!res.ok) return HistoryPhase.Failed(res.error)
   return HistoryPhase.Loaded(res.data)
 }
 
 server function loadBookmarks() {
   const engine = getEngine()
-  const res = await engine.listBranches()
+  const res = safeCallAsync(() => engine.listBranches()) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   if (!res.ok) return BookmarksPhase.Failed(res.error)
   return BookmarksPhase.Loaded(res.data)
 }

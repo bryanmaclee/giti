@@ -3,15 +3,17 @@
 //
 // New surface tested in this port:
 //   - JSON.parse + JSON.stringify (untested in prior ports)
-//   - try { ... } catch { ... } — RETAINED as a compiler-gap workaround: the
-//     idiomatic replacement is `safeCall` (scrml:host), but `safeCall(...) !{}`
-//     emits invalid JS in --mode library (this file's mode). See loadRemoteConfig.
+//   - safeCall (scrml:host) + `!{ ::Thrown }` failable — the values-not-exceptions
+//     idiom (§19) for JS-host throws (readFileSync ENOENT / JSON.parse SyntaxError).
+//     Migrated S18 from a try/catch workaround once the lib-mode safeCall codegen
+//     bug (repro-26) landed fixed on scrml — verified compiling on scrml 7d5fda26.
 //   - Array.isArray, .find, .some, .filter, .map, .includes
-//   - Multi-stdlib (scrml:path + scrml:fs)
+//   - Multi-stdlib (scrml:path + scrml:fs + scrml:host)
 
 ${
     import { dirname, join } from "scrml:path"
     import { readFileSync, writeFileSync, existsSync, mkdirSync } from "scrml:fs"
+    import { safeCall } from "scrml:host"
 
     export const REMOTES_PATH = ".giti/remotes.json"
     export const SCOPES = ["public", "private"]
@@ -24,27 +26,23 @@ ${
         const abs = join(repoRoot, REMOTES_PATH)
         if (!existsSync(abs)) return emptyConfig()
 
-        // NOTE (S15): the idiomatic replacement here is `safeCall` (scrml:host)
-        // wrapping the throwing readFileSync / JSON.parse, with the emptyConfig
-        // fallback in an `!{}` error arm. That is BLOCKED by a compiler bug:
-        // `safeCall(...) !{}` emits invalid JS in `--mode library` (this file's
-        // compile mode) — it compiles fine in program mode. Filed to scrml.
-        // Until the lib-mode safeCall codegen is fixed, the try/catch stays.
-        try {
-            const raw = readFileSync(abs, "utf8")
-            const parsed = JSON.parse(raw)
-            if (!parsed || !Array.isArray(parsed.remotes)) return emptyConfig()
-            const remotes = parsed.remotes
-                .filter(r => r && typeof r.name == "string")
-                .map(r => ({
-                    name: r.name,
-                    url: typeof r.url == "string" ? r.url : "",
-                    scope: SCOPES.includes(r.scope) ? r.scope : "public",
-                }))
-            return { remotes }
-        } catch {
-            return emptyConfig()
+        // Values-not-exceptions (§19): safeCall contains the JS-host throw
+        // (readFileSync ENOENT / JSON.parse SyntaxError) into a failable; the
+        // `::Thrown` arm maps a throw to `not`, and we fall back to emptyConfig().
+        const parsed = safeCall(() => JSON.parse(readFileSync(abs, "utf8"))) !{
+            | ::Thrown :> not
         }
+        if (parsed is not) return emptyConfig()
+        if (!Array.isArray(parsed.remotes)) return emptyConfig()
+
+        const remotes = parsed.remotes
+            .filter(r => r && typeof r.name == "string")
+            .map(r => ({
+                name: r.name,
+                url: typeof r.url == "string" ? r.url : "",
+                scope: SCOPES.includes(r.scope) ? r.scope : "public",
+            }))
+        return { remotes }
     }
 
     export function saveRemoteConfig(repoRoot, cfg) {

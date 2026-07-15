@@ -8,6 +8,7 @@
 
 // GITI-009 fixed upstream: scrml rewrites relative-import paths for dist/ui/.
 import { getEngine } from '../src/engine/index.js'
+import { safeCallAsync } from "scrml:host"
 
 type Bookmark:struct = { name: string, info: string, active: boolean }
 type BookmarksPhase:enum = {
@@ -21,7 +22,9 @@ type BookmarksPhase:enum = {
 // straight off the engine Result tuple.
 server function loadBookmarkList() {
   const engine = getEngine()
-  const res = await engine.listBranches()
+  const res = safeCallAsync(() => engine.listBranches()) !{
+    | ::Thrown(msg) :> ({ ok: false, error: msg })
+  }
   if (!res.ok) return BookmarksPhase.Failed(res.error)
   return BookmarksPhase.Loaded(res.data)
 }

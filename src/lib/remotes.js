@@ -3,6 +3,7 @@
 
 import { dirname, join } from "./_scrml/path.js"
     import { readFileSync, writeFileSync, existsSync, mkdirSync } from "./_scrml/fs.js"
+    import { safeCall } from "./_scrml/host.js"
 
     export const REMOTES_PATH = ".giti/remotes.json"
     export const SCOPES = ["public", "private"]
@@ -15,27 +16,28 @@ import { dirname, join } from "./_scrml/path.js"
         const abs = join(repoRoot, REMOTES_PATH)
         if (!existsSync(abs)) return emptyConfig()
 
-        // NOTE (S15): the idiomatic replacement here is `safeCall` (scrml:host)
-        // wrapping the throwing readFileSync / JSON.parse, with the emptyConfig
-        // fallback in an `!{}` error arm. That is BLOCKED by a compiler bug:
-        // `safeCall(...) !{}` emits invalid JS in `--mode library` (this file's
-        // compile mode) — it compiles fine in program mode. Filed to scrml.
-        // Until the lib-mode safeCall codegen is fixed, the try/catch stays.
-        try {
-            const raw = readFileSync(abs, "utf8")
-            const parsed = JSON.parse(raw)
-            if (!parsed || !Array.isArray(parsed.remotes)) return emptyConfig()
-            const remotes = parsed.remotes
-                .filter(r => r && typeof r.name == "string")
-                .map(r => ({
-                    name: r.name,
-                    url: typeof r.url == "string" ? r.url : "",
-                    scope: SCOPES.includes(r.scope) ? r.scope : "public",
-                }))
-            return { remotes }
-        } catch {
-            return emptyConfig()
-        }
+        // Values-not-exceptions (§19): safeCall contains the JS-host throw
+        // (readFileSync ENOENT / JSON.parse SyntaxError) into a failable; the
+        // `::Thrown` arm maps a throw to `not`, and we fall back to emptyConfig().
+        let _scrml__scrml_result_1 = safeCall(() => JSON.parse(readFileSync(abs, "utf8")));
+if (_scrml__scrml_result_1 && _scrml__scrml_result_1.__scrml_error) {
+  if (_scrml__scrml_result_1.variant === "Thrown") {
+    _scrml__scrml_result_1 = null;
+  }
+  else { return _scrml__scrml_result_1; }
+}
+var parsed = _scrml__scrml_result_1;
+        if ((parsed === null || parsed === undefined)) return emptyConfig()
+        if (!Array.isArray(parsed.remotes)) return emptyConfig()
+
+        const remotes = parsed.remotes
+            .filter(r => r && typeof r.name == "string")
+            .map(r => ({
+                name: r.name,
+                url: typeof r.url == "string" ? r.url : "",
+                scope: SCOPES.includes(r.scope) ? r.scope : "public",
+            }))
+        return { remotes }
     }
 
     export function saveRemoteConfig(repoRoot, cfg) {

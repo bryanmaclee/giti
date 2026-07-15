@@ -34,12 +34,15 @@ type Phase:enum = {
 
 ${
   import { getEngine } from '../src/engine/index.js'
+  import { safeCallAsync } from "scrml:host"
   import { parseStatus } from '../src/lib/parse-status.js'
   import { delay } from '../src/lib/delay.js'
 
   server function* watchStatus() {
     while (true) {
-      const res = await getEngine().status()
+      const res = safeCallAsync(() => getEngine().status()) !{
+        | ::Thrown(msg) :> ({ ok: false, error: msg })
+      }
       const parsed = res.ok
         ? parseStatus(res.data.raw || "")
         : { bookmark: not, changed: [], conflicts: [] }
@@ -54,7 +57,9 @@ ${
           at: new Date().toISOString(),
         },
       }
-      await delay(1000)
+      safeCallAsync(() => delay(1000)) !{
+        | ::Thrown :> not
+      }
     }
   }
 }
