@@ -26,6 +26,10 @@ mkdirSync(OUT, { recursive: true });
 const PAGES = ["status", "history", "bookmarks", "diff", "land", "live", "feed"];
 // Per-page "still on the skeleton" markers — if visible text is ONLY these, the loader never painted.
 const SKELETON = ["loading", "waiting…", "waiting...", "loading…"];
+// SSE pages hold an EventSource open, so `networkidle` NEVER fires (the request stays live) and
+// `goto` times out even though the page renders. Settle on DOM parse + a paint window instead
+// (S18 thread 5). WS-driven pages (live) DO reach networkidle, so they stay on the default path.
+const SSE_PAGES = new Set(["feed"]);
 
 const browser = await chromium.launch({ executablePath: EXEC, headless: true });
 const results = [];
@@ -43,9 +47,11 @@ for (const name of PAGES) {
     // land's on-mount preflight runs the REAL gate (compile all .scrml + full `bun test`,
     // ~20s+), so its loader legitimately holds the connection well past a normal budget.
     const navTimeout = name === "land" ? 45000 : 15000;
-    await page.goto(`${BASE}/${name}.html`, { waitUntil: "networkidle", timeout: navTimeout });
-    // give SSE/WS-driven pages (live, feed) time for the first event to paint
-    await page.waitForTimeout(name === "live" || name === "feed" ? 2500 : 1200);
+    // SSE pages can't reach networkidle (open EventSource) — settle on DOM parse instead.
+    const waitUntil = SSE_PAGES.has(name) ? "domcontentloaded" : "networkidle";
+    await page.goto(`${BASE}/${name}.html`, { waitUntil, timeout: navTimeout });
+    // give SSE/WS-driven pages time for the first event to connect + paint
+    await page.waitForTimeout(SSE_PAGES.has(name) ? 3000 : name === "live" ? 2500 : 1200);
     title = await page.title();
     text = (await page.evaluate(() => document.querySelector(".app")?.innerText || document.body.innerText || "")).trim();
     await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: true });
