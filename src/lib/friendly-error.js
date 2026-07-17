@@ -26,11 +26,8 @@
 
         // Bookmark already exists.
         if (/bookmark.*already exists/i.test(raw)) {
-            // GITI-016 workaround: variable name `match` triggers a
-            // parser confusion in some contexts (likely conflicting with
-            // scrml's `<match>` markup-element keyword). Use `m` instead.
-            const m = raw.match(/bookmark\s+"?([^\s"]+)"?/i)
-            const name = (m !== null && m !== undefined) ? m[1] : "that name"
+            const match = raw.match(/bookmark\s+"?([^\s"]+)"?/i)
+            const name = (match !== null && match !== undefined) ? match[1] : "that name"
             return `A bookmark named '${name}' already exists. Pick a different name or delete the existing one first.`
         }
 
