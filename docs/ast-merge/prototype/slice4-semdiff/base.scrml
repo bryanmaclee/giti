@@ -1,0 +1,7 @@
+<program>
+  type Ref:enum = { Sha(hash: string), None }
+  <ref1>: Ref = .Sha("abc")
+  type Anchor:struct = { at: string }
+  <ref2>: Ref = .None
+  <p>base</p>
+</program>

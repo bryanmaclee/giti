@@ -1,0 +1,7 @@
+<program>
+  type Ref:enum = { Digest(hash: string), None }
+  <ref1>: Ref = .Digest("abc")
+  type Anchor:struct = { at: string }
+  <ref2>: Ref = .None
+  <p>base</p>
+</program>
