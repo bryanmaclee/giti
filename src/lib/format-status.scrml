@@ -10,7 +10,7 @@ ${
     // formatStatus — render a parsed status object as readable text.
     // Input shape: { changed, conflicts, bookmark, hasConflictMessage }
     // Output: a single string with embedded newlines (no trailing \n).
-    export function formatStatus({ changed, conflicts, bookmark, hasConflictMessage }) {
+    export fn formatStatus({ changed, conflicts, bookmark, hasConflictMessage }) {
         const parts = []
 
         // Conflict display (highest priority).

@@ -17,7 +17,7 @@ ${
 
     const SKIP_DIRS = ["docs", "node_modules", "dist"]
 
-    function shouldSkipDir(relPath) {
+    fn shouldSkipDir(relPath) {
         for (const skip of SKIP_DIRS) {
             if (relPath == skip) return true
         }

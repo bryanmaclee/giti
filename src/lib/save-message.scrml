@@ -10,7 +10,7 @@
 ${
     // generateMessage — synthesize a "save" message from the changed-files
     // list when the author hasn't supplied one.
-    export function generateMessage(changed) {
+    export fn generateMessage(changed) {
         if (!changed || changed.length == 0) {
             return "save"
         }

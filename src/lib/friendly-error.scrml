@@ -13,7 +13,7 @@ ${
     // friendlyError — map common jj stderr patterns to friendlier messages.
     // Returns the friendly message if matched, otherwise the raw stderr
     // (capped at 300 chars).
-    export function friendlyError(stderr) {
+    export fn friendlyError(stderr) {
         const raw = stderr.trim()
         if (!raw) return "An unknown error occurred."
 

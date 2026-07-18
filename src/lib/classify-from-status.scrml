@@ -13,7 +13,7 @@ ${
     import { loadPrivateManifest } from "./scope-manifest.js"
 
     // classifyFromStatus — raw jj status output + repo root → routing decision.
-    export function classifyFromStatus(rawStatus, repoRoot) {
+    export fn classifyFromStatus(rawStatus, repoRoot) {
         const parsed = parseStatus(rawStatus is some ? rawStatus : "")
         const globs = loadPrivateManifest(repoRoot)
         return {

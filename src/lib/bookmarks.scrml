@@ -13,7 +13,7 @@ ${
     //   - public remote    → [main]
     //   - private remote   → [main, _private]
     // Spec §12.3 normative #1/#2.
-    export function bookmarksForPush(targetRemote) {
+    export fn bookmarksForPush(targetRemote) {
         if (!targetRemote) return []
         if (targetRemote.scope == "private") {
             return [PUBLIC_BOOKMARK, PRIVATE_BOOKMARK]

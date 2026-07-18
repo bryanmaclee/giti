@@ -15,7 +15,7 @@ ${
 
     // normalizeRelPath — repo-relative path to forward-slash form for
     // glob matching. Strips leading "./" and "/" segments.
-    export function normalizeRelPath(p) {
+    export fn normalizeRelPath(p) {
         if (!p) return ""
         const sepRegex = sep == "\\" ? new RegExp("\\\\", "g") : new RegExp(sep, "g")
         let out = p.replace(sepRegex, "/")
@@ -27,7 +27,7 @@ ${
     // globToRegExp — compile a glob into a JS RegExp anchored at start+end.
     // Supports `*`, `**`, `?`, character classes `[abc]`. Other regex
     // metachars are escaped.
-    function globToRegExp(glob) {
+    fn globToRegExp(glob) {
         let re = "^"
         let i = 0
         while (i < glob.length) {
@@ -62,7 +62,7 @@ ${
     }
 
     // matchGlob — return true if `relPath` matches the given glob.
-    export function matchGlob(relPath, glob) {
+    export fn matchGlob(relPath, glob) {
         const p = normalizeRelPath(relPath)
         const g = glob.trim()
         if (!g) return false
@@ -82,7 +82,7 @@ ${
     }
 
     // isPrivatePath — true iff any glob matches.
-    export function isPrivatePath(relPath, globs) {
+    export fn isPrivatePath(relPath, globs) {
         if (!relPath) return false
         for (const g of globs) {
             if (matchGlob(relPath, g)) return true
@@ -92,7 +92,7 @@ ${
 
     // partitionByScope — split a list of {path, kind?} entries into
     // public / private buckets.
-    export function partitionByScope(files, globs) {
+    export fn partitionByScope(files, globs) {
         const pub = []
         const priv = []
         for (const f of files) {

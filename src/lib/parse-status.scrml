@@ -14,7 +14,7 @@
 //   Working copy : abc123 feature-x
 
 ${
-    export function parseStatus(raw) {
+    export fn parseStatus(raw) {
         const lines = raw.split("\n")
         const changed = []
         const conflicts = []

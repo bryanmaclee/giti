@@ -16,7 +16,7 @@ ${
 
     // classifyChanges — split a status into a routing decision.
     // Returns { scope, publicFiles, privateFiles }.
-    export function classifyChanges(changed, globs) {
+    export fn classifyChanges(changed, globs) {
         if (!changed || changed.length == 0) {
             return { scope: "empty", publicFiles: [], privateFiles: [] }
         }
@@ -32,7 +32,7 @@ ${
 
     // planBookmarkMoves — given a classification scope, return which
     // bookmarks should advance.
-    export function planBookmarkMoves(scope) {
+    export fn planBookmarkMoves(scope) {
         if (scope == "public") return [PUBLIC_BOOKMARK, PRIVATE_BOOKMARK]
         if (scope == "private") return [PRIVATE_BOOKMARK]
         return []
@@ -40,7 +40,7 @@ ${
 
     // splitMessages — derive (publicMsg, privateMsg) from a single user
     // message plus per-bucket auto-generated descriptions.
-    export function splitMessages(userMessage, autoPublic, autoPrivate) {
+    export fn splitMessages(userMessage, autoPublic, autoPrivate) {
         if (userMessage && userMessage.trim()) {
             return {
                 publicMessage: `${userMessage.trim()} [public]`,

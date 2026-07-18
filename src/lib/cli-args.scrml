@@ -7,7 +7,7 @@ ${
     // parseSaveFlags — pull `--split` out, return { split, messageArgs }.
     // Everything that isn't `--split` is kept in order in messageArgs so
     // the caller can `.join(" ")` it back into a save message.
-    export function parseSaveFlags(args) {
+    export fn parseSaveFlags(args) {
         const out = []
         let split = false
         for (const a of args) {
@@ -22,7 +22,7 @@ ${
 
     // extractSince — pull `--since <duration>` out of an args array.
     // Returns { since: string | not, rest: string[] }.
-    export function extractSince(args) {
+    export fn extractSince(args) {
         const i = args.indexOf("--since")
         if (i == -1) return { since: not, rest: args }
         const value = args[i + 1]

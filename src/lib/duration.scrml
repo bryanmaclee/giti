@@ -8,7 +8,7 @@
 ${
     // parseDuration — accept "30m" / "2h" / "1d" / "7d" forms.
     // Returns { ok: true, ms } or { ok: false, error }.
-    export function parseDuration(s) {
+    export fn parseDuration(s) {
         if (typeof s != "string") {
             return { ok: false, error: "duration is required" }
         }
