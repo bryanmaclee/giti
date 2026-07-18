@@ -1,0 +1,33 @@
+// repro-34 — E-ROUTE-001 over-fires on numeric regex-capture array access
+// inside an object-literal value, in a PURE, route-less library module.
+//
+// Filed: giti dogfood audit S19, 2026-07-18, scrml @ 1e63bbb1 (--mode library).
+// Surfaced on src/lib/parse-status.scrml (parseStatus) — a pure jj-status text parser
+// with no <db>, no routes, no protected fields.
+//
+// EXPECTED: no warning — `m[1]`/`m[2]` are numeric indices into a RegExpMatchArray,
+//           not a computed protected-field access (`row[key]`). Route inference is
+//           irrelevant in a pure library function.
+// ACTUAL:   warning [E-ROUTE-001] on position (A) — "Computed member access ...
+//           cannot statically determine the accessed property name ... protected field".
+//
+// Characterization: the trigger is the object-literal VALUE position, not regex access
+// per se — (A) fires, (B) does not, though both do the identical `m[n]` capture read.
+
+${
+    export fn parseKV(raw) {
+        const out = []
+        const m = raw.match(/(\w+):(\w+)/)
+
+        // (A) computed capture access inside an object literal (.push arg) -> E-ROUTE-001 FIRES
+        if (m is some) {
+            out.push({ key: m[1], val: m[2].trim() })
+        }
+
+        // (B) computed capture access in a ternary / const bind -> NO warning
+        const first = m is some ? m[1] : "none"
+        out.push({ key: "first", val: first })
+
+        return out
+    }
+}

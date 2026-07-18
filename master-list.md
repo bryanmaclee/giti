@@ -2,7 +2,7 @@
 
 **Purpose:** Live inventory of the giti collaboration platform.
 
-**Last updated:** 2026-07-15 (S18 — compiler verified @ `7d5fda26` (moved to `211dc076` by wrap; v0.7.x). **7 of 7 UI pages now PAINT** (first ever — feed renders live SSE): scrml turned `await` into a hard error (E-AWAIT-NOT-IN-SCRML), which broke all 7 UI (0/7 compile) → migrated every server fn to `safeCallAsync`/`::Thrown` → 7/7 paint. GITI-035 (feed) + GITI-016 (`match`) verified FIXED upstream. `remotes.scrml` try/catch → `safeCall` (repro-26 fixed). giti UI scrml now `await`-free + `try/catch`-free. NEW bugs filed: GITI-036 (status `==`→`_scrml_structural_eq` tree-shaken out of client bundle) + GITI-037 (no async idiom for plain library fns — blocks the 2 lib async modules). AST semantic merge: slices **2 (enum) + 3 (multi-entity)** built + measured the **#6b boundary** → grounded flogence #6b co-sign (reply sent). 375/0.)
+**Last updated:** 2026-07-18 (S19 — compiler churned ~6× (`7d5fda26`→`1e63bbb1`); re-verify HEAD every compile. **#6b `scrml semdiff` LANDED** (scrml `780e4342`) → integrated as **slice-4** (`docs/ast-merge/prototype/slice4-semdiff/`), the §4.4-v3 compiler-validated merge layer keying on `semdiff diagnostics.added`; **the S18 measured boundary is CLOSED from the merge side** (accepts clean rename, catches use-breaking one via E-TYPE-063 — strictly dominates git-silent-ship + slice-3-blunt). **GITI-036 VERIFIED FIXED** (structural-eq treeshake; status paints clean). **GITI-016 workaround REMOVED** (`match` id fixed upstream). **fn-promotion sweep**: 21 pure lib fns `function`→`fn` across 12 modules (source-only, .js byte-identical). **browser-paint** now SSE-aware → true 7/7 in one run. **Dogfood re-verify audit** @ `99ae45ca`: 15/17 lib clean (2 = GITI-037 async), 7/7 UI compile+paint, no regression; filed **E-ROUTE-001** P3 FYI (over-fires on regex-capture in object-literal). GITI-037 ANSWERED+BANKED upstream (colorless-async Phase 1 not built). 375/0.)
 
 ---
 
@@ -521,9 +521,25 @@ Boot found the compiler had moved ~9 days (s241→`7d5fda26`) with conformance-f
 
 **giti scrml/JS split (Q1/Q2):** ~50/50 — ~2,430 LOC scrml (7 UI + 17 lib) vs ~2,600 LOC hand-written JS (engine/CLI/server). UI fully modern-idiomatic; 100%-scrml is compiler-gated (subprocess, §64, DF-8, GITI-037).
 
+### S19 — #6b semdiff integrated (§4.4-v3 boundary CLOSED); quick-win closures; fn-promotion; dogfood re-verify (2026-07-18, compiler churned `7d5fda26`→`1e63bbb1`)
+
+Boot found three post-S18 replies: GITI-036 fixed, GITI-037 answered, and — the strategic one — the **#6b semantic-diff primitive LANDED** on scrml (`780e4342`, PR #91), the compiler classification S18's AST-merge *measured boundary* was hard-blocked on.
+
+**#6b `scrml semdiff` INTEGRATED — slice-4 (§4.4-v3).** Built `docs/ast-merge/prototype/slice4-semdiff/` (+ write-up `docs/ast-merge/slice4-semdiff-v3-validation.md`). The driver loosens the structural merge to combine **disjoint glue edits** (which can silently type-break), then gates candidate `M` with `scrml semdiff base M --json`, keying on **`diagnostics.added`** = giti-spec §4.4 v3 verbatim ("type errors introduced by the merge, not pre-existing"). **Measured, strictly dominates both neighbors:** CLEAN merge → git auto-merges · slice-3 falls-through-blunt · **slice-4 accepts (exit 1)**; DANGLING merge (`.Sha` vs renamed `Ref{Digest}`) → git **ships it SILENTLY** (M fails E-TYPE-063) · slice-3 blunt · **slice-4 catches E-TYPE-063, refuses (exit 2)**. giti's `giti-rename-use` wall is regression-pinned in scrml's fixture suite. **docs/ast-merge/ now has 4 built slices** (1 struct field-add, 2 enum, 3 multi-entity, 4 semdiff-validated). Confirmation sent to scrml; no mis-classification to file. **Productization** (`giti merge`/`giti resolve` wire-in + `giti status --merge-log`) **DEFERRED** — subprocess-gated (production driver is scrml; can't spawn `scrml semdiff` yet).
+
+**Quick-win closures.** **GITI-036** (structural-eq treeshake) VERIFIED FIXED @ `01160fb8` (fix `4d0220c7`, PR #59): runtime bundle DEFINES `_scrml_structural_eq` (0→1); status browser-paints loaded data, zero ref-errors. No giti source change (idiomatic source retained). **GITI-016** (`match` id → E-SCOPE-001) workaround REMOVED in `friendly-error.scrml` (fixed upstream; `is some` lowers clean). **GITI-037** ANSWERED + BANKED upstream (bryan S258: colorless typed-and-surfaced async, ~80% built, Phase-1 not dispatched) — 2 lib async modules stay on committed `.js` until it lands.
+
+**fn-promotion idiom sweep.** 21 pure functions `function`→`fn` (the enforced-pure form; compiler `I-FN-PROMOTABLE`) across 12 lib modules. Source-only — `fn` lowers to the same `export function` emit, so every module `.js` is byte-identical (verified); 375/0. Cascade: promoting `globToRegExp`→`fn` unlocked its caller `matchGlob`. Only `server-helpers.scrml` (2 fns) keeps `function` — GITI-037-blocked (promotes for free once colorless-async lands).
+
+**browser-paint SSE fix.** `browser-paint.mjs` now settles SSE pages (feed) on `domcontentloaded`, not `networkidle` (which never fires on an open EventSource) → **true 7/7 in the main run** (was 6/7 + a feed timeout). S18 thread 5 closed.
+
+**Dogfood re-verification audit** @ `99ae45ca` (compiler churned ~6× this session). 15/17 lib compile clean (2 fails = `save-routing-async` + `server-helpers`, GITI-037 async modules, hard-error on `await` — expected); 7/7 UI compile + **7/7 browser-paint on the current HEAD**; 375/0. **No regression on the churning compiler.** One finding: **E-ROUTE-001** over-fires on numeric regex-capture array access (`m[1]`, `m[2]`) inside an object-literal value, in a pure route-less lib module (`parse-status`) — characterized (object-literal position fires, ternary does not), filed P3 FYI with repro `ui/repros/repro-34-e-route-001-computed-capture-in-object-literal.scrml`. Non-blocking (warning, correct emit).
+
+**S19 commits:** `18e9bae` (036 re-verify + 016 cleanup + inbox drain) · `555b5dd` (slice-4 semdiff) · `635e514` (browser-paint SSE) · `64883a8` (fn-promotion sweep) · wrap (repro-34 + docs + maps). **375/0.**
+
 ### Cleanup (post-split)
-- [ ][ ] Non-compliance audit
-- [ ][ ] Cold project map
+- [ ][ ] Non-compliance audit — *(S19 dogfood re-verify covered compiled-artifact currency: all sources compile clean on current HEAD, UI paints 7/7. A doc-vs-spec non-compliance pass is still open.)*
+- [ ][ ] Cold project map — *(S19 did an incremental project-mapper refresh at wrap; a full cold regen is still open.)*
 
 ---
 
