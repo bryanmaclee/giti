@@ -569,7 +569,7 @@ The design fork deferred twice (S18, S19) was opened and resolved: **productize 
 
 **Verified end-to-end** (real jj 0.41 + real compiler `1c577da5`): DANGLING → refused with `E-TYPE-063`, exit 1 · CLEAN → accepted, exit 0, merged file compiles (**no false positive**) · `status --merge-log` renders · plain `status` unaffected. **Tests 375 → 421** across 16 files.
 
-**Open / next:** ~~`giti resolve` unbuilt~~ → **BUILT, see S20c below.** Tree-sitter for non-`.scrml` (§4.3.2) unbuilt — non-`.scrml` conflicts stay on the text fallback (§4.3.3). Open question: whether `.giti/merge-log.json` should be tracked (it currently shows as an unsaved change) or local-only — tracking an append-only log invites conflicts *on the log itself*.
+**Open / next:** ~~`giti resolve` unbuilt~~ → **BUILT, see S20c below.** Tree-sitter for non-`.scrml` (§4.3.2) unbuilt — non-`.scrml` conflicts stay on the text fallback (§4.3.3). `.giti/merge-log.json` is LOCAL-ONLY (gitignored) — operator decision S20; see S20c.
 
 ### S20c — `giti resolve` SHIPPED: command #16 (2026-07-19, `a9f8107`)
 
@@ -586,7 +586,7 @@ The design fork deferred twice (S18, S19) was opened and resolved: **productize 
 
 **Tests 421 → 441** (17 files). Session total **375 → 441**.
 
-**Still open:** tree-sitter for non-`.scrml` (§4.3.2) unbuilt — those conflicts stay on the text fallback (§4.3.3). `giti resolve` is non-interactive by design (no TUI); the spec's "[4] Edit manually" is a pointer, not a prompt. Open question: whether `.giti/merge-log.json` should be tracked or local-only — tracking an append-only log invites conflicts *on the log itself*; PA leans local-only, operator call.
+**Still open:** tree-sitter for non-`.scrml` (§4.3.2) unbuilt — those conflicts stay on the text fallback (§4.3.3). `giti resolve` is non-interactive by design (no TUI); the spec's "[4] Edit manually" is a pointer, not a prompt. **RESOLVED (operator, S20): `.giti/merge-log.json` is LOCAL-ONLY** — gitignored, following the `.giti/remotes.json` precedent. An append-only log is the worst thing to track: every collaborator appends to the same tail, so every merge would conflict *on the log itself* — precisely the pointless-conflict class giti exists to remove. Verified: log written locally, invisible to `giti status`, still readable via `giti status --merge-log`. A test asserts the ignore rule so it can't be 'helpfully' removed.
 
 ### Cleanup (post-split)
 - [ ][ ] Non-compliance audit — *(S19 dogfood re-verify covered compiled-artifact currency: all sources compile clean on current HEAD, UI paints 7/7. A doc-vs-spec non-compliance pass is still open.)*

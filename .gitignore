@@ -8,6 +8,16 @@ dist/
 # giti: per-machine remote config (names + URLs + scope); never push.
 .giti/remotes.json
 
+# giti: merge audit log (spec §4.3.4) — local-only, per-machine.
+# It records what the AST merger auto-resolved or refused, for review via
+# `giti status --merge-log`. Deliberately NOT tracked: it is an append-only
+# log, so every collaborator would append to the same tail and every merge
+# would conflict ON THE LOG ITSELF — precisely the class of pointless
+# conflict giti exists to remove. The reviewable record is local to the
+# machine that performed the merge, which is also the machine that has to
+# act on it.
+.giti/merge-log.json
+
 # Note: .giti/private (the path manifest) is intentionally NOT ignored.
 # It rides the _private bookmark per spec §12.2. The save-routing in
 # src/private/save-routing.js ensures saves that only touch this file go

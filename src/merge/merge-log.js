@@ -18,6 +18,12 @@
  *
  * Store: `.giti/merge-log.json`, alongside `.giti/private` and
  * `.giti/remotes.json`.
+ *
+ * LOCAL-ONLY, and gitignored (operator decision, S20). An append-only log is
+ * the worst possible thing to track: every collaborator appends to the same
+ * tail, so every merge conflicts ON THE LOG ITSELF — exactly the pointless
+ * conflict class giti exists to remove. The record stays on the machine that
+ * performed the merge, which is the machine that has to act on it.
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";

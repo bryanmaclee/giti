@@ -28,6 +28,13 @@ afterEach(() => { try { rmSync(repo, { recursive: true, force: true }); } catch 
 // ---------------------------------------------------------------------------
 
 describe("merge log", () => {
+  test("is gitignored — an append-only log must never be tracked", () => {
+    // Guard against someone helpfully "fixing" the ignore rule: a tracked
+    // append-only log makes every collaborator conflict on the log itself.
+    const ignore = readFileSync(join(import.meta.dir, "..", ".gitignore"), "utf8");
+    expect(ignore).toContain(MERGE_LOG_PATH);
+  });
+
   test("a missing log reads as empty", () => {
     const log = readMergeLog(repo);
     expect(log.entries).toEqual([]);
