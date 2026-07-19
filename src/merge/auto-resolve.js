@@ -16,6 +16,7 @@ import { join } from "node:path";
 
 import { ok, err } from "../lib/result.js";
 import { mergeScrmlFile, validateMergedFile, isAccepted, VERDICT } from "./scrml-merge.js";
+import { getMergeContext, getConflictSides, hasConflictMarkers } from "./sides.js";
 import { appendMergeLog } from "./merge-log.js";
 
 /**
@@ -35,14 +36,10 @@ export async function validateMergeResult(engine, opts = {}) {
   const repoRoot = opts.repoRoot || process.cwd();
   const read = opts.read || ((p) => readFileSync(p, "utf8"));
 
-  const parentsRes = await engine.parents("@");
-  if (!parentsRes.ok) return parentsRes;
-  const parents = parentsRes.data || [];
-  if (parents.length !== 2) return ok({ checked: 0, broken: [] });
-
-  const baseRes = await engine.mergeBase(parents[0], parents[1]);
-  if (!baseRes.ok) return baseRes;
-  const baseRev = baseRes.data;
+  const ctxRes = await getMergeContext(engine);
+  if (!ctxRes.ok) return ctxRes;
+  if (!ctxRes.data.isMerge) return ok({ checked: 0, broken: [] });
+  const baseRev = ctxRes.data.baseRev;
 
   const changedRes = await engine.changedFilesInRange(`${baseRev}::@`);
   if (!changedRes.ok) return changedRes;
@@ -64,6 +61,10 @@ export async function validateMergeResult(engine, opts = {}) {
 
     let mergedContent;
     try { mergedContent = read(abs); } catch { continue; }
+
+    // Still-conflicted in the working copy, or a conflicted base: neither is a
+    // parseable source, so there is nothing meaningful to validate yet.
+    if (hasConflictMarkers(mergedContent) || hasConflictMarkers(baseRead.data)) continue;
 
     const res = validateMergedFile({
       base: baseRead.data, merged: mergedContent, path, deps: opts.deps,
@@ -129,39 +130,30 @@ export async function autoResolveConflicts(engine, opts = {}) {
   if (scrmlFiles.length === 0) return ok({ ...empty, skipped });
 
   // Recover the two sides + their common ancestor.
-  const parentsRes = await engine.parents("@");
-  if (!parentsRes.ok) return parentsRes;
-  const parents = parentsRes.data || [];
-  if (parents.length !== 2) {
+  const ctxRes = await getMergeContext(engine);
+  if (!ctxRes.ok) return ctxRes;
+  if (!ctxRes.data.isMerge) {
     // Octopus merges and non-merge conflicted states are out of scope; leaving
     // them to the human is correct, not a failure.
     return ok({ ...empty, skipped: all });
   }
-  const [revA, revB] = parents;
-
-  const baseRes = await engine.mergeBase(revA, revB);
-  if (!baseRes.ok) return baseRes;
-  const baseRev = baseRes.data;
+  const ctx = ctxRes.data;
 
   const resolved = [];
   const unresolved = [];
 
   for (const path of scrmlFiles) {
-    const sides = {};
-    let readFailed = null;
-    for (const [k, rev] of [["base", baseRev], ["sideA", revA], ["sideB", revB]]) {
-      const r = await engine.fileAt(rev, path);
-      if (!r.ok) { readFailed = r.error; break; }
-      sides[k] = r.data;
-    }
-    if (readFailed) {
-      // A file added on one side has no base revision — not mergeable at the
-      // entity level, and not an error worth aborting the whole pass for.
-      unresolved.push({ path, verdict: VERDICT.STRUCTURAL_CONFLICT, reason: readFailed });
+    const sidesRes = await getConflictSides(engine, path, ctx);
+    if (!sidesRes.ok) {
+      // A file added on one side has no base revision; a side may itself be
+      // unresolved. Neither is mergeable at the entity level, and neither is
+      // worth aborting the whole pass for.
+      unresolved.push({ path, verdict: VERDICT.STRUCTURAL_CONFLICT, reason: sidesRes.error });
       continue;
     }
+    const { base, ours, theirs } = sidesRes.data;
 
-    const res = mergeScrmlFile({ ...sides, path, deps: opts.deps });
+    const res = mergeScrmlFile({ base, sideA: ours, sideB: theirs, path, deps: opts.deps });
     if (!res.ok) {
       unresolved.push({ path, verdict: VERDICT.STRUCTURAL_CONFLICT, reason: res.error });
       continue;

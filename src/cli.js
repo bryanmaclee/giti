@@ -12,6 +12,7 @@
 import { save } from "./commands/save.js";
 import { switch_ } from "./commands/switch.js";
 import { merge } from "./commands/merge.js";
+import { resolve } from "./commands/resolve.js";
 import { undo } from "./commands/undo.js";
 import { history } from "./commands/history.js";
 import { init } from "./commands/init.js";
@@ -34,6 +35,7 @@ const COMMANDS = {
   init,
   land,
   status,
+  resolve,
   describe,
   sync,
   serve,
@@ -56,6 +58,7 @@ Commands:
                           Dry-run validation (compiler + tests, no landing)
   giti status             Show what's changed
   giti status --merge-log Review auto-resolved merges
+  giti resolve [file]     Inspect conflicts; --accept-ours|--accept-theirs|--keep-both
   giti describe <h> msg   Update a save's description
   giti sync               Push and pull remote changes
   giti init               Initialize a new giti repository
