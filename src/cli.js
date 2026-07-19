@@ -55,6 +55,7 @@ Commands:
   giti check [--quick|--diff]
                           Dry-run validation (compiler + tests, no landing)
   giti status             Show what's changed
+  giti status --merge-log Review auto-resolved merges
   giti describe <h> msg   Update a save's description
   giti sync               Push and pull remote changes
   giti init               Initialize a new giti repository

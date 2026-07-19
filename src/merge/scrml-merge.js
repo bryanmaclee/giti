@@ -242,6 +242,58 @@ export function structuralMerge(src, blocks) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Validate an ALREADY-MERGED file against its base — the §4.4 v3 gate on its own.
+ *
+ * This is the case that matters most in practice and the easiest to miss: when
+ * two sides edit DISJOINT regions, jj and git auto-merge with no conflict at
+ * all, and hand you a file neither side would have produced. If those regions
+ * interact — a rename on one side, a use of the old name on the other — the
+ * result does not compile, and nothing in a textual VCS can tell you.
+ *
+ * So this runs on every merged .scrml file, conflict or not. Gating it on
+ * conflict markers would skip exactly the silent-breakage class it exists for.
+ *
+ * @returns {{ ok: true, data: { verdict, diagnostics, reason? } } | { ok: false, error }}
+ */
+export function validateMergedFile({ base, merged, path, deps }) {
+  const d = deps || {};
+
+  let compilerPath = d.compilerPath;
+  if (!compilerPath) {
+    const resolved = resolveCompilerPath();
+    if (!resolved.ok) return err(`merge validation needs the scrml compiler: ${resolved.error}`);
+    compilerPath = resolved.path;
+  }
+
+  const work = mkdtempSync(join(tmpdir(), "giti-validate-"));
+  try {
+    const baseFile = join(work, "base.scrml");
+    const mFile = join(work, "merged.scrml");
+    writeFileSync(baseFile, base);
+    writeFileSync(mFile, merged);
+
+    const sd = semdiff(compilerPath, baseFile, mFile, d.spawnSync);
+    const added = sd.json?.diagnostics?.added ?? [];
+
+    if (added.length > 0) {
+      return ok({
+        verdict: VERDICT.SEMANTIC_CONFLICT,
+        diagnostics: added,
+        reason: `the merge introduced ${added.length} error(s) neither side had`,
+      });
+    }
+    return ok({
+      verdict: sd.json?.verdict === "cosmetic" ? VERDICT.CLEAN : VERDICT.ACCEPT_WITH_REVIEW,
+      diagnostics: [],
+    });
+  } catch (e) {
+    return err(`merge validation failed${path ? ` for ${path}` : ""}: ${e.message}`);
+  } finally {
+    try { rmSync(work, { recursive: true, force: true }); } catch { /* best effort */ }
+  }
+}
+
+/**
  * Merge one conflicted .scrml file from its three whole-file sides.
  *
  * Inputs are CONTENT, not paths — they come from `engine.fileAt()`, since jj

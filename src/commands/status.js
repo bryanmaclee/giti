@@ -20,6 +20,15 @@ import { formatStatus } from "../lib/format-status.js";
 export { formatStatus };
 
 export async function status(args) {
+  // --merge-log: the §4.3.4 review surface for auto-resolved merges. Reads a
+  // local record only, so it works without touching the engine.
+  if ((args || []).includes("--merge-log")) {
+    const { readMergeLog, formatMergeLog } = await import("../merge/merge-log.js");
+    const log = readMergeLog(process.cwd());
+    process.stdout.write(formatMergeLog(log.entries) + "\n");
+    return;
+  }
+
   const engine = getEngine();
   const result = await engine.status();
 
