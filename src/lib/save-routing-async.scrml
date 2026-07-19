@@ -2,29 +2,35 @@
 // save-routing.js. S10 slice 17 dogfood.
 //
 // New surface tested:
-//   - async function in library mode
+//   - colorless async in library mode (S20): plain `function` reaching a
+//     Promise primitive; the compiler infers the color and emits the JS
+//     host's `async`/`await`
 //   - Default parameter value `target = "@-"`
-//   - Multi-step await chain
+//   - Multi-step Promise chain with no source-level `await`
 //   - typeof check on engine method (for back-compat with legacy engines)
 
 ${
     import { PUBLIC_BOOKMARK, PRIVATE_BOOKMARK } from "./bookmarks.js"
+    import { safeCallAsync } from "scrml:host"
 
     // advanceBookmarks — point each bookmark at `target` (default "@-").
     // Non-fatal: a single bookmark failing doesn't stop the rest.
     //
-    // NOTE: per §13.1 scrml prefers no `async` in user source — the
-    // compiler auto-awaits statically-known Promise<T> callees. We keep
-    // `async`/`await` here because `engine` is an arbitrary JS-host
-    // object with no scrml type info, so the compiler cannot prove its
-    // methods return Promises. Emits I-ASYNC-USER-SOURCE info warning.
-    // A future port could refactor to `safeCallAsync` from scrml:host +
-    // `!{ }` failable arms to fully adopt the values-not-exceptions idiom.
-    export async function advanceBookmarks(engine, bookmarks, target) {
+    // S20 (GITI-037 closed, scrml 1c577da5): this module used to carry
+    // explicit `async`/`await` because `engine` is an arbitrary JS-host
+    // object with no scrml type info, so the compiler could not prove its
+    // methods return Promises. Colorless-async Seam-A now infers async-ness
+    // across fn boundaries from the `safeCallAsync` host primitive, so the
+    // source is plain and synchronous-looking; the compiler carries the
+    // color. The `::Thrown` arm also coerces a host throw into the engine's
+    // own `{ ok, error }` result shape, so downstream readers are unchanged.
+    export function advanceBookmarks(engine, bookmarks, target) {
         const where = target is some ? target : "@-"
         const results = []
         for (const name of bookmarks) {
-            const r = await engine.setBookmark(name, where)
+            const r = safeCallAsync(() => engine.setBookmark(name, where)) !{
+                | ::Thrown(msg) :> ({ ok: false, error: msg })
+            }
             results.push({ name, ok: r.ok, error: r.ok ? not : r.error })
         }
         return results
@@ -38,8 +44,8 @@ ${
     //   2. redescribe @              → private message on the remainder
     //   3. jj new                    → fresh WC above the private commit
     //   4. advance bookmarks         → main → @--, _private → @-
-    // See §13.1 note on advanceBookmarks above re: explicit async/await.
-    export async function autoSplitSave(engine, plan) {
+    // See the colorless-async note on advanceBookmarks above.
+    export function autoSplitSave(engine, plan) {
         const publicPaths = plan.publicFiles.map(f => f.path)
         if (publicPaths.length == 0) {
             return { ok: false, stage: "precondition", error: "no public paths to split" }
@@ -50,17 +56,21 @@ ${
         }
 
         // 1. Split out the public subset.
-        const splitResult = await engine.split({
+        const splitResult = safeCallAsync(() => engine.split({
             paths: publicPaths,
             message: plan.publicMessage,
-        })
+        })) !{
+            | ::Thrown(msg) :> ({ ok: false, error: msg })
+        }
         if (!splitResult.ok) {
             return { ok: false, stage: "split", error: splitResult.error }
         }
 
         // 2. Redescribe the remainder with the private message.
         if (typeof engine._rawDescribe == "function") {
-            const descResult = await engine._rawDescribe("@", plan.privateMessage)
+            const descResult = safeCallAsync(() => engine._rawDescribe("@", plan.privateMessage)) !{
+                | ::Thrown(msg) :> ({ ok: false, error: msg })
+            }
             if (!descResult.ok) {
                 return { ok: false, stage: "describe", error: descResult.error }
             }
@@ -68,7 +78,9 @@ ${
 
         // 3. Fresh WC above the private commit.
         if (typeof engine.newChange == "function") {
-            const newResult = await engine.newChange()
+            const newResult = safeCallAsync(() => engine.newChange()) !{
+                | ::Thrown(msg) :> ({ ok: false, error: msg })
+            }
             if (!newResult.ok) {
                 return { ok: false, stage: "new", error: newResult.error }
             }
@@ -76,13 +88,17 @@ ${
 
         // 4. Advance bookmarks.
         const bookmarkMoves = []
-        const mainMove = await engine.setBookmark(PUBLIC_BOOKMARK, "@--")
+        const mainMove = safeCallAsync(() => engine.setBookmark(PUBLIC_BOOKMARK, "@--")) !{
+            | ::Thrown(msg) :> ({ ok: false, error: msg })
+        }
         bookmarkMoves.push({
             name: PUBLIC_BOOKMARK,
             ok: mainMove.ok,
             error: mainMove.ok ? not : mainMove.error,
         })
-        const privMove = await engine.setBookmark(PRIVATE_BOOKMARK, "@-")
+        const privMove = safeCallAsync(() => engine.setBookmark(PRIVATE_BOOKMARK, "@-")) !{
+            | ::Thrown(msg) :> ({ ok: false, error: msg })
+        }
         bookmarkMoves.push({
             name: PRIVATE_BOOKMARK,
             ok: privMove.ok,
