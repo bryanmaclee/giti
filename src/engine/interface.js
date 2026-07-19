@@ -109,4 +109,32 @@ export class EngineInterface {
    * Returns { ok: true, data: string[] } — repo-relative paths, sorted.
    */
   async files() { throw new Error("not implemented"); }
+
+  /**
+   * Detect conflicts in the working copy.
+   * Returns { ok: true, data: { hasConflicts: boolean, files: string[] } }.
+   */
+  async conflicts() { throw new Error("not implemented"); }
+
+  /**
+   * Read a file's full content at a revision. Verbatim (not trimmed).
+   * Returns { ok: true, data: string }.
+   *
+   * The AST-merge layer (§4.3) uses this to obtain clean, whole-file
+   * base/sideA/sideB inputs for a conflicted path.
+   */
+  async fileAt(rev, path) { throw new Error("not implemented"); }
+
+  /**
+   * Merge base (common ancestor) of two revisions.
+   * Returns { ok: true, data: string }.
+   */
+  async mergeBase(revA, revB) { throw new Error("not implemented"); }
+
+  /**
+   * Parent revisions of `rev` (defaults to the working copy).
+   * A conflicted merge commit has two or more.
+   * Returns { ok: true, data: string[] }.
+   */
+  async parents(rev) { throw new Error("not implemented"); }
 }

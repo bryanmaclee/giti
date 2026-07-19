@@ -479,25 +479,39 @@ describe("status", () => {
 // ---------------------------------------------------------------------------
 
 describe("conflicts", () => {
-  test("detects conflicted files from status output", async () => {
-    const statusOutput = [
-      "Working copy : abc123",
-      "C src/main.js",
-      "C src/utils.js",
-      "M src/clean.js",
+  // NOTE (S20): these mocks now carry REAL `jj resolve --list` output, captured
+  // from jj 0.41. The previous mocks encoded a `C <path>` status format jj does
+  // not emit — the unit test passed while `files` was always empty against real
+  // jj (mock drift). The integration test in jj-integration.test.js pins the
+  // format against an actual conflicted repo so this can't silently drift again.
+  test("detects conflicted files from `jj resolve --list`", async () => {
+    const listOutput = [
+      "src/main.scrml    2-sided conflict",
+      "src/utils.js    2-sided conflict",
     ].join("\n");
 
-    const spawn = mockSpawn([{ stdout: statusOutput, exitCode: 0 }]);
+    const spawn = mockSpawn([{ stdout: listOutput, exitCode: 0 }]);
     const engine = new JjCliEngine("/tmp/test", { spawn });
     const result = await engine.conflicts();
     expect(result.ok).toBe(true);
     expect(result.data.hasConflicts).toBe(true);
-    expect(result.data.files).toEqual(["src/main.js", "src/utils.js"]);
+    expect(result.data.files).toEqual(["src/main.scrml", "src/utils.js"]);
   });
 
-  test("returns no conflicts when clean", async () => {
-    const statusOutput = "Working copy : abc123\nM src/main.js";
-    const spawn = mockSpawn([{ stdout: statusOutput, exitCode: 0 }]);
+  test("handles a path containing spaces", async () => {
+    const spawn = mockSpawn([
+      { stdout: "src/my notes/a b.scrml    2-sided conflict", exitCode: 0 },
+    ]);
+    const engine = new JjCliEngine("/tmp/test", { spawn });
+    const result = await engine.conflicts();
+    expect(result.ok).toBe(true);
+    expect(result.data.files).toEqual(["src/my notes/a b.scrml"]);
+  });
+
+  test("treats `No conflicts found` (non-zero exit) as the clean case", async () => {
+    const spawn = mockSpawn([
+      { stderr: "Error: No conflicts found at this revision", exitCode: 1 },
+    ]);
     const engine = new JjCliEngine("/tmp/test", { spawn });
     const result = await engine.conflicts();
     expect(result.ok).toBe(true);
@@ -505,23 +519,76 @@ describe("conflicts", () => {
     expect(result.data.files).toEqual([]);
   });
 
-  test("detects conflict from message even without file markers", async () => {
-    const statusOutput = "There are unresolved conflicts in the working copy.";
-    const spawn = mockSpawn([{ stdout: statusOutput, exitCode: 0 }]);
-    const engine = new JjCliEngine("/tmp/test", { spawn });
-    const result = await engine.conflicts();
-    expect(result.ok).toBe(true);
-    expect(result.data.hasConflicts).toBe(true);
-    expect(result.data.files).toEqual([]); // message but no parsed files
-  });
-
-  test("propagates error from jj status", async () => {
+  test("propagates a genuine jj error", async () => {
     const spawn = mockSpawn([
       { stderr: "not a jj repo", exitCode: 1 },
     ]);
     const engine = new JjCliEngine("/tmp/test", { spawn });
     const result = await engine.conflicts();
     expect(result.ok).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AST-merge input primitives (§4.3) — fileAt / mergeBase / parents
+// ---------------------------------------------------------------------------
+
+describe("fileAt", () => {
+  test("returns file content at a revision VERBATIM (trailing newline kept)", async () => {
+    const spawn = mockSpawn([{ stdout: "line1\nline2\n", exitCode: 0 }]);
+    const engine = new JjCliEngine("/tmp/test", { spawn });
+    const result = await engine.fileAt("abc123", "src/a.scrml");
+    expect(result.ok).toBe(true);
+    // Trimming here would be a silent one-byte diff in every merge input.
+    expect(result.data).toBe("line1\nline2\n");
+  });
+
+  test("requires a revision and a path", async () => {
+    const engine = new JjCliEngine("/tmp/test", { spawn: mockSpawn([]) });
+    expect((await engine.fileAt("", "a.scrml")).ok).toBe(false);
+    expect((await engine.fileAt("abc", "")).ok).toBe(false);
+  });
+});
+
+describe("mergeBase", () => {
+  test("returns the common ancestor change id", async () => {
+    const spawn = mockSpawn([{ stdout: "vopoksnmvrys\n", exitCode: 0 }]);
+    const engine = new JjCliEngine("/tmp/test", { spawn });
+    const result = await engine.mergeBase("umtvlqwwsolk", "qxyxuqppqoxm");
+    expect(result.ok).toBe(true);
+    expect(result.data).toBe("vopoksnmvrys");
+  });
+
+  test("errors when there is no common ancestor", async () => {
+    const spawn = mockSpawn([{ stdout: "", exitCode: 0 }]);
+    const engine = new JjCliEngine("/tmp/test", { spawn });
+    const result = await engine.mergeBase("a", "b");
+    expect(result.ok).toBe(false);
+  });
+
+  test("requires two revisions", async () => {
+    const engine = new JjCliEngine("/tmp/test", { spawn: mockSpawn([]) });
+    expect((await engine.mergeBase("a")).ok).toBe(false);
+  });
+});
+
+describe("parents", () => {
+  test("returns both parents of a conflicted merge", async () => {
+    const spawn = mockSpawn([
+      { stdout: "qxyxuqppqoxm\numtvlqwwsolk\n", exitCode: 0 },
+    ]);
+    const engine = new JjCliEngine("/tmp/test", { spawn });
+    const result = await engine.parents("@");
+    expect(result.ok).toBe(true);
+    expect(result.data).toEqual(["qxyxuqppqoxm", "umtvlqwwsolk"]);
+  });
+
+  test("defaults to the working copy", async () => {
+    const spawn = mockSpawn([{ stdout: "abc123\n", exitCode: 0 }]);
+    const engine = new JjCliEngine("/tmp/test", { spawn });
+    const result = await engine.parents();
+    expect(result.ok).toBe(true);
+    expect(result.data).toEqual(["abc123"]);
   });
 });
 

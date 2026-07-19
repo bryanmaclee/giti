@@ -31,8 +31,16 @@ import { ok, err } from "../lib/result.js";
  * @param {string} cwd - working directory
  * @param {function} spawn - Bun.spawn or injectable mock
  */
-async function run(args, cwd, spawn) {
+async function run(args, cwd, spawn, opts) {
   const spawnFn = spawn || Bun.spawn;
+  // `raw: true` returns stdout verbatim. Every other caller wants the trimmed
+  // form; file content does not (a dropped trailing newline is a real diff).
+  const raw = opts && opts.raw;
+  // `rawError: true` returns jj's stderr untransformed. friendlyError() is a
+  // PRESENTATION concern — a caller that needs to CLASSIFY an error must read
+  // the original text, or it ends up matching on prose that may not preserve
+  // the original meaning.
+  const rawError = opts && opts.rawError;
   try {
     const proc = spawnFn(["jj", ...args], {
       cwd: cwd || process.cwd(),
@@ -43,9 +51,9 @@ async function run(args, cwd, spawn) {
     const stderr = await new Response(proc.stderr).text();
     const exitCode = await proc.exited;
     if (exitCode !== 0) {
-      return err(friendlyError(stderr));
+      return err(rawError ? stderr.trim() : friendlyError(stderr));
     }
-    return ok(stdout.trim());
+    return ok(raw ? stdout : stdout.trim());
   } catch (e) {
     if (e.code === "ENOENT") {
       return err(
@@ -183,31 +191,102 @@ export class JjCliEngine extends EngineInterface {
 
   /**
    * Detect conflicts in the working copy.
-   * Parses `jj status` output for conflict markers.
+   *
+   * Uses `jj resolve --list`, which emits one line per conflicted path:
+   *   `path/to/file.scrml    2-sided conflict`
+   * and exits non-zero with "No conflicts found" when the tree is clean.
+   *
+   * S20: this previously parsed `jj status` for a `C <path>` file prefix.
+   * jj 0.41 does not emit that — it prints conflicted paths under a
+   * `Warning: There are unresolved conflicts at these paths:` header with no
+   * status letter. The result was that `files` was ALWAYS empty against real
+   * jj while `hasConflicts` stayed true (rescued by the message regex), so
+   * giti could tell THAT a conflict existed but never WHICH file. The unit
+   * test passed because its mock encoded the `C ` format jj doesn't produce
+   * (mock drift); the integration test only covered the clean case.
+   *
    * @returns {{ ok: true, data: { hasConflicts: boolean, files: string[] } } | { ok: false, error: string }}
    */
   async conflicts() {
-    const result = await this._run(["status"]);
-    if (!result.ok) return result;
+    // rawError: we must classify "No conflicts found" vs a genuine failure on
+    // jj's own text, not on the friendly rewrite of it.
+    const result = await run(
+      ["resolve", "--list"], this.repoPath, this._spawn, { rawError: true }
+    );
 
-    const raw = result.data;
-    const files = [];
-
-    // jj status shows conflicted files with "C" prefix in the file listing,
-    // or a "There are unresolved conflicts" message
-    for (const line of raw.split("\n")) {
-      // Lines like: "C path/to/file.txt" indicate conflicts
-      const conflictMatch = line.match(/^C\s+(.+)$/);
-      if (conflictMatch) {
-        files.push(conflictMatch[1].trim());
+    // `jj resolve --list` exits non-zero when there is nothing to resolve.
+    // That is the clean case, not a failure.
+    if (!result.ok) {
+      if (/no conflicts?\b/i.test(result.error || "")) {
+        return ok({ hasConflicts: false, files: [] });
       }
+      // Genuine failure — present it in the friendly register.
+      return err(friendlyError(result.error || ""));
     }
 
-    // Also check for the explicit conflict message
-    const hasConflictMessage = /unresolved conflict/i.test(raw);
-    const hasConflicts = files.length > 0 || hasConflictMessage;
+    const files = [];
+    for (const line of (result.data || "").split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) continue;
+      // "path/to/file.scrml    2-sided conflict" — path is everything up to
+      // the run of whitespace preceding the trailing "N-sided conflict"
+      // descriptor. Paths may contain single spaces, so anchor on the tail.
+      const m = trimmed.match(/^(.*?)\s{2,}\d+-sided conflict$/);
+      files.push(m ? m[1].trim() : trimmed);
+    }
 
-    return ok({ hasConflicts, files });
+    return ok({ hasConflicts: files.length > 0, files });
+  }
+
+  /**
+   * Read a file's full content at a specific revision.
+   *
+   * This is how the AST-merge driver obtains clean base/sideA/sideB inputs:
+   * jj materializes conflicts in the working copy as a human-facing marker
+   * format, but the entity-level merger needs three WHOLE parseable files.
+   * Fetching by revision sidesteps parsing that display format entirely.
+   *
+   * @param {string} rev - revision / change id
+   * @param {string} path - repo-relative file path
+   * @returns {{ ok: true, data: string } | { ok: false, error: string }}
+   */
+  async fileAt(rev, path) {
+    if (!rev) return err("fileAt: a revision is required");
+    if (!path) return err("fileAt: a file path is required");
+    // raw: file content is returned verbatim, trailing newline included.
+    return run(["file", "show", "-r", rev, path], this.repoPath, this._spawn, { raw: true });
+  }
+
+  /**
+   * Find the merge base (common ancestor) of two revisions.
+   * @returns {{ ok: true, data: string } | { ok: false, error: string }}
+   */
+  async mergeBase(revA, revB) {
+    if (!revA || !revB) return err("mergeBase: two revisions are required");
+    const result = await this._run([
+      "log", "--no-graph", "-T", 'change_id.short() ++ "\n"',
+      "-r", `heads(::${revA} & ::${revB})`,
+    ]);
+    if (!result.ok) return result;
+    const first = (result.data || "").split("\n").map((l) => l.trim()).filter(Boolean)[0];
+    if (!first) return err(`no common ancestor between ${revA} and ${revB}`);
+    return ok(first);
+  }
+
+  /**
+   * List the parent revisions of `rev` (defaults to the working copy).
+   * A conflicted merge commit has two or more.
+   * @returns {{ ok: true, data: string[] } | { ok: false, error: string }}
+   */
+  async parents(rev) {
+    const target = rev || "@";
+    const result = await this._run([
+      "log", "--no-graph", "-T", 'change_id.short() ++ "\n"',
+      "-r", `${target}-`,
+    ]);
+    if (!result.ok) return result;
+    const revs = (result.data || "").split("\n").map((l) => l.trim()).filter(Boolean);
+    return ok(revs);
   }
 
   /**

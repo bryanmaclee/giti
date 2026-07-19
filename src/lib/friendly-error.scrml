@@ -24,7 +24,11 @@ ${
         }
 
         // Conflict during rebase/merge.
-        if (/conflict/i.test(raw) && !/resolved/i.test(raw)) {
+        // The `no conflicts` guard matters: jj's `resolve --list` reports
+        // "No conflicts found at this revision" on a CLEAN tree, which matches
+        // /conflict/i and would otherwise be rewritten into its own opposite
+        // ("Merge conflict detected"). Found S20 wiring the AST-merge layer.
+        if (/conflict/i.test(raw) && !/resolved/i.test(raw) && !/no conflicts?\b/i.test(raw)) {
             return "Merge conflict detected. Run 'giti status' to see conflicted files, then resolve them and save again."
         }
 
