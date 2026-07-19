@@ -11,8 +11,8 @@
 ## A. CLI
 
 **Entry:** `src/cli.js`, bin name: `giti`
-**Commands:** 15 (save, switch, merge, undo, history, status, land, init, describe, sync, serve, private, remote, link-private, **check**)
-**Tests:** 375 pass / 0 fail / 0 skip (14 test files). jj 0.41 installed + colocated.
+**Commands:** 16 (save, switch, merge, undo, history, status, land, init, describe, sync, serve, private, remote, link-private, check, **resolve**)
+**Tests:** 441 pass / 0 fail / 0 skip (17 test files). jj 0.41 installed + colocated.
 **Engine:** jj-cli wrapper (jj 0.41)
 **Engine:** jj-lib 0.40 wrapper
 
@@ -569,7 +569,24 @@ The design fork deferred twice (S18, S19) was opened and resolved: **productize 
 
 **Verified end-to-end** (real jj 0.41 + real compiler `1c577da5`): DANGLING → refused with `E-TYPE-063`, exit 1 · CLEAN → accepted, exit 0, merged file compiles (**no false positive**) · `status --merge-log` renders · plain `status` unaffected. **Tests 375 → 421** across 16 files.
 
-**Open / next:** `giti resolve` (spec:1201-1203 — `[file]`, `--accept-ours`, `--accept-theirs`) is still **unbuilt**; it would be command #16. Tree-sitter for non-`.scrml` (§4.3.2) unbuilt — non-`.scrml` conflicts stay on the text fallback (§4.3.3). Open question: whether `.giti/merge-log.json` should be tracked (it currently shows as an unsaved change) or local-only — tracking an append-only log invites conflicts *on the log itself*.
+**Open / next:** ~~`giti resolve` unbuilt~~ → **BUILT, see S20c below.** Tree-sitter for non-`.scrml` (§4.3.2) unbuilt — non-`.scrml` conflicts stay on the text fallback (§4.3.3). Open question: whether `.giti/merge-log.json` should be tracked (it currently shows as an unsaved change) or local-only — tracking an append-only log invites conflicts *on the log itself*.
+
+### S20c — `giti resolve` SHIPPED: command #16 (2026-07-19, `a9f8107`)
+
+`giti resolve [file] [--accept-ours | --accept-theirs | --keep-both]`. **CLI is now 16 commands.**
+
+- **Default = read-only inspection**, rendering each conflict in the **§4.1.3 structured format** (base / your changes as a *diff* / their content in *full*) — explicitly **not** git's `<<<<<<<` markers, which §4.1.3 calls "strictly more informative than git's markers". Non-destructive by default because §4.1.5 is explicit that conflicts are resolvable at any time with no gate. Output mirrors the §4.1 worked example including the numbered Options block.
+- **`--accept-ours` / `--accept-theirs`** — spec §9.5 verbatim.
+- **`--keep-both`** — the CLI rendering of the §4.1 worked example's option **[1] "Keep both"**, and the one a text VCS cannot offer: entity-level merge + the §4.4-v3 gate, refusing if combining the sides would introduce type errors neither side had. *(The spec's option [1] and giti's AST merger are the same thing — a nice confirmation the §4.3/§4.4 design and the §4.1 UX were pointed at the same target.)*
+- Shared side-recovery extracted to `src/merge/sides.js`; `giti merge` refactored onto it, so both paths have identical semantics.
+
+**ROBUSTNESS BUG found by runtime verify (second time this session):** a side revision can **itself be conflicted** — §4.1.1 explicitly permits working *and merging* on top of an unresolved conflict, so this is a normal state, not a broken repo. `fileAt` then returns jj's **materialized** marker content, which was being handed straight to the compiler; the user saw an unrelated `'</program>' tries to close '<conflict>'` tag error. Now detected (`hasConflictMarkers`, anchored on `^<<<<<<< conflict` so ordinary source can't trip it) and reported as *"the 'ours' side (rev) is itself unresolved — resolve that conflict first, then merge again."*
+
+**Verified end-to-end** (real jj 0.41 + compiler `1c577da5`): inspection renders §4.1.3 with no git markers · `--accept-ours`/`--accept-theirs` both write the chosen side and **clear jj's conflict** · `--keep-both` correctly **refuses** when both sides edit the same *glue* region (sound-conservative — the value-binding line is glue, not a type entity; not a false accept) · conflicted-parent case gives the actionable message · bad flags / unknown option / non-conflicted file all exit 1 with guidance. Separately confirmed the **§4.3 headline case**: two sides adding *different fields to the same struct* auto-merge at merge time to `{ label, variant, size }` and compile — "two developers adding different fields to the same state type will no longer produce a conflict" (§4.3), demonstrated.
+
+**Tests 421 → 441** (17 files). Session total **375 → 441**.
+
+**Still open:** tree-sitter for non-`.scrml` (§4.3.2) unbuilt — those conflicts stay on the text fallback (§4.3.3). `giti resolve` is non-interactive by design (no TUI); the spec's "[4] Edit manually" is a pointer, not a prompt. Open question: whether `.giti/merge-log.json` should be tracked or local-only — tracking an append-only log invites conflicts *on the log itself*; PA leans local-only, operator call.
 
 ### Cleanup (post-split)
 - [ ][ ] Non-compliance audit — *(S19 dogfood re-verify covered compiled-artifact currency: all sources compile clean on current HEAD, UI paints 7/7. A doc-vs-spec non-compliance pass is still open.)*
