@@ -1,0 +1,79 @@
+// repro-35 — GITI-038: `safeCallAsync` inside a RETURNED function expression
+// silently drops the return value (Bug-51 class: exit-0, node --check clean).
+//
+// Compiler at repro time: scrml `1c577da5` (colorless-async Seam-A Phase 1, PR #108)
+// Mode: --mode library
+// Filed from: giti S20, 2026-07-19
+//
+// ---------------------------------------------------------------------------
+// FAILING CASE — composeFail
+// ---------------------------------------------------------------------------
+// A factory that returns a named function expression whose body contains a
+// `safeCallAsync(...) !{}` failable.
+//
+// EXPECTED emit:
+//     export function composeFail(handlers) {
+//       return async function dispatch(req) { ... await safeCallAsync(...) ... }
+//     }
+//
+// ACTUAL emit (verbatim, 1c577da5):
+//     export async function composeFail(handlers) {
+//       return;                                   // <-- return value DROPPED
+//       async function dispatch(req) { ... }      // <-- orphaned, unreachable
+//     }
+//
+// Two distinct defects:
+//   (1) the returned function expression is hoisted to a declaration and the
+//       `return` is emptied  -> the factory returns undefined;
+//   (2) the async color over-propagates to the OUTER factory, which awaits
+//       nothing -> its return type becomes Promise<undefined>, so even a
+//       corrected return would need an await the call site cannot know about.
+//
+// RUNTIME (proven):  composeFail([...])           -> Promise { undefined }
+//                    await composeFail([...])     -> undefined
+//                    calling the result           -> TypeError: not a function
+//
+// NOTE ON THE FAIL-CLOSED BACKSTOP: the same "closure is not an awaitable
+// position" situation is correctly REJECTED with E-ASYNC-STDLIB-IN-SYNC-CALLBACK
+// when the closure is an arrow (`return (req) => {...}`) or is const-bound
+// (`const d = function(req){...}; return d`). Only the `return function name(){}`
+// form escapes the backstop -- and it miscompiles silently instead of erroring.
+// That is the gap: the no-silent-leak guarantee has a hole in exactly one shape.
+// ---------------------------------------------------------------------------
+
+${
+    import { safeCall, safeCallAsync } from "scrml:host"
+
+    // --- FAILING: async failable inside a returned function expression ---
+    export function composeFail(handlers) {
+        return function dispatch(req) {
+            const r = safeCallAsync(() => handlers[0](req)) !{
+                | ::Thrown(msg) :> ({ __err: msg })
+            }
+            return r
+        }
+    }
+
+    // --- CONTROL A: identical shape with the SYNC primitive -> emits CORRECTLY.
+    // Proves the failable `!{}` lowering is not the trigger; the async color is.
+    export function composeOkSync(handlers) {
+        return function dispatchSync(req) {
+            const r = safeCall(() => handlers[0](req)) !{
+                | ::Thrown(msg) :> ({ __err: msg })
+            }
+            return r
+        }
+    }
+
+    // --- CONTROL B: returned closure with NO host primitive -> emits CORRECTLY
+    // (source passthrough). Proves the return-a-closure shape is not the trigger.
+    // Separately note: the bare `handlers[0](req)` call is NOT awaited and emits
+    // no diagnostic -- an untyped host Promise leaks. Expected under Phase 1
+    // (no primitive to anchor the inference on), recorded here only as context.
+    export function composeOkBare(handlers) {
+        return function dispatchBare(req) {
+            const r = handlers[0](req)
+            return r
+        }
+    }
+}
