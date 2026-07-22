@@ -1,10 +1,10 @@
 # pa.md — giti Primary-Agent contract (READ FIRST)
 
-`pa-giti overlay v1 · 2026-06-22 · base: pa-base v1`
+`pa-giti overlay v2 · 2026-07-22 · base: pa-base v2.3`
 
 > **What this is.** The complete operating contract for the giti Primary Agent (PA). Two layers:
 > - **Layer 1 — shared base doctrine.** Vendored in this repo as [`pa-base.md`](pa-base.md), stamped
->   `pa-base v1`. Project-AGNOSTIC; **do not edit it here** (the master PA at `scrmlMaster/` owns base
+>   `pa-base v2.3`. Project-AGNOSTIC; **do not edit it here** (the master PA at `scrmlMaster/` owns base
 >   sync). **Read `pa-base.md` in full first**, then this overlay.
 > - **Layer 2 + 3 — this overlay.** Fills every `{{slot}}` the base declares with giti's concrete
 >   instantiation (Layer 2), then adds giti-only project content (Layer 3).
@@ -13,14 +13,14 @@
 > complete PA contract. The round-trip invariant: this reproduces the behavior of the pre-vendoring
 > monolithic giti pa.md.
 >
-> **Drift detection.** `pa-base.md` carries the stamp `pa-base v1`. If the master PA bumps the base,
+> **Drift detection.** `pa-base.md` carries the stamp `pa-base v2.3`. If the master PA bumps the base,
 > this repo's copy is stale until re-vendored. One-line check: `grep 'pa-base v' pa-base.md`.
 
 ---
 
 ## SHARED PA-BASE
 
-The base doctrine lives verbatim in [`pa-base.md`](pa-base.md) (`pa-base v1`) — a vendored copy, never
+The base doctrine lives verbatim in [`pa-base.md`](pa-base.md) (`pa-base v2.3`) — a vendored copy, never
 reached for across repos (a `../scrml-support/pa-base.md` reach is the dead-caps-`6NZ/`
 stranded-reference class — REJECTED). Read it first. This overlay below fills its slots.
 
@@ -31,6 +31,22 @@ stranded-reference class — REJECTED). Read it first. This overlay below fills 
 Each heading is a base `{{slot}}`; the fill is giti's concrete instantiation.
 
 ### §1 — Operating contract
+
+**`{{owner_default_slug}}`** (canonical-owner default slug)
+> `bryan` — this contract's content is bryan-authored; identity resolution (`git config user.name` →
+> slug) defaults here when unset/unmatched. giti is single-operator today; a second contributor supplies
+> their own `pa-profile-<slug>.md` + giti repo access (acceptance invariant: an empty `~/.claude/` +
+> repo access = a working PA).
+
+**`{{orchestra_fills}}`** (execution-orchestra roster — partner/finisher stance)
+> giti's orchestra is **lean** — no banked sPA/dPA lineup like scrml's: **PA-direct** for small JS
+> CLI/engine changes · **general-purpose** dispatch (maximal-tools fallback) for larger JS work ·
+> **scrml-writer-class** dispatches for `.scrml` source (`ui/*.scrml`, `src/lib/*.scrml`), always carrying
+> the anti-patterns briefing · **project-mapper** (repo `.claude/maps/`) · **resource-mapper** (cross-repo
+> graph). No dedicated `giti-engineer` yet (forge one if scrml-source work scales — see
+> `{{dev_agent_identity}}`). The PA slots work to the right dispatch class, recovers broken delegations,
+> lands via the §7 file-delta protocol, and decides direction. Banked deep-dive/debate lives with the
+> master PA / scrml-support, not in giti.
 
 **`{{right_vs_easy_canonical_example}}`** (Rule 3 — right beats easy)
 > The **engine** decision (§3.7 gate): the jj-cli wrapper stays the engine until the scrml compiler can
@@ -158,6 +174,14 @@ Each heading is a base `{{slot}}`; the fill is giti's concrete instantiation.
 > changes → PA-direct (small) or general-purpose dispatch (larger). general-purpose is the maximal-tools
 > fallback when no specialist fits.
 
+**`{{investigation_query_fills}}`** (structured-lookup / investigation-query tool)
+> giti has **no dock-equivalent structured def-map tool** (cf. scrml's `bun scripts/dock.ts --units`).
+> "Where does Y live" is answered by `.claude/maps/primary.map.md` (project-mapper nav map; currency-checked
+> HEAD-vs-stamp before each dispatch) + the `giti-spec-v1.md` section structure for spec loci + grep. Hard
+> constraint (dpa-010): these are **NAVIGATION, never the GATE** — a map can be stale or wrong about WHY; the
+> executable gate is `bun test` (371 pass). The PA SHALL NOT land on a map/spec answer without the test-gate
+> passing. (Candidate: stand up a def-map tool if giti's source scales.)
+
 ### §6 — Workspace isolation + path discipline
 
 **`{{workspace_root_fills}}`**
@@ -215,6 +239,15 @@ Each heading is a base `{{slot}}`; the fill is giti's concrete instantiation.
 > The only quality gate today is a manual `bun test` (371). **Recommended:** if/when giti adds a tracked
 > `scripts/git-hooks/pre-commit`, install via `git config core.hooksPath scripts/git-hooks`. The no-bypass
 > (`--no-verify`) rule extends to EVERY blocking gate once one exists. (Tracked as a doc-currency debt below.)
+
+**`{{concurrent_sessions_fills}}`** (concurrent-session board + claims-ledger + main-authority-lock)
+> **N/A — single active session.** giti runs one PA session at a time (single operator, one working tree);
+> no concurrent-session board / claims-ledger / main-authority-lock is instantiated. Landing is
+> **direct-to-`main` on explicit user auth**, PA-direct push (§10 override; the master-PA push-coordination
+> flow was retired 2026-05-30) — no mutex, no PR-flow. Where the base §9 abstract prose reads as a
+> mutex/board-authority model, THIS fill instantiates giti's actual single-writer convention and WINS. If
+> concurrent giti sessions ever arise (e.g. a second contributor), stand up a board + claims-ledger before
+> any parallel writes to `main`.
 
 ### §10 — Cross-repo graph
 
@@ -289,7 +322,7 @@ version-stamped scrml reproducer + expected-vs-actual (inline fenced block or si
 ```
 giti/
 ├── pa.md                    this file (overlay; opens with the vendored base)
-├── pa-base.md               vendored pa-base v1 (do NOT edit here; master PA owns sync)
+├── pa-base.md               vendored pa-base v2.3 (do NOT edit here; master PA owns sync)
 ├── master-list.md           live inventory / dashboard
 ├── hand-off.md              current session state + handOffs/ archive
 ├── giti-spec-v1.md          AUTHORITATIVE giti spec (1,531 lines) — the normative source
